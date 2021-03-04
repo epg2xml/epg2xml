@@ -1,0 +1,36 @@
+name: test providers
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        provider: [kt, lg, sk, daum, naver, wavve, tving]
+        python-version: [3.6, 3.9]
+    steps:
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Display Python version
+      run: python -c "import sys; print(sys.version)"
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install beautifulsoup4 lxml requests
+        sudo apt-get install -y xmltv-util
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Test ${{ matrix.provider }}
+      run: |
+        python -m tests.test_provider ${{ matrix.provider }}
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v2
+      if: failure()
+      with:
+        name: xmltv ${{ matrix.provider }} py ${{ matrix.python-version }}
+        path: xmltv_${{ matrix.provider }}.xml
