@@ -157,6 +157,7 @@ class EPGProvider:
                     req_ch['Id'] = eval("f'{}'".format(self.cfg['ID_FORMAT']), req_ch)
                 except:
                     req_ch['Id'] = f'{req_ch["ServiceId"]}.{req_ch["Source"].lower()}'
+                req_ch['Id'] = escape(req_ch['Id'])
             req_channels.append(EPGChannel(req_ch))
         plog.info(f'요청 {len(my_channels)} - 불가 {len(my_channels)-len(req_channels)} = 최종 {len(req_channels)}')
         self.req_channels = req_channels
