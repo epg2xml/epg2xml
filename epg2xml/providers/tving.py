@@ -65,9 +65,13 @@ class TVING(EPGProvider):
         def get_imgurl(_item):
             priority_img_code = ['CAIC1600', 'CAIC0100', 'CAIC0400']
             for _code in priority_img_code:
-                img_list = [x for x in _item['image'] if x['code'] == _code]
-                if img_list:
-                    return 'https://image.tving.com' + (img_list[0]['url'] if 'url' in img_list[0] else img_list[0]['url2'])
+                try:
+                    img_list = [x for x in _item['image'] if x['code'] == _code]
+                    if img_list:
+                        return 'https://image.tving.com' + (img_list[0]['url'] if 'url' in img_list[0] else img_list[0]['url2'])
+                except:
+                    pass
+            return ''
 
         self.params.update({
             'broadDate': today.strftime('%Y%m%d'),
