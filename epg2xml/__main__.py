@@ -121,7 +121,7 @@ def main():
         log.info('Done.')
         sys.exit(0)
     elif conf.args['cmd'] == 'update_channels':
-        load_channels(providers, conf)
+        load_channels(providers, conf, channeljson=channeljson)
     else:
         log.error("Unknown command.")
         sys.exit(1)
