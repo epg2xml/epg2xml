@@ -322,10 +322,10 @@ class EPGProgram:
                 print('    <credits>')
                 for actor in map(str.strip, self.actors):
                     if actor:
-                        print(f'      <actor>{actor}</actor>')
+                        print(f'      <actor>{escape(actor)}</actor>')
                 for staff in map(str.strip, self.staff):
                     if staff:
-                        print(f'      <producer>{staff}</producer>')
+                        print(f'      <producer>{escape(staff)}</producer>')
                 print('    </credits>')
         if category:
             print(f'    <category lang="kr">{category}</category>')
