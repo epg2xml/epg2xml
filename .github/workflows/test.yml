@@ -3,10 +3,13 @@ name: test providers
 on:
   push:
   pull_request:
+  watch:
+    types: [started]
 
 jobs:
   test:
     runs-on: ubuntu-20.04
+    if: github.event_name != 'watch' || github.actor == github.event.repository.owner.login
     strategy:
       matrix:
         provider: [kt, lg, sk, daum, naver, wavve, tving]
