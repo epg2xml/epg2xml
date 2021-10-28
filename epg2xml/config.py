@@ -27,75 +27,51 @@ class Config:
     __metaclass__ = Singleton
 
     base_config = {
-        'GLOBAL': {
-            'ENABLED': True,
-            'FETCH_LIMIT': 2,
-            'ID_FORMAT': '{ServiceId}.{Source.lower()}',
-            'ADD_REBROADCAST_TO_TITLE': False,
-            'ADD_EPNUM_TO_TITLE': True,
-            'ADD_DESCRIPTION': True,
-            'ADD_XMLTV_NS': False,
-            'GET_MORE_DETAILS': False,
+        "GLOBAL": {
+            "ENABLED": True,
+            "FETCH_LIMIT": 2,
+            "ID_FORMAT": "{ServiceId}.{Source.lower()}",
+            "ADD_REBROADCAST_TO_TITLE": False,
+            "ADD_EPNUM_TO_TITLE": True,
+            "ADD_DESCRIPTION": True,
+            "ADD_XMLTV_NS": False,
+            "GET_MORE_DETAILS": False,
         },
-        'KT': {
-            'MY_CHANNELS': [],
+        "KT": {
+            "MY_CHANNELS": [],
         },
-        'LG': {
-            'MY_CHANNELS': [],
+        "LG": {
+            "MY_CHANNELS": [],
         },
-        'SK': {
-            'MY_CHANNELS': [],
+        "SK": {
+            "MY_CHANNELS": [],
         },
-        'DAUM': {
-            'MY_CHANNELS': [],
+        "DAUM": {
+            "MY_CHANNELS": [],
         },
-        'NAVER': {
-            'MY_CHANNELS': [],
+        "NAVER": {
+            "MY_CHANNELS": [],
         },
-        'WAVVE': {
-            'MY_CHANNELS': [],
+        "WAVVE": {
+            "MY_CHANNELS": [],
         },
-        'TVING': {
-            'MY_CHANNELS': [],
+        "TVING": {
+            "MY_CHANNELS": [],
         },
     }
 
     base_settings = {
-        'config': {
-            'argv': '--config',
-            'env': 'EPG2XML_CONFIG',
-            'default': str(Path.cwd().joinpath("epg2xml.json"))
+        "config": {"argv": "--config", "env": "EPG2XML_CONFIG", "default": str(Path.cwd().joinpath("epg2xml.json"))},
+        "logfile": {"argv": "--logfile", "env": "EPG2XML_LOGFILE", "default": None},
+        "loglevel": {"argv": "--loglevel", "env": "EPG2XML_LOGLEVEL", "default": "INFO"},
+        "channelfile": {
+            "argv": "--channelfile",
+            "env": "EPG2XML_CHANNELFILE",
+            "default": str(Path.cwd().joinpath("Channel.json")),
         },
-        'logfile': {
-            'argv': '--logfile',
-            'env': 'EPG2XML_LOGFILE',
-            'default': None
-        },
-        'loglevel': {
-            'argv': '--loglevel',
-            'env': 'EPG2XML_LOGLEVEL',
-            'default': 'INFO'
-        },
-        'channelfile': {
-            'argv': '--channelfile',
-            'env': 'EPG2XML_CHANNELFILE',
-            'default': str(Path.cwd().joinpath("Channel.json"))
-        },
-        'xmlfile': {
-            'argv': '--xmlfile',
-            'env': 'EPG2XML_XMLFILE',
-            'default': None
-        },
-        'xmlsock': {
-            'argv': '--xmlsock',
-            'env': 'EPG2XML_XMLSOCK',
-            'default': None
-        },
-        'parallel': {
-            'argv': '--parallel',
-            'env': 'EPG2XML_PARALLEL',
-            'default': False
-        },
+        "xmlfile": {"argv": "--xmlfile", "env": "EPG2XML_XMLFILE", "default": None},
+        "xmlsock": {"argv": "--xmlsock", "env": "EPG2XML_XMLSOCK", "default": None},
+        "parallel": {"argv": "--parallel", "env": "EPG2XML_PARALLEL", "default": False},
     }
 
     def __init__(self):
@@ -129,7 +105,7 @@ class Config:
                     continue
 
                 # iterate children
-                if isinstance(v, dict) or isinstance(v, list):
+                if isinstance(v, (dict, list)):
                     merged[k], did_upgrade = self.__inner_upgrade(
                         settings1[k], settings2[k], key=k, overwrite=overwrite
                     )
@@ -151,7 +127,7 @@ class Config:
         fields_env = {}
 
         # ENV gets priority: ENV > config.json
-        for name, data in self.base_config.items():
+        for name, _ in self.base_config.items():
             if name in os.environ:
                 # Use JSON decoder to get same behaviour as config file
                 fields_env[name] = json.JSONDecoder().decode(os.environ[name])
@@ -168,10 +144,10 @@ class Config:
         cfg_new = copy(cfg_old)
         for p in cfg_new:
             # push items in GLOBAL as defaults
-            for k, v in cfg_old['GLOBAL'].items():
+            for k, v in cfg_old["GLOBAL"].items():
                 if k not in cfg_new[p]:
                     cfg_new[p][k] = v
-        del cfg_new['GLOBAL']
+        del cfg_new["GLOBAL"]
         self.configs = cfg_new
 
     def load(self):
@@ -181,29 +157,26 @@ class Config:
             self.save(self.default_config)
 
         try:
-            with open(self.settings['config'], 'r', encoding='utf-8') as fp:
+            with open(self.settings["config"], "r", encoding="utf-8") as fp:
                 cfg, upgraded = self.upgrade_configs(json.load(fp))
 
                 # Save config if upgraded
                 if upgraded:
                     self.save(cfg)
-                    exit(0)
+                    sys.exit(0)
 
             self.load_with_hidden(cfg)
         except json.decoder.JSONDecodeError:
-            logger.exception('Please check your config here: %s', self.settings['config'])
-            exit(1)
+            logger.exception("Please check your config here: %s", self.settings["config"])
+            sys.exit(1)
 
     def save(self, cfg, exitOnSave=True):
-        dump_json(self.settings['config'], cfg)
+        dump_json(self.settings["config"], cfg)
         if exitOnSave:
-            logger.info(
-                "Your config was upgraded. You may check the changes here: %r",
-                self.settings['config']
-            )
+            logger.info("Your config was upgraded. You may check the changes here: %r", self.settings["config"])
 
         if exitOnSave:
-            exit(0)
+            sys.exit(0)
 
     def get_settings(self):
         setts = {}
@@ -217,22 +190,22 @@ class Config:
                     logger.debug("setting from ARG   --%s=%s", name, value)
 
                 # Envirnoment variable
-                elif data['env'] in os.environ:
-                    value = os.environ[data['env']]
-                    logger.debug("setting from ENV   --%s=%s" % (data['env'], value))
+                elif data["env"] in os.environ:
+                    value = os.environ[data["env"]]
+                    logger.debug("setting from ENV   --%s=%s", data["env"], value)
 
                 # Default
                 else:
-                    value = data['default']
-                    logger.debug("setting by default %s=%s" % (data['argv'], value))
+                    value = data["default"]
+                    logger.debug("setting by default %s=%s", data["argv"], value)
 
                 setts[name] = value
 
             except Exception:
-                logger.exception("Exception raised on setting value: %r" % name)
+                logger.exception("Exception raised on setting value: %r", name)
 
         # checking existance of important files' dir
-        for argname in ['config', 'logfile', 'channelfile']:
+        for argname in ["config", "logfile", "channelfile"]:
             filepath = setts[argname]
             if filepath is not None and not Path(filepath).parent.exists():
                 logger.error(FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), filepath))
@@ -245,80 +218,65 @@ class Config:
         parser = argparse.ArgumentParser(
             prog=__title__,
             description=__description__,
-            epilog=f'Online help: <{__url__}>',
-            formatter_class=argparse.RawTextHelpFormatter
+            epilog=f"Online help: <{__url__}>",
+            formatter_class=argparse.RawTextHelpFormatter,
         )
 
         # Mode
         parser.add_argument(
-            'cmd',
-            metavar='command',
-            choices=('run', 'update_channels'),
-            help=(
-                '"run": XML 형식으로 출력\n'
-                '"update_channels": 채널 정보 업데이트'
-            )
+            "cmd",
+            metavar="command",
+            choices=("run", "update_channels"),
+            help=('"run": XML 형식으로 출력\n' '"update_channels": 채널 정보 업데이트'),
         )
 
         # Display version info
-        parser.add_argument(
-            '-v', '--version',
-            action='version',
-            version='{} v{}'.format(__title__, __version__)
-        )
+        parser.add_argument("-v", "--version", action="version", version=f"{__title__} v{__version__}")
 
         # Config file
         parser.add_argument(
-            self.base_settings['config']['argv'],
-            nargs='?',
+            self.base_settings["config"]["argv"],
+            nargs="?",
             const=None,
-            help='config file path (default: %s)' % self.base_settings['config']['default']
+            help=f"config file path (default: {self.base_settings['config']['default']})",
         )
 
         # Log file
         parser.add_argument(
-            self.base_settings['logfile']['argv'],
-            nargs='?',
+            self.base_settings["logfile"]["argv"],
+            nargs="?",
             const=None,
-            help='log file path (default: %s)' % self.base_settings['logfile']['default']
+            help=f"log file path (default: {self.base_settings['logfile']['default']})",
         )
 
         # Log level
         parser.add_argument(
-            self.base_settings['loglevel']['argv'],
-            choices=('DEBUG', 'INFO', 'WARNING', 'ERROR'),
-            help='loglevel (default: %s)' % self.base_settings['loglevel']['default']
+            self.base_settings["loglevel"]["argv"],
+            choices=("DEBUG", "INFO", "WARNING", "ERROR"),
+            help=f"loglevel (default: {self.base_settings['loglevel']['default']})",
         )
 
         # Channel file
         parser.add_argument(
-            self.base_settings['channelfile']['argv'],
-            nargs='?',
+            self.base_settings["channelfile"]["argv"],
+            nargs="?",
             const=None,
-            help='channel file path (default: %s)' % self.base_settings['channelfile']['default']
+            help=f"channel file path (default: {self.base_settings['channelfile']['default']})",
         )
 
         # XML file
         parser.add_argument(
-            self.base_settings['xmlfile']['argv'],
-            nargs='?',
-            const=None,
-            help='write output to file if specified'
+            self.base_settings["xmlfile"]["argv"], nargs="?", const=None, help="write output to file if specified"
         )
 
         # XML socket
         parser.add_argument(
-            self.base_settings['xmlsock']['argv'],
-            nargs='?',
-            const=None,
-            help='send output to unix socket if specified'
+            self.base_settings["xmlsock"]["argv"], nargs="?", const=None, help="send output to unix socket if specified"
         )
 
         # Run in Parallel
         parser.add_argument(
-            self.base_settings['parallel']['argv'],
-            action='store_true',
-            help='run in parallel (experimental)'
+            self.base_settings["parallel"]["argv"], action="store_true", help="run in parallel (experimental)"
         )
 
         # Print help by default if no arguments
