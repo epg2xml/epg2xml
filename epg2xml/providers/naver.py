@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import logging
 from datetime import datetime, timedelta, date
 from xml.sax.saxutils import unescape
@@ -89,7 +88,7 @@ class NAVER(EPGProvider):
                         except:
                             pass
                         _ch.programs.append(_prog)
-                except Exception as e:
-                    log.error(f'파싱 에러: {_ch}: {str(e)}')
+                except Exception:
+                    log.exception(f'파싱 에러: {_ch}:')
             if not lazy_write:
                 _ch.to_xml(self.cfg, no_endtime=self.no_endtime)

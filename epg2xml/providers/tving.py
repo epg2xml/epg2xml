@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import logging
 from itertools import islice
 from datetime import datetime, timedelta, date

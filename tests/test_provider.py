@@ -1,9 +1,7 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-import os
 import sys
 import logging
 import subprocess
+from pathlib import Path
 from timeit import default_timer as timer
 
 from epg2xml import __title__, __version__
@@ -67,7 +65,7 @@ log.info(f'Requested: {num_rch} / Alive: {num_gch}')
 if not provider.req_channels:
     sys.exit(0)
 
-xmlfile = os.path.join(os.getcwd(), f'xmltv_{provider.provider_name.lower()}.xml')
+xmlfile = Path.cwd().joinpath(f'xmltv_{provider.provider_name.lower()}.xml')
 sys.stdout = open(xmlfile, 'w', encoding='utf-8')
 
 print('<?xml version="1.0" encoding="UTF-8"?>')
@@ -81,7 +79,7 @@ print('</tv>')
 sys.stdout.close()
 sys.stdout = sys.__stdout__
 
-log.info(f'Average size: {os.path.getsize(xmlfile)/num_gch/1000.:.2f} kbyte/ch')
+log.info(f'Average size: {xmlfile.stat().st_size/num_gch/1000.:.2f} kbyte/ch')
 
 try:
     subprocess.run(['tv_validate_file', xmlfile], check=True)

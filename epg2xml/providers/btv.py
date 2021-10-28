@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import re
 import logging
 from datetime import datetime, timedelta, date
@@ -22,8 +21,8 @@ class BTV(EPGProvider):
                 ret = data['data']['ServiceInfoArray']
             else:
                 raise ValueError('유효한 응답이 아닙니다: %s' % data['statusMessage'])
-        except Exception as _e:
-            log.error(str(_e))
+        except Exception:
+            log.exception(f"Exception while requesting data for {url} with {params}")
         return ret
 
     def get_svc_channels(self):
@@ -97,8 +96,7 @@ class BTV(EPGProvider):
                             _prog.category = genre_code[program['CD_GENRE']]
                         _prog.rating = int(program['CD_RATING']) if program['CD_RATING'] else 0
                         _ch.programs.append(_prog)
-                    except Exception as e:
-                        log.warning(f'해당 날짜에 EPG 정보가 없거나 없는 채널입니다: {day.strftime("%Y%m%d")} {_ch}')
-                        log.error(str(e))
+                    except Exception:
+                        log.exception(f'해당 날짜에 EPG 정보가 없거나 없는 채널입니다: {day.strftime("%Y%m%d")} {_ch}')
                 if not lazy_write:
                     _ch.to_xml(self.cfg, no_endtime=self.no_endtime)

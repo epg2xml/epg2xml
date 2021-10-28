@@ -1,10 +1,8 @@
-# -*- coding: utf-8 -*-
 import re
 import sys
 import json
 import time
 import logging
-import traceback
 from xml.sax.saxutils import escape as _escape
 
 from requests import Session
@@ -42,9 +40,8 @@ def request_data(url, params, method='GET', output='html', session=None, ret='')
             ret = r.json()
         else:
             raise ValueError('Unexpected output type: %s', output)
-    except Exception as e:
-        log.error(f'요청 중 에러: {str(e)}')
-        log.error(traceback.format_exc())
+    except Exception:
+        log.exception('요청 중 에러:')
     time.sleep(req_sleep)
     return ret
 

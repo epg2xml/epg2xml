@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import re
 import logging
 from urllib.parse import unquote
@@ -19,6 +18,7 @@ class KT(EPGProvider):
         params = {"ch_type": "1", "parent_menu_id": "0"}
         soup = BeautifulSoup(self.request(url, params, method='POST', output='html'))
         raw_channels = [unquote(x.find('span', {'class': 'ch'}).text.strip()) for x in soup.select('li > a')]
+        # TODO: 몇몇 채널은 (TV로만 제공, 유료채널) 웹에서 막혀있지만 실제로는 데이터가 있을 수 있다.
         self.svc_channel_list = [{
             'Name': ' '.join(x.split()[1:]),
             'No': str(x.split()[0]),
@@ -53,7 +53,7 @@ class KT(EPGProvider):
                                 grade = re.match(r'([\d,]+)', image['alt'])
                                 _prog.rating = int(grade.group(1)) if grade else 0
                             _ch.programs.append(_prog)
-                except Exception as e:
-                    log.error(f'파싱 에러: {_ch}: {str(e)}')
+                except Exception:
+                    log.exception(f'파싱 에러: {_ch}:')
             if not lazy_write:
                 _ch.to_xml(self.cfg, no_endtime=self.no_endtime)

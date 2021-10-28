@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import argparse
 import json
 import logging
@@ -6,6 +5,7 @@ import os
 import sys
 import errno
 from copy import copy
+from pathlib import Path
 
 from epg2xml.utils import dump_json
 from epg2xml import __version__, __title__, __description__, __url__
@@ -64,7 +64,7 @@ class Config:
         'config': {
             'argv': '--config',
             'env': 'EPG2XML_CONFIG',
-            'default': os.path.join(os.getcwd(), 'epg2xml.json')
+            'default': str(Path.cwd().joinpath("epg2xml.json"))
         },
         'logfile': {
             'argv': '--logfile',
@@ -79,7 +79,7 @@ class Config:
         'channelfile': {
             'argv': '--channelfile',
             'env': 'EPG2XML_CHANNELFILE',
-            'default': os.path.join(os.getcwd(), 'Channel.json')
+            'default': str(Path.cwd().joinpath("Channel.json"))
         },
         'xmlfile': {
             'argv': '--xmlfile',
@@ -176,7 +176,7 @@ class Config:
 
     def load(self):
         logger.debug("Loading config...")
-        if not os.path.exists(self.settings['config']):
+        if not Path(self.settings["config"]).exists():
             logger.info("No config file found. Creating a default one...")
             self.save(self.default_config)
 
@@ -190,9 +190,8 @@ class Config:
                     exit(0)
 
             self.load_with_hidden(cfg)
-        except json.decoder.JSONDecodeError as e:
-            logger.error(str(e))
-            logger.error('Please check your config here: %s', self.settings['config'])
+        except json.decoder.JSONDecodeError:
+            logger.exception('Please check your config here: %s', self.settings['config'])
             exit(1)
 
     def save(self, cfg, exitOnSave=True):
@@ -235,7 +234,7 @@ class Config:
         # checking existance of important files' dir
         for argname in ['config', 'logfile', 'channelfile']:
             filepath = setts[argname]
-            if filepath is not None and not os.path.exists(os.path.dirname(filepath)):
+            if filepath is not None and not Path(filepath).parent.exists():
                 logger.error(FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), filepath))
                 sys.exit(1)
 

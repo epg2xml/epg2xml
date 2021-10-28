@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import re
 import sys
 import logging
@@ -61,7 +60,7 @@ class ParserBeautifulSoup(BeautifulSoup):
         # pick the first parser available
         for parser in ['lxml', 'html.parser']:
             try:
-                super(ParserBeautifulSoup, self).__init__(markup, parser, **kwargs)
+                super().__init__(markup, parser, **kwargs)
                 return
             except FeatureNotFound:
                 pass
@@ -117,8 +116,8 @@ class EPGProvider:
                 self.svc_channel_list.clear()
                 self.get_svc_channels()
                 plog.info(f'{len(self.svc_channel_list):03d} service channels successfully fetched from server.')
-            except Exception as e:
-                plog.error(str(e))
+            except Exception:
+                plog.exception("Exception while retrieving service channels:")
                 sys.exit(1)
         else:
             plog.info(f'{len(self.svc_channel_list):03d} service channels loaded from cache.')

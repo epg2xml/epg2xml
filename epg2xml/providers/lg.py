@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import re
 import logging
 from datetime import datetime, timedelta, date
@@ -89,7 +88,7 @@ class LG(EPGProvider):
                             _prog.rebroadcast = True if matches.group(4) else False
                         _prog.category = cell[2].text.strip()
                         _ch.programs.append(_prog)
-                except Exception as e:
-                    log.error(f'파싱 에러: {_ch}: {str(e)}')
+                except Exception:
+                    log.exception(f'파싱 에러: {_ch}:')
             if not lazy_write:
                 _ch.to_xml(self.cfg, no_endtime=self.no_endtime)

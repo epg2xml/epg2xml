@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import re
 import logging
 from xml.sax.saxutils import unescape
@@ -98,9 +97,8 @@ class WAVVE(EPGProvider):
                             if programdetail['actors']['list']:
                                 _prog.actors = ','.join([x['text'] for x in programdetail['actors']['list']])
                     _ch.programs.append(_prog)
-                except Exception as e:
-                    log.error(f'파싱 에러: {str(e)}')
-                    log.error(program)
+                except Exception:
+                    log.exception(f'파싱 에러: {program}:')
             if not lazy_write:
                 _ch.to_xml(self.cfg, no_endtime=self.no_endtime)
 
@@ -126,6 +124,6 @@ class WAVVE(EPGProvider):
             # url2 = 'https://apis.wavve.com/cf/vod/contents/' + contentid
             url2 = 'https://apis.wavve.com/vod/contents/' + contentid  # 같은 주소지만 이게 더 안정적인듯
             ret = self.request(url2, param, method='GET', output='json')
-        except Exception as e:
-            log.error(str(e))
+        except Exception:
+            log.exception(f"Exception while requesting data for {url2} with {param}")
         return ret
