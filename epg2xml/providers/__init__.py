@@ -153,7 +153,7 @@ class EPGProvider:
                 req_ch["No"] = str(my_no)
             if "Id" not in req_ch:
                 try:
-                    req_ch["Id"] = eval(f"f'{self.cfg['ID_FORMAT']}'", req_ch)
+                    req_ch["Id"] = eval(f"f'{self.cfg['ID_FORMAT']}'", None, req_ch)
                 except Exception:
                     req_ch["Id"] = f'{req_ch["ServiceId"]}.{req_ch["Source"].lower()}'
                 req_ch["Id"] = escape(req_ch["Id"])
