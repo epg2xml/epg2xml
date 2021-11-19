@@ -2,6 +2,7 @@ import sys
 import json
 import socket
 import logging
+from contextlib import ExitStack
 from logging.handlers import RotatingFileHandler
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -68,59 +69,54 @@ def main():
         channeljson = {}
 
     if conf.args["cmd"] == "run":
-        # redirecting stdout to ...
-        if conf.settings["xmlfile"]:
-            try:
-                sys.stdout = open(conf.settings["xmlfile"], "w", encoding="utf-8")
-            except FileNotFoundError as e:
-                log.error(e)
-                sys.exit(1)
-        elif conf.settings["xmlsock"]:
-            try:
+        with ExitStack() as stack:
+            # redirecting stdout to ...
+            if conf.settings["xmlfile"]:
+                sys.stdout = stack.enter_context(open(conf.settings["xmlfile"], "w", encoding="utf-8"))
+            elif conf.settings["xmlsock"]:
                 sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
                 sock.connect(conf.settings["xmlsock"])
-                sys.stdout = sock.makefile("w")
-            except socket.error as e:
-                log.error(e)
-                sys.exit(1)
+                sys.stdout = stack.enter_context(sock.makefile("w"))
+            stack.callback(print, "</tv>")
 
-        log.debug("Loading service channels ...")
-        load_channels(providers, conf, channeljson=channeljson)
+            log.debug("Loading service channels ...")
+            load_channels(providers, conf, channeljson=channeljson)
 
-        log.debug("Loading MY_CHANNELS ...")
-        for p in providers:
-            p.load_my_channels()
-
-        log.info("Writing xmltv.dtd header ...")
-        print('<?xml version="1.0" encoding="UTF-8"?>')
-        print('<!DOCTYPE tv SYSTEM "xmltv.dtd">\n')
-        print(f'<tv generator-info-name="{__title__} v{__version__}">')
-
-        log.debug("Writing channel headers ...")
-        for p in providers:
-            p.write_channel_headers()
-
-        log.debug("Getting EPG ...")
-        if conf.settings["parallel"]:
-            with ThreadPoolExecutor() as exe:
-                f2p = {exe.submit(p.get_programs, lazy_write=True): p for p in providers}
-                for future in as_completed(f2p):
-                    p = f2p[future]
-                    p.write_programs()
-        else:
+            log.debug("Loading MY_CHANNELS ...")
             for p in providers:
-                if p.req_channels:
-                    p.get_programs()
+                p.load_my_channels()
 
-        print("</tv>")
-        log.info("Done.")
-        sys.exit(0)
+            log.info("Writing xmltv.dtd header ...")
+            print('<?xml version="1.0" encoding="UTF-8"?>')
+            print('<!DOCTYPE tv SYSTEM "xmltv.dtd">\n')
+            print(f'<tv generator-info-name="{__title__} v{__version__}">')
+
+            log.debug("Writing channel headers ...")
+            for p in providers:
+                p.write_channel_headers()
+
+            log.debug("Getting EPG ...")
+            if conf.settings["parallel"]:
+                with ThreadPoolExecutor() as exe:
+                    f2p = {exe.submit(p.get_programs, lazy_write=True): p for p in providers}
+                    for future in as_completed(f2p):
+                        p = f2p[future]
+                        p.write_programs()
+            else:
+                for p in providers:
+                    if p.req_channels:
+                        p.get_programs()
+
+            log.info("Done.")
     elif conf.args["cmd"] == "update_channels":
         load_channels(providers, conf, channeljson=channeljson)
     else:
-        log.error("Unknown command.")
-        sys.exit(1)
+        raise NotImplementedError(f"Unknown command: {conf.args['cmd']}")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as _e:
+        log.exception(_e)
+        sys.exit(1)
