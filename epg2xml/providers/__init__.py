@@ -82,9 +82,9 @@ class EPGProvider:
         self.sess = Session()
         self.sess.headers.update({"User-Agent": ua, "Referer": self.referer})
         # placeholders
-        self.svc_channel_list = []
-        self.svc_channel_dict = {}
-        self.req_channels = []
+        self.svc_channel_list: list = []
+        self.svc_channel_dict: dict = {}
+        self.req_channels: list = []
 
     def request(self, url, params, method, output):
         return request_data(url, params, method=method, output=output, session=self.sess)
@@ -157,6 +157,8 @@ class EPGProvider:
                 except Exception:
                     req_ch["Id"] = f'{req_ch["ServiceId"]}.{req_ch["Source"].lower()}'
                 req_ch["Id"] = escape(req_ch["Id"])
+            if not self.cfg["ADD_CHANNEL_ICON"]:
+                req_ch.pop("Icon_url", None)
             req_channels.append(EPGChannel(req_ch))
         plog.info("요청 %d - 불가 %d = 최종 %d", len(my_channels), len(my_channels) - len(req_channels), len(req_channels))
         self.req_channels = req_channels
@@ -193,10 +195,10 @@ class EPGChannel:
         self.src = channelinfo["Source"]
         self.svcid = channelinfo["ServiceId"]
         self.name = channelinfo["Name"]
-        self.icon = channelinfo["Icon_url"] if "Icon_url" in channelinfo else None
-        self.no = channelinfo["No"] if "No" in channelinfo else None
+        self.icon = channelinfo.get("Icon_url", None)
+        self.no = channelinfo.get("No", None)
         # placeholder
-        self.programs = []
+        self.programs: list = []
         """
         개별 EPGProgram이 소속 channelid를 가지고 있어서 굳이 EPGChannel의 하위 리스트로 관리해야할
         이유는 없지만, endtime이 없는 EPG 항목을 위해 한 번에 써야할 필요가 있는 Provider가 있기에
