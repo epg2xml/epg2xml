@@ -126,7 +126,8 @@
     "ADD_EPNUM_TO_TITLE": true,
     "ADD_DESCRIPTION": true,
     "ADD_XMLTV_NS": false,
-    "GET_MORE_DETAILS": false
+    "GET_MORE_DETAILS": false,
+    "ADD_CHANNEL_ICON": true
   },
   "KT": {
     "MY_CHANNELS": []
@@ -158,6 +159,7 @@
 - `FETCH_LIMIT`: 가져올 기간. 기본값 2는 오늘, 내일해서 2일을 의미한다. 각 제공자마다 제한값이 존재한다. 따옴표 없는 숫자로 입력한다.
 - `ID_FORMAT`: 기존의 `Id` 값은 이제 강제사항이 아니며 사용자가 개별 채널마다 직접 지정하거나 f-string 포맷으로 일괄 적용할 수 있다.
 - `GET_MORE_DETAILS`: 추가 정보를 가져오는 로직을 실행하느냐 여부이며 현재는 WAVVE만 지원한다.
+- `ADD_CHANNEL_ICON`: 기본 제공되는 `Icon_url`을 포함하고 싶지 않다면 `false`를 입력한다. 기본값 `true`.
 - 나머지는 기존의 옵션에서 이름만 변경되었다.
 
 `MY_CHANNELS`는 채널 파일 `Channel.json`을 참고하여 작성한다.
