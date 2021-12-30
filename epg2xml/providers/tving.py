@@ -128,12 +128,10 @@ class TVING(EPGProvider):
                     get_from = "movie" if sch["movie"] else "program"
                     img_code = "CAIM2100" if sch["movie"] else "CAIP0900"
 
-                    _prog.rating = self.gcode[sch[get_from]["grade_code"]] if sch[get_from]["grade_code"] else 0
+                    _prog.rating = self.gcode[sch[get_from].get("grade_code", "CPTG0100")]
                     _prog.title = sch[get_from]["name"]["ko"]
-                    _prog.title_sub = sch[get_from]["name"]["en"] if sch[get_from]["name"]["en"] else ""
-                    _prog.category = (
-                        sch[get_from]["category1_name"]["ko"] if sch[get_from]["category1_name"]["ko"] else ""
-                    )
+                    _prog.title_sub = sch[get_from]["name"].get("en", "")
+                    _prog.category = sch[get_from]["category1_name"].get("ko", "")
                     _prog.actors = sch[get_from]["actor"]
                     _prog.staff = sch[get_from]["director"]
 
