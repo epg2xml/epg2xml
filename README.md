@@ -70,7 +70,7 @@
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE tv SYSTEM "xmltv.dtd">
 
-    <tv generator-info-name="epg2xml v2.0.0-DEV">
+    <tv generator-info-name="epg2xml v2.0.0">
     </tv>
     ```
 
