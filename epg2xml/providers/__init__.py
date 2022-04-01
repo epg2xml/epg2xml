@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from importlib import import_module
 from xml.sax.saxutils import unescape
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field
 
 from requests import Session
 from bs4 import BeautifulSoup, FeatureNotFound, SoupStrainer
@@ -223,56 +224,36 @@ class EPGChannel:
         self.programs.clear()
 
 
+@dataclass
 class EPGProgram:
     """For individual program entities"""
 
-    # TODO: use @dataclass but requires python 3.7+
-    __slots__ = [
-        "id",
-        "stime",
-        "etime",
-        "title",
-        "title_sub",
-        "part_num",
-        "ep_num",
-        "category",
-        "rebroadcast",
-        "rating",
-        "desc",
-        "poster_url",
-        "actors",
-        "staff",
-        "extras",
-    ]
-
-    def __init__(self, channelid):
-        self.id = channelid
-        self.stime = None
-        self.etime = None
-        self.title = None
-        self.title_sub = None
-        self.part_num = None
-        self.ep_num = None
-        self.category = None
-        self.rebroadcast = False
-        self.rating = 0
-        # not usually given by default
-        self.desc = None
-        self.poster_url = None
-        self.actors = []
-        self.staff = []
-        self.extras = []
+    channelid: str
+    stime: datetime = None
+    etime: datetime = None
+    title: str = None
+    title_sub: str = None
+    part_num: str = None
+    ep_num: str = None
+    category: str = None
+    rebroadcast: bool = False
+    rating: int = 0
+    # not usually given by default
+    desc: str = None
+    poster_url: str = None
+    actors: list = field(default_factory=list)
+    staff: list = field(default_factory=list)
+    extras: list = field(default_factory=list)
 
     def to_xml(self, cfg):
-        channelid = self.id
-        stime = self.stime.strftime("%Y%m%d%H%M%S") if self.stime is not None else ""
-        etime = self.etime.strftime("%Y%m%d%H%M%S") if self.etime is not None else ""
-        title = escape(self.title if self.title is not None else "").strip()
-        title_sub = escape(self.title_sub if self.title_sub is not None else "").strip()
+        stime = self.stime.strftime("%Y%m%d%H%M%S") if self.stime else ""
+        etime = self.etime.strftime("%Y%m%d%H%M%S") if self.etime else ""
+        title = escape(self.title if self.title else "").strip()
+        title_sub = escape(self.title_sub if self.title_sub else "").strip()
         actors = escape(",".join(self.actors) if self.actors else "")
         staff = escape(",".join(self.staff) if self.staff else "")
-        category = escape(self.category if self.category is not None else "")
-        episode = self.ep_num if self.ep_num is not None else ""
+        category = escape(self.category if self.category else "")
+        episode = self.ep_num if self.ep_num else ""
         rating = "전체 관람가" if self.rating == 0 else f"{self.rating}세 이상 관람가"
         rebroadcast = self.rebroadcast
         poster_url = self.poster_url
@@ -311,7 +292,7 @@ class EPGProgram:
         except KeyError:
             contentType = ""
 
-        print(f'  <programme start="{stime} +0900" stop="{etime} +0900" channel="{channelid}">')
+        print(f'  <programme start="{stime} +0900" stop="{etime} +0900" channel="{self.channelid}">')
         print(f'    <title lang="kr">{title}</title>')
         if title_sub:
             print(f'    <sub-title lang="kr">{title_sub}</sub-title>')
