@@ -6,8 +6,8 @@ from contextlib import ExitStack
 from logging.handlers import RotatingFileHandler
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-if sys.version_info[:2] < (3, 6):
-    sys.exit("python 3.6+에서 실행하세요.")
+if sys.version_info[:2] < (3, 7):
+    sys.exit("python 3.7+에서 실행하세요.")
 
 from epg2xml.config import Config
 from epg2xml.providers import load_providers, load_channels

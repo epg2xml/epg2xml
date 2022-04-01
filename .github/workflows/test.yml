@@ -13,7 +13,7 @@ jobs:
     strategy:
       matrix:
         provider: [kt, lg, sk, daum, naver, wavve, tving]
-        python-version: [3.6, '3.10']
+        python-version: [3.7, '3.10']
     steps:
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
