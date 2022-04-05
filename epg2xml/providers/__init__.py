@@ -139,7 +139,7 @@ class EPGProvider:
                 plog.warning("'ServiceId' Not Found: %s", my_ch)
                 continue
             if my_ch["ServiceId"] not in self.svc_channel_dict:
-                plog.warning("'ServiceId' Not in Servicee: %s", my_ch)
+                plog.warning("'ServiceId' Not in Service: %s", my_ch)
                 continue
             req_ch = copy(self.svc_channel_dict[my_ch["ServiceId"]])
             for _k, _v in my_ch.items():

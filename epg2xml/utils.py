@@ -79,7 +79,7 @@ if sys.maxunicode >= 0x10000:  # not narrow build
             (0x10FFFE, 0x10FFFF),
         ]
     )
-_illegal_ranges = [fr"{chr(low)}-{chr(high)}" for (low, high) in _illegal_unichrs]
+_illegal_ranges = [rf"{chr(low)}-{chr(high)}" for (low, high) in _illegal_unichrs]
 _illegal_xml_chars_RE = re.compile("[" + "".join(_illegal_ranges) + "]")
 
 
@@ -89,7 +89,7 @@ def escape(s):
 
 class PrefixLogger(logging.LoggerAdapter):
     def __init__(self, logger, prefix):
-        super(PrefixLogger, self).__init__(logger, {})
+        super().__init__(logger, {})
         self.prefix = prefix
 
     def process(self, msg, kwargs):

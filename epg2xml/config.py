@@ -62,17 +62,41 @@ class Config:
     }
 
     base_settings = {
-        "config": {"argv": "--config", "env": "EPG2XML_CONFIG", "default": str(Path.cwd().joinpath("epg2xml.json"))},
-        "logfile": {"argv": "--logfile", "env": "EPG2XML_LOGFILE", "default": None},
-        "loglevel": {"argv": "--loglevel", "env": "EPG2XML_LOGLEVEL", "default": "INFO"},
+        "config": {
+            "argv": "--config",
+            "env": "EPG2XML_CONFIG",
+            "default": str(Path.cwd().joinpath("epg2xml.json")),
+        },
+        "logfile": {
+            "argv": "--logfile",
+            "env": "EPG2XML_LOGFILE",
+            "default": None,
+        },
+        "loglevel": {
+            "argv": "--loglevel",
+            "env": "EPG2XML_LOGLEVEL",
+            "default": "INFO",
+        },
         "channelfile": {
             "argv": "--channelfile",
             "env": "EPG2XML_CHANNELFILE",
             "default": str(Path.cwd().joinpath("Channel.json")),
         },
-        "xmlfile": {"argv": "--xmlfile", "env": "EPG2XML_XMLFILE", "default": None},
-        "xmlsock": {"argv": "--xmlsock", "env": "EPG2XML_XMLSOCK", "default": None},
-        "parallel": {"argv": "--parallel", "env": "EPG2XML_PARALLEL", "default": False},
+        "xmlfile": {
+            "argv": "--xmlfile",
+            "env": "EPG2XML_XMLFILE",
+            "default": None,
+        },
+        "xmlsock": {
+            "argv": "--xmlsock",
+            "env": "EPG2XML_XMLSOCK",
+            "default": None,
+        },
+        "parallel": {
+            "argv": "--parallel",
+            "env": "EPG2XML_PARALLEL",
+            "default": False,
+        },
     }
 
     def __init__(self):
@@ -232,7 +256,12 @@ class Config:
         )
 
         # Display version info
-        parser.add_argument("-v", "--version", action="version", version=f"{__title__} v{__version__}")
+        parser.add_argument(
+            "-v",
+            "--version",
+            action="version",
+            version=f"{__title__} v{__version__}",
+        )
 
         # Config file
         parser.add_argument(
@@ -267,17 +296,25 @@ class Config:
 
         # XML file
         parser.add_argument(
-            self.base_settings["xmlfile"]["argv"], nargs="?", const=None, help="write output to file if specified"
+            self.base_settings["xmlfile"]["argv"],
+            nargs="?",
+            const=None,
+            help="write output to file if specified",
         )
 
         # XML socket
         parser.add_argument(
-            self.base_settings["xmlsock"]["argv"], nargs="?", const=None, help="send output to unix socket if specified"
+            self.base_settings["xmlsock"]["argv"],
+            nargs="?",
+            const=None,
+            help="send output to unix socket if specified",
         )
 
         # Run in Parallel
         parser.add_argument(
-            self.base_settings["parallel"]["argv"], action="store_true", help="run in parallel (experimental)"
+            self.base_settings["parallel"]["argv"],
+            action="store_true",
+            help="run in parallel (experimental)",
         )
 
         # Print help by default if no arguments
