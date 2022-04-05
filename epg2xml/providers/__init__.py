@@ -100,11 +100,7 @@ class EPGProvider:
             channels = channelinfo["CHANNELS"]
             assert total == len(channels), "TOTAL != len(CHANNELS)"
             updated = channelinfo["UPDATED"]
-            try:
-                datetime_up = datetime.fromisoformat(updated)
-            except Exception:
-                # fromisoformat is available in 3.7
-                datetime_up = datetime.strptime(updated, "%Y-%m-%dT%H:%M:%S.%f")
+            datetime_up = datetime.fromisoformat(updated)
             if (datetime.now() - datetime_up).total_seconds() <= 3600 * 24 * 4:
                 self.svc_channel_list = channels
                 self.need_channel_update = False
