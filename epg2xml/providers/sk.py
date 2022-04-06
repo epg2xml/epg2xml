@@ -99,10 +99,10 @@ class SK(EPGProvider):
                             _prog.title = cell.text.strip()
                             matches = re.match(self.title_regex, _prog.title)
                             if matches:
-                                _prog.title = matches.group(1) if matches.group(1) else ""
-                                _prog.title_sub = matches.group(5) if matches.group(5) else ""
-                                _prog.rebroadcast = True if matches.group(7) else False
-                                _prog.ep_num = matches.group(3) if matches.group(3) else ""
+                                _prog.title = matches.group(1) or ""
+                                _prog.title_sub = matches.group(5) or ""
+                                _prog.rebroadcast = bool(matches.group(7))
+                                _prog.ep_num = matches.group(3) or ""
                             _ch.programs.append(_prog)
                 except Exception:
                     log.exception("파싱 에러: %s", _ch)

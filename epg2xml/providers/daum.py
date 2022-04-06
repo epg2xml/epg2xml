@@ -84,11 +84,11 @@ class DAUM(EPGProvider):
                                 # ico_live ico_hd ico_subtitle ico_hand ico_uhd ico_talk ico_st
                                 _prog.extras.append(span.text.strip())
                         match = re.compile(self.title_regex).search(_prog.title)
-                        _prog.title = match.group("title") if match.group("title") else None
-                        _prog.part_num = match.group("part") if match.group("part") else None
-                        _prog.ep_num = match.group("epnum") if match.group("epnum") else ""
-                        _prog.title_sub = match.group("subname1") if match.group("subname1") else ""
-                        _prog.title_sub = match.group("subname2") if match.group("subname2") else _prog.title_sub
+                        _prog.title = match.group("title") or None
+                        _prog.part_num = match.group("part") or None
+                        _prog.ep_num = match.group("epnum") or ""
+                        _prog.title_sub = match.group("subname1") or ""
+                        _prog.title_sub = match.group("subname2") or _prog.title_sub
                         if _prog.part_num:
                             _prog.title += f" {_prog.part_num}부"
                         _ch.programs.append(_prog)

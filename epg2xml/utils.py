@@ -27,7 +27,7 @@ def dump_json(file_path, data):
 def request_data(url, params, method="GET", output="html", session=None, ret=""):
     # TODO: retry on failure
     # https://findwork.dev/blog/advanced-usage-python-requests-timeouts-retries-hooks/
-    sess = Session() if session is None else session
+    sess = session or Session()
     try:
         if method == "GET":
             r = sess.get(url, params=params)

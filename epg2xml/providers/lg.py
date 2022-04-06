@@ -88,9 +88,9 @@ class LG(EPGProvider):
                         _prog.title = cell[1].text.strip()
                         matches = re.match(self.title_regex, _prog.title)
                         if matches:
-                            _prog.title = matches.group(1).strip() if matches.group(1) else ""
-                            _prog.title_sub = matches.group(2).strip() if matches.group(2) else ""
-                            _prog.ep_num = matches.group(3) if matches.group(3) else ""
+                            _prog.title = (matches.group(1) or "").strip()
+                            _prog.title_sub = (matches.group(2) or "").strip()
+                            _prog.ep_num = matches.group(3) or ""
                             _prog.rebroadcast = bool(matches.group(4))
                         _prog.category = cell[2].text.strip()
                         _ch.programs.append(_prog)

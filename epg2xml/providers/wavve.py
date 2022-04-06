@@ -42,7 +42,7 @@ class WAVVE(EPGProvider):
             }
         )
         self.svc_channel_list = [
-            {"Name": x["channelname"], "Icon_url": "https://" + x["channelimage"], "ServiceId": x["channelid"]}
+            {"Name": x["channelname"], "Icon_url": "https://" + x["channelimage"], "ServiceId": x["channelid"],}
             for x in self.request(self.url, self.params, method="GET", output="json")["list"]
         ]
 
@@ -73,11 +73,11 @@ class WAVVE(EPGProvider):
                     _prog.title = unescape(program["title"])
                     matches = re.match(self.title_regex, _prog.title)
                     if matches:
-                        _prog.title = matches.group(1).strip() if matches.group(1) else ""
-                        _prog.title_sub = matches.group(4).strip() if matches.group(4) else ""
-                        episode = matches.group(2).replace("회", "") if matches.group(2) else ""
+                        _prog.title = (matches.group(1) or "").strip()
+                        _prog.title_sub = (matches.group(4) or "").strip()
+                        episode = (matches.group(2) or "").replace("회", "").strip()
                         _prog.ep_num = "" if episode == "0" else episode
-                        _prog.rebroadcast = True if matches.group(3) else False
+                        _prog.rebroadcast = bool(matches.group(3))
                     _prog.rating = 0 if program["targetage"] == "n" else int(program["targetage"])
 
                     # 추가 정보 가져오기

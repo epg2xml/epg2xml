@@ -244,12 +244,12 @@ class EPGProgram:
     def to_xml(self, cfg):
         stime = self.stime.strftime("%Y%m%d%H%M%S") if self.stime else ""
         etime = self.etime.strftime("%Y%m%d%H%M%S") if self.etime else ""
-        title = escape(self.title if self.title else "").strip()
-        title_sub = escape(self.title_sub if self.title_sub else "").strip()
-        actors = escape(",".join(self.actors) if self.actors else "")
-        staff = escape(",".join(self.staff) if self.staff else "")
-        category = escape(self.category if self.category else "")
-        episode = self.ep_num if self.ep_num else ""
+        title = escape(self.title or "").strip()
+        title_sub = escape(self.title_sub or "").strip()
+        actors = escape(",".join(self.actors))
+        staff = escape(",".join(self.staff))
+        category = escape(self.category or "")
+        episode = self.ep_num or ""
         rating = "전체 관람가" if self.rating == 0 else f"{self.rating}세 이상 관람가"
         rebroadcast = self.rebroadcast
         poster_url = self.poster_url

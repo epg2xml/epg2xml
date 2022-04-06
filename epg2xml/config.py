@@ -134,7 +134,7 @@ class Config:
                     merged[k], did_upgrade = self.__inner_upgrade(
                         settings1[k], settings2[k], key=k, overwrite=overwrite
                     )
-                    sub_upgraded = did_upgrade if did_upgrade else sub_upgraded
+                    sub_upgraded = did_upgrade or sub_upgraded
                 elif settings1[k] != settings2[k] and overwrite:
                     merged = settings1
                     sub_upgraded = True
