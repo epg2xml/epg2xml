@@ -4,6 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
 write_to = "epg2xml/_version.py"
+version_scheme = "release-branch-semver"
 
 [project]
 name = "epg2xml"

@@ -8,8 +8,8 @@ except ImportError:
     try:
         from setuptools_scm import get_version
 
-        version = get_version()
+        version = get_version(version_scheme="release-branch-semver")
     except Exception:
-        version = "2.1.0.dev0"
+        version = "2.2.0.dev0"
 
 __version__ = version
