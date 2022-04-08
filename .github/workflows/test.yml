@@ -34,7 +34,7 @@ jobs:
       run: |
         python -m tests.test_provider ${{ matrix.provider }}
     - name: Upload Artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       if: failure()
       with:
         name: xmltv ${{ matrix.provider }} py ${{ matrix.python-version }}
