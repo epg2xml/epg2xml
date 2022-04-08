@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=45", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+write_to = "epg2xml/_version.py"
+
+[project]
+name = "epg2xml"
+description = "웹 상의 소스를 취합하여 EPG를 만드는 프로그램"
+readme = "README.md"
+requires-python = ">=3.7, <3.11"
+license = {file = "LICENSE"}
+authors = [
+    {name = "epg2xml", email = "epg3xml@gmail.com"}
+]
+maintainers = []
+keywords = ["epg", "xml", "xmltv", "korea"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Natural Language :: Korean",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Software Development :: Libraries",
+]
+dependencies = ["requests", "beautifulsoup4"]
+optional-dependencies = {lxml = ["lxml"]}
+dynamic = ["version"]
+
+[project.urls]
+"Code" = "https://github.com/epg2xml/epg2xml"
+"Issue tracker" = "https://github.com/epg2xml/epg2xml/issues"
+
+[project.scripts]
+epg2xml = "epg2xml.__main__:main"
