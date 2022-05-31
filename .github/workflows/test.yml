@@ -11,6 +11,7 @@ jobs:
   test:
     runs-on: ubuntu-20.04
     strategy:
+      fail-fast: false
       matrix:
         provider: [kt, lg, sk, daum, naver, wavve, tving]
         python-version: ['3.7', '3.10']
