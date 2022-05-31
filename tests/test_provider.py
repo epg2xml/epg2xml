@@ -38,10 +38,10 @@ rootLogger.addHandler(consolehandler)
 # logger
 log = rootLogger.getChild("TEST")
 
-provier_name = sys.argv[1]
-provider = load_providers({provier_name.upper(): cfg})[0]
+provider_name = sys.argv[1]
+provider = load_providers({provider_name.upper(): cfg})[0]
 
-if provier_name.lower() == "daum":
+if provider_name.lower() == "daum":
     cfg["ID_FORMAT"] = "{No}.{Source.lower()}"
 
 stime = timer()
