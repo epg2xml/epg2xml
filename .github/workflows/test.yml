@@ -34,7 +34,7 @@ jobs:
         python -m tests.test_provider ${{ matrix.provider }}
     - name: Upload Artifact
       uses: actions/upload-artifact@v3
-      if: failure()
+      if: always()
       with:
         name: xmltv ${{ matrix.provider }} py ${{ matrix.python-version }}
         path: xmltv_${{ matrix.provider }}.xml
