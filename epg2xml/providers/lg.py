@@ -32,7 +32,7 @@ class LG(EPGProvider):
         params = {"code": "12810"}
         for c in channelcate:
             params.update({"category": c["category"]})
-            soup = BeautifulSoup(self.request(url, params, method="GET", output="html"))
+            soup = BeautifulSoup(self.request(url, params=params))
             for ch in soup.select('li > a[name="chList"]'):
                 ch_txt = ch.text
                 self.svc_channel_list.append(
@@ -67,7 +67,7 @@ class LG(EPGProvider):
                 day = date.today() + timedelta(days=nd)
                 params.update({"chnlCd": _ch.svcid, "evntCmpYmd": day.strftime("%Y%m%d")})
                 try:
-                    data = self.request(url, params, method="POST", output="html")
+                    data = self.request(url, method="POST", params=params)
                     data = data.replace("<재>", "&lt;재&gt;").replace(" [..", "").replace(" (..", "")
                     soup = BeautifulSoup(data, parse_only=SoupStrainer("table"))
                     if not str(soup):

@@ -87,8 +87,8 @@ class EPGProvider:
         self.svc_channel_dict: dict = {}
         self.req_channels: list = []
 
-    def request(self, url, params, method, output):
-        return request_data(url, params, method=method, output=output, session=self.sess)
+    def request(self, url, method="GET", **kwargs):
+        return request_data(url=url, method=method, session=self.sess, **kwargs)
 
     def load_svc_channels(self, channeljson=None):
         plog = PrefixLogger(log, f"[{self.provider_name:5s}]")

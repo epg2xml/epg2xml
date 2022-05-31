@@ -42,8 +42,12 @@ class WAVVE(EPGProvider):
             }
         )
         self.svc_channel_list = [
-            {"Name": x["channelname"], "Icon_url": "https://" + x["channelimage"], "ServiceId": x["channelid"],}
-            for x in self.request(self.url, self.params, method="GET", output="json")["list"]
+            {
+                "Name": x["channelname"],
+                "Icon_url": "https://" + x["channelimage"],
+                "ServiceId": x["channelid"],
+            }
+            for x in self.request(self.url, params=self.params)["list"]
         ]
 
     def get_programs(self, lazy_write=False):
@@ -57,9 +61,7 @@ class WAVVE(EPGProvider):
                 + " 24:00",
             }
         )
-        channeldict = {
-            x["channelid"]: x for x in self.request(self.url, self.params, method="GET", output="json")["list"]
-        }
+        channeldict = {x["channelid"]: x for x in self.request(self.url, params=self.params)["list"]}
 
         for idx, _ch in enumerate(self.req_channels):
             # 채널이름은 그대로 들어오고 프로그램 제목은 escape되어 들어옴
@@ -127,11 +129,11 @@ class WAVVE(EPGProvider):
 
         ret = None
         try:
-            contentid = request_data(url, param, method="GET", output="json", session=self.sess)["contentid"].strip()
+            contentid = request_data(url, params=param)["contentid"].strip()
 
             # url2 = 'https://apis.wavve.com/cf/vod/contents/' + contentid
             url2 = "https://apis.wavve.com/vod/contents/" + contentid  # 같은 주소지만 이게 더 안정적인듯
-            ret = self.request(url2, param, method="GET", output="json")
+            ret = self.request(url2, params=param)
         except Exception:
             log.exception("Exception while requesting data for %s with %s", url2, param)
         return ret

@@ -45,16 +45,16 @@ class TVING(EPGProvider):
     }
     no_endtime = False
 
-    def request(self, url, params, method="GET", output="json"):
+    def request(self, url, method="GET", **kwargs):
+        kwargs.setdefault("params", {})
         _page = 1
         _results = []
         while True:
-            params.update({"pageNo": str(_page)})
-            _data = request_data(url, params, method=method, output=output)
+            kwargs["params"]["pageNo"] = str(_page)
+            _data = request_data(url=url, method=method, session=self.sess, **kwargs)
             if _data["header"]["status"] != 200:
                 raise requests.exceptions.RequestException
-            else:
-                _results.extend(_data["body"]["result"])
+            _results.extend(_data["body"]["result"])
             if _data["body"]["has_more"] == "Y":
                 _page += 1
             else:
@@ -89,7 +89,7 @@ class TVING(EPGProvider):
                 "ServiceId": x["channel_code"],
                 "Category": x["schedules"][0]["channel"]["category_name"]["ko"],
             }
-            for x in self.request(self.url, self.params)
+            for x in self.request(self.url, params=self.params)
             if x["schedules"] is not None
         ]
 
@@ -109,7 +109,7 @@ class TVING(EPGProvider):
                 self.params.update({"broadDate": day.strftime("%Y%m%d"), "broadcastDate": day.strftime("%Y%m%d")})
                 for t in range(8):
                     self.params.update({"startBroadTime": f"{t*3:02d}0000", "endBroadTime": f"{t*3+3:02d}0000"})
-                    for ch in self.request(self.url, self.params):
+                    for ch in self.request(self.url, params=self.params):
                         try:
                             if ch["schedules"]:
                                 channeldict[ch["channel_code"]]["schedules"] += ch["schedules"]

@@ -16,7 +16,7 @@ class KT(EPGProvider):
     def get_svc_channels(self):
         url = "https://tv.kt.com/tv/channel/pChList.asp"
         params = {"ch_type": "1", "parent_menu_id": "0"}
-        soup = BeautifulSoup(self.request(url, params, method="POST", output="html"))
+        soup = BeautifulSoup(self.request(url, method="POST", params=params))
         raw_channels = [unquote(x.find("span", {"class": "ch"}).text.strip()) for x in soup.select("li > a")]
         # 몇몇 채널은 (TV로만 제공, 유료채널) 웹에서 막혀있지만 실제로는 데이터가 있을 수 있다.
         self.svc_channel_list = [
@@ -37,7 +37,7 @@ class KT(EPGProvider):
                 day = date.today() + timedelta(days=nd)
                 params.update({"service_ch_no": _ch.svcid, "seldate": day.strftime("%Y%m%d")})
                 try:
-                    data = self.request(url, params, method="POST", output="html")
+                    data = self.request(url, method="POST", params=params)
                     soup = BeautifulSoup(data, parse_only=SoupStrainer("tbody"))
                     for row in soup.find_all("tr"):
                         cell = row.find_all("td")
