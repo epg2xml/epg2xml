@@ -19,7 +19,7 @@ class DAUM(EPGProvider):
         channelcate = ["지상파", "종합편성", "케이블", "스카이라이프", "해외위성", "라디오"]
         for c in channelcate:
             search_url = url.format(f"{c} 편성표")
-            data = self.request(search_url, None, method="GET", output="html")
+            data = self.request(search_url)
             soup = BeautifulSoup(data)
             if not soup.find_all(attrs={"disp-attr": "B3T"}):
                 continue
@@ -46,7 +46,7 @@ class DAUM(EPGProvider):
         for idx, _ch in enumerate(self.req_channels):
             log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)
             search_url = url.format(quote(_ch.svcid + " 편성표"))
-            data = self.request(search_url, None, method="GET", output="html")
+            data = self.request(search_url)
             soup = BeautifulSoup(data)
             if not soup.find_all(attrs={"disp-attr": "B3T"}):
                 log.warning("EPG 정보가 없거나 없는 채널입니다: %s", _ch)

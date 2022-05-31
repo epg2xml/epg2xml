@@ -24,26 +24,20 @@ def dump_json(file_path, data):
         f.write(txt)
 
 
-def request_data(url, params, method="GET", output="html", session=None, ret=""):
+def request_data(url, method="GET", session=None, **kwargs):
     # TODO: retry on failure
     # https://findwork.dev/blog/advanced-usage-python-requests-timeouts-retries-hooks/
-    sess = session or Session()
-    try:
-        if method == "GET":
-            r = sess.get(url, params=params)
-        elif method == "POST":
-            r = sess.post(url, data=params)
-        else:
-            raise ValueError(f"Unexpected method: {method}")
-        r.raise_for_status()
-        if output.lower() == "html":
-            ret = r.text
-        elif output.lower() == "json":
-            ret = r.json()
-        else:
-            raise ValueError(f"Unexpected output type: {output}")
-    except Exception:
-        log.exception("요청 중 에러:")
+    ret = ""
+    with session or Session() as sess:
+        try:
+            r = sess.request(method=method, url=url, **kwargs)
+            r.raise_for_status()
+            try:
+                ret = r.json()
+            except json.decoder.JSONDecodeError:
+                ret = r.text
+        except Exception:
+            log.exception("요청 중 에러:")
     time.sleep(req_sleep)
     return ret
 

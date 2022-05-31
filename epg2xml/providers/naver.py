@@ -4,7 +4,6 @@ from xml.sax.saxutils import unescape
 
 from epg2xml.providers import EPGProvider, EPGProgram
 from epg2xml.providers import ParserBeautifulSoup as BeautifulSoup
-from epg2xml.utils import request_data
 
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 today = date.today()
@@ -34,7 +33,7 @@ class NAVER(EPGProvider):
         }
         for c in channelcate:
             params.update({"u1": c["u1"]})
-            data = self.request(url, params, method="GET", output="json")
+            data = self.request(url, params=params)
             if data["statusCode"].lower() != "success":
                 log.error("유효한 응답이 아닙니다: %s", data["statusCode"])
                 continue
@@ -62,7 +61,7 @@ class NAVER(EPGProvider):
             for nd in range(int(self.cfg["FETCH_LIMIT"])):
                 day = today + timedelta(days=nd)
                 params.update({"u1": _ch.svcid, "u2": day.strftime("%Y%m%d")})
-                data = request_data(url, params, method="GET", output="json", session=self.sess)
+                data = self.request(url, params=params)
                 try:
                     if data["statusCode"].lower() != "success":
                         log.error("유효한 응답이 아닙니다: %s %s", _ch, data["statusCode"])

@@ -22,14 +22,13 @@ class SK(EPGProvider):
             programName = unescape(match.group(1)).replace("<", "&lt;").replace(">", "&gt;").strip()
             programName = f'<{tag} class="cont">{programName}'
             return programName
-        else:
-            return ""
+        return ""
 
     def get_svc_channels(self):
         url = "https://m.skbroadband.com/content/realtime/Realtime_List_Ajax.do"
         params = {"package_name": "PM50305785", "pack": "18"}
         c_name = ""
-        for x in self.request(url, params, method="POST", output="json"):
+        for x in self.request(url, method="POST", params=params):
             if x["depth"] == "1":
                 c_name = x["m_name"]
             elif x["depth"] == "2" and c_name and c_name not in ["프로모션"]:
@@ -66,7 +65,7 @@ class SK(EPGProvider):
                 day = date.today() + timedelta(days=nd)
                 params.update({"key_depth2": _ch.svcid, "key_depth3": day.strftime("%Y%m%d")})
                 try:
-                    data = self.request(url, params, method="GET", output="html")
+                    data = self.request(url, params=params)
                     data = re.sub("EUC-KR", "utf-8", data)
                     data = re.sub("<!--(.*?)-->", "", data, 0, re.I | re.S)
                     data = re.sub('<span class="round_flag flag02">(.*?)</span>', "", data)
