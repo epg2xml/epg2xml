@@ -6,11 +6,13 @@ import logging
 from xml.sax.saxutils import escape as _escape
 
 from requests import Session
+from requests.packages import urllib3
 
 ua = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.90 Safari/537.36"
 )
 req_sleep = 1
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)  # lguplus.com
 
 log = logging.getLogger("UTILS")
 
