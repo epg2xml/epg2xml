@@ -15,9 +15,6 @@ class WAVVE(EPGProvider):
 
     데이터: jsonapi
     요청수: 1
-    특이사항:
-    - 가끔 업데이트 지연
-    - 프로그램 시작 시각만 제공
     """
 
     referer = "https://www.wavve.com/schedule/index.html"
@@ -92,7 +89,7 @@ class WAVVE(EPGProvider):
                     _prog.rating = 0 if program["targetage"] == "n" else int(program["targetage"])
 
                     # 추가 정보 가져오기
-                    if self.cfg["GET_MORE_DETAILS"] == "y":
+                    if self.cfg["GET_MORE_DETAILS"]:
                         programid = program["programid"].strip()
                         if programid and (programid not in programcache):
                             # 개별 programid가 없는 경우도 있으니 체크해야함
@@ -104,7 +101,6 @@ class WAVVE(EPGProvider):
                         if (programid in programcache) and bool(programcache[programid]):
                             programcache[programid]["hit"] += 1
                             programdetail = programcache[programid]
-                            # TODO: 추가 제목 정보 활용
                             # programtitle = programdetail['programtitle']
                             # log.info('%s / %s' % (programName, programtitle))
                             _prog.desc = "\n".join(
@@ -114,7 +110,7 @@ class WAVVE(EPGProvider):
                             _prog.poster_url = "https://" + programdetail["programposterimage"].strip()
                             # tags = programdetail['tags']['list'][0]['text']
                             if programdetail["actors"]["list"]:
-                                _prog.actors = ",".join([x["text"] for x in programdetail["actors"]["list"]])
+                                _prog.actors = [x["text"] for x in programdetail["actors"]["list"]]
                     _ch.programs.append(_prog)
                 except Exception:
                     log.exception("파싱 에러: %s", program)
