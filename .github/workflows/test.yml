@@ -36,5 +36,5 @@ jobs:
       uses: actions/upload-artifact@v3
       if: always()
       with:
-        name: xmltv ${{ matrix.provider }} py ${{ matrix.python-version }}
+        name: xmltv-${{ matrix.provider }}-py${{ matrix.python-version }}
         path: xmltv_${{ matrix.provider }}.xml
