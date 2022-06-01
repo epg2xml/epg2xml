@@ -23,14 +23,40 @@ class KT(EPGProvider):
     no_endtime = True
 
     def get_svc_channels(self):
+        channelcate = [
+            # 0은 전체 채널
+            {"name": "지상파/종합편성", "id": "3"},
+            {"name": "홈쇼핑", "id": "4"},
+            {"name": "드라마/여성", "id": "5"},
+            {"name": "오락/음악", "id": "6"},
+            {"name": "영화/시리즈", "id": "8"},
+            {"name": "스포츠", "id": "10"},
+            {"name": "취미/레저", "id": "12"},
+            {"name": "애니/유아/교육", "id": "137"},
+            {"name": "다큐/교양", "id": "206"},
+            {"name": "뉴스/경제", "id": "317"},
+            {"name": "공공/공익/정보", "id": "442"},
+            {"name": "종교", "id": "446"},
+            {"name": "오픈", "id": "447"},
+            {"name": "유료", "id": "448"},
+            {"name": "오디오", "id": "449"},
+        ]
         url = "https://tv.kt.com/tv/channel/pChList.asp"
         params = {"ch_type": "1", "parent_menu_id": "0"}
-        soup = BeautifulSoup(self.request(url, method="POST", data=params))
-        raw_channels = [unquote(x.find("span", {"class": "ch"}).text.strip()) for x in soup.select("li > a")]
-        # 몇몇 채널은 (TV로만 제공, 유료채널) 웹에서 막혀있지만 실제로는 데이터가 있을 수 있다.
-        self.svc_channel_list = [
-            {"Name": " ".join(x.split()[1:]), "No": str(x.split()[0]), "ServiceId": x.split()[0]} for x in raw_channels
-        ]
+        for c in channelcate:
+            params.update({"parent_menu_id": c["id"]})
+            soup = BeautifulSoup(self.request(url, method="POST", data=params))
+            raw_channels = [unquote(x.find("span", {"class": "ch"}).text.strip()) for x in soup.select("li > a")]
+            # 몇몇 채널은 (TV로만 제공, 유료채널) 웹에서 막혀있지만 실제로는 데이터가 있을 수 있다.
+            for x in raw_channels:
+                self.svc_channel_list.append(
+                    {
+                        "Name": " ".join(x.split()[1:]),
+                        "No": str(x.split()[0]),
+                        "ServiceId": x.split()[0],
+                        "Category": c["name"],
+                    }
+                )
 
     def get_programs(self, lazy_write=False):
         url = "https://tv.kt.com/tv/channel/pSchedule.asp"
