@@ -2,47 +2,63 @@ import re
 import logging
 from datetime import datetime, timedelta, date
 
-from epg2xml.providers import EPGProvider, EPGProgram
-from epg2xml.providers import ParserBeautifulSoup as BeautifulSoup, SoupStrainer
+from requests.packages import urllib3
 
+from epg2xml.providers import EPGProvider, EPGProgram
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 
 
 class LG(EPGProvider):
-    referer = "http://www.uplus.co.kr/css/chgi/chgi/RetrieveTvContentsMFamily.hpi"
+    """EPGProvider for LG
+
+    데이터: jsonapi
+    요청수: #channels * #days
+    특이사항:
+    - 5일치만 제공
+    - 프로그램 시작 시각만 제공
+    참고:
+    - InsecureRequestWarning 문제가 있음.
+    - 사이트 리뉴얼 이후 프로그램 카테고리가 아직 명확히 정해지지 않은 듯 하다.
+    """
+
+    referer = "https://www.lguplus.com/iptv/channel-guide"
     title_regex = r"\s?(?:\[.*?\])?(.*?)(?:\[(.*)\])?\s?(?:\(([\d,]+)회\))?\s?(<재>)?$"
     no_endtime = True
 
+    gcode = {"0": 0, "1": 7, "2": 12, "3": 15, "4": 19}
+    pcate = {
+        "00": "영화",
+        "02": "만화",
+        "03": "드라마",
+        "05": "스포츠",
+        "06": "교육",
+        "07": None,  # 어린이/교육
+        "08": "연예/오락",
+        "09": "공연/음악",
+        "10": None,  # 게임
+        "11": "다큐",
+        "12": "뉴스/정보",
+        "13": "라이프",
+        "15": None,  # 홈쇼핑
+        "16": None,  # 경제/부동산
+        "31": "기타",
+    }
+
     def get_svc_channels(self):
-        channelcate = [
-            {"name": "지상파", "category": "00"},
-            {"name": "스포츠/취미", "category": "01"},
-            {"name": "영화", "category": "02"},
-            {"name": "뉴스/경제", "category": "03"},
-            {"name": "교양/다큐", "category": "04"},
-            {"name": "여성/오락", "category": "05"},
-            {"name": "어린이/교육", "category": "06"},
-            {"name": "홈쇼핑", "category": "07"},
-            {"name": "공공/종교", "category": "08"},
-        ]
-        p_name = re.compile(r".+(?=[(])")
-        p_no = re.compile(r"(?<=Ch[.])\d+")
-        p_svcid = re.compile(r"(?<=[('])\d+(?=[',])")
-        url = "https://www.uplus.co.kr/css/chgi/chgi/RetrieveTvChannel.hpi"
-        params = {"code": "12810"}
-        for c in channelcate:
-            params.update({"category": c["category"]})
-            soup = BeautifulSoup(self.request(url, params=params))
-            for ch in soup.select('li > a[name="chList"]'):
-                ch_txt = ch.text
-                self.svc_channel_list.append(
-                    {
-                        "Name": p_name.search(ch_txt).group(),
-                        "No": str(p_no.search(ch_txt).group()),
-                        "ServiceId": p_svcid.search(ch["onclick"]).group(),
-                        "Category": c["name"],
-                    }
-                )
+        url = "https://www.lguplus.com/uhdc/fo/prdv/chnlgid/v1/tv-schedule-list"
+        data = self.request(url, verify=False)
+        cate = {x["urcBrdCntrTvChnlGnreCd"]: x["urcBrdCntrTvChnlGnreNm"] for x in data["brdGnreDtoList"]}
+        for ch in self.request(url, verify=False)["brdCntrTvChnlIDtoList"]:
+            self.svc_channel_list.append(
+                {
+                    "Name": ch["urcBrdCntrTvChnlNm"],
+                    "No": ch["urcBrdCntrTvChnlNo"],
+                    "ServiceId": ch["urcBrdCntrTvChnlId"],
+                    "Category": cate[ch["urcBrdCntrTvChnlGnreCd"]],
+                }
+            )
 
     def get_programs(self, lazy_write=False):
         max_ndays = 5
@@ -59,40 +75,40 @@ class LG(EPGProvider):
                 self.provider_name,
                 max_ndays,
             )
-        url = "http://www.uplus.co.kr/css/chgi/chgi/RetrieveTvSchedule.hpi"
-        params = {"chnlCd": "SVCID", "evntCmpYmd": "EPGDATE"}
+        url = "https://www.lguplus.com/uhdc/fo/prdv/chnlgid/v1/tv-schedule-list"
+        params = {"urcBrdCntrTvChnlId": "SVCID", "brdCntrTvChnlBrdDt": "EPGDATE"}
         for idx, _ch in enumerate(self.req_channels):
             log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)
             for nd in range(min(int(self.cfg["FETCH_LIMIT"]), max_ndays)):
                 day = date.today() + timedelta(days=nd)
-                params.update({"chnlCd": _ch.svcid, "evntCmpYmd": day.strftime("%Y%m%d")})
+                params.update({"urcBrdCntrTvChnlId": _ch.svcid, "brdCntrTvChnlBrdDt": day.strftime("%Y%m%d")})
                 try:
-                    data = self.request(url, method="POST", params=params)
-                    data = data.replace("<재>", "&lt;재&gt;").replace(" [..", "").replace(" (..", "")
-                    soup = BeautifulSoup(data, parse_only=SoupStrainer("table"))
-                    if not str(soup):
+                    data = self.request(url, params=params, verify=False)
+                    programs = data.get("brdCntTvSchIDtoList", [])
+                    if not programs:
                         log.warning("EPG 정보가 없거나 없는 채널입니다: %s", _ch)
                         # 오늘 없으면 내일도 없는 채널로 간주
                         break
-                    for row in soup.find("table").tbody.find_all("tr"):
-                        cell = row.find_all("td")
+                    for p in programs:
                         _prog = EPGProgram(_ch.id)
-                        _prog.stime = datetime.strptime(f"{str(day)} {cell[0].text}", "%Y-%m-%d %H:%M")
-                        for span in cell[1].select("span > span[class]"):
-                            span_txt = span.text.strip()
-                            if "cte_all" in span["class"]:
-                                _prog.rating = 0 if span_txt == "All" else int(span_txt)
-                            else:
-                                _prog.extras.append(span_txt)
-                        cell[1].find("span", {"class": "tagGroup"}).decompose()
-                        _prog.title = cell[1].text.strip()
+                        _prog.title = p["brdPgmTitNm"]
+                        _prog.desc = p["brdPgmDscr"]
+                        _prog.stime = datetime.strptime(p["brdCntrTvChnlBrdDt"] + p["epgStrtTme"], "%Y%m%d%H:%M:%S")
+                        _prog.rating = self.gcode.get(p["brdWtchAgeGrdCd"], 0)
+                        _prog.extras.append(p["brdPgmRsolNm"])  # 화질
+                        if p["subtBrdYn"] == "Y":
+                            _prog.extras.append("자막")
+                        if p["explBrdYn"] == "Y":
+                            _prog.extras.append("화면해설")
+                        if p["silaBrdYn"] == "Y":
+                            _prog.extras.append("수화")
                         matches = re.match(self.title_regex, _prog.title)
                         if matches:
                             _prog.title = (matches.group(1) or "").strip()
                             _prog.title_sub = (matches.group(2) or "").strip()
                             _prog.ep_num = matches.group(3) or ""
                             _prog.rebroadcast = bool(matches.group(4))
-                        _prog.category = cell[2].text.strip()
+                        _prog.category = self.pcate.get(p["urcBrdCntrTvSchdGnreCd"], None)
                         _ch.programs.append(_prog)
                 except Exception:
                     log.exception("파싱 에러: %s", _ch)
