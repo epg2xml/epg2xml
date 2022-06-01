@@ -283,10 +283,7 @@ class EPGProgram:
             "스포츠": "Sports",
             "홈쇼핑": "Advertisement / Shopping",
         }
-        try:
-            contentType = contentTypeDict[category]
-        except KeyError:
-            contentType = ""
+        contentType = contentTypeDict.get(category, "")
 
         print(f'  <programme start="{stime} +0900" stop="{etime} +0900" channel="{self.channelid}">')
         print(f'    <title lang="kr">{title}</title>')
@@ -327,12 +324,12 @@ class EPGProgram:
         if poster_url:
             print(f'    <icon src="{escape(poster_url)}" />')
         if episode:
-            try:
-                episode_ns = int(episode) - 1
-            except ValueError:
-                episode_ns = int(episode.split(",", 1)[0]) - 1
-            episode_ns = f"0.{str(episode_ns)}.0/0"
             if cfg["ADD_XMLTV_NS"]:
+                try:
+                    episode_ns = int(episode) - 1
+                except ValueError:
+                    episode_ns = int(episode.split(",", 1)[0]) - 1
+                episode_ns = f"0.{str(episode_ns)}.0/0"
                 print(f'    <episode-num system="xmltv_ns">{episode_ns}</episode-num>')
             else:
                 print(f'    <episode-num system="onscreen">{episode}</episode-num>')
