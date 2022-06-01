@@ -11,6 +11,15 @@ log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 
 
 class SK(EPGProvider):
+    """EPGProvider for SK
+
+    데이터: jsonapi(채널목록) rawhtml(편성표)
+    요청수: #channels * #days
+    특이사항:
+    - 4일치만 제공
+    - 프로그램 시작 시각만 제공
+    """
+
     referer = "http://m.skbroadband.com/content/realtime/Channel_List.do"
     title_regex = r"^(.*?)(\(([\d,]+)회\))?(<(.*)>)?(\((재)\))?$"
     no_endtime = True
@@ -28,7 +37,7 @@ class SK(EPGProvider):
         url = "https://m.skbroadband.com/content/realtime/Realtime_List_Ajax.do"
         params = {"package_name": "PM50305785", "pack": "18"}
         c_name = ""
-        for x in self.request(url, method="POST", params=params):
+        for x in self.request(url, method="POST", data=params):
             if x["depth"] == "1":
                 c_name = x["m_name"]
             elif x["depth"] == "2" and c_name and c_name not in ["프로모션"]:
