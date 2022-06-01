@@ -11,6 +11,15 @@ today = date.today()
 
 
 class WAVVE(EPGProvider):
+    """EPGProvider for WAVVE
+
+    데이터: jsonapi
+    요청수: 1
+    특이사항:
+    - 가끔 업데이트 지연
+    - 프로그램 시작 시각만 제공
+    """
+
     referer = "https://www.wavve.com/schedule/index.html"
     title_regex = r"^(.*?)(?:\s*[\(<]?([\d]+)회[\)>]?)?(?:\([월화수목금토일]?\))?(\([선별전주\(\)재방]*?재[\d방]?\))?\s*(?:\[(.+)\])?$"
     url = "https://apis.wavve.com/live/epgs"

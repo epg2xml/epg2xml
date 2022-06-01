@@ -8,10 +8,16 @@ from epg2xml.providers import ParserBeautifulSoup as BeautifulSoup
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 today = date.today()
 
-# TODO: better to parsing desktop page?
-
 
 class NAVER(EPGProvider):
+    """EPGProvider for NAVER
+
+    데이터: rawhtml
+    요청수: #channels * #days
+    특이사항:
+    - 프로그램 시작 시각만 제공
+    """
+
     referer = "https://m.search.naver.com/search.naver?where=m&query=%ED%8E%B8%EC%84%B1%ED%91%9C"
     no_endtime = True
 

@@ -10,6 +10,15 @@ log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 
 
 class DAUM(EPGProvider):
+    """EPGProvider for DAUM
+
+    데이터: rawhtml
+    요청수: #channels
+    특이사항:
+    - 최대 7일치를 한 번에
+    - 프로그램 시작 시각만 제공
+    """
+
     referer = ""
     no_endtime = True
     title_regex = r"^(?P<title>.*?)\s?([\<\(]?(?P<part>\d{1})부[\>\)]?)?\s?(<(?P<subname1>.*)>)?\s?((?P<epnum>\d+)회)?\s?(<(?P<subname2>.*)>)?$"
@@ -71,7 +80,6 @@ class DAUM(EPGProvider):
                         _prog.stime = basedate + timedelta(days=nd, hours=nh, minutes=nm)
                         for atag in dl.select("dd > a"):
                             _prog.title = atag.text.strip()
-                            # TODO: Get more details via daum search
                         for span in dl.select("dd > span"):
                             class_val = " ".join(span["class"])
                             if class_val == "":

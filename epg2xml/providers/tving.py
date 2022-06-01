@@ -12,6 +12,14 @@ today = date.today()
 
 
 class TVING(EPGProvider):
+    """EPGProvider for TVING
+
+    데이터: jsonapi
+    요청수: #channels/20 * #days * 24/3
+    특이사항:
+    - 최대 20채널 최대 3시간 허용
+    """
+
     url = "https://api.tving.com/v2/media/schedules"
     referer = "https://www.tving.com/schedule/main.do"
     params = {
