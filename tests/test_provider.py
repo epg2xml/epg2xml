@@ -3,6 +3,7 @@ import logging
 import subprocess
 from pathlib import Path
 from timeit import default_timer as timer
+from contextlib import redirect_stdout
 
 from epg2xml import __title__, __version__
 from epg2xml.providers import load_providers
@@ -67,18 +68,16 @@ if not provider.req_channels:
     sys.exit(0)
 
 xmlfile = Path.cwd().joinpath(f"xmltv_{provider.provider_name.lower()}.xml")
-sys.stdout = open(xmlfile, "w", encoding="utf-8")
+with open(xmlfile, "w", encoding="utf-8") as f:
+    with redirect_stdout(f):
+        print('<?xml version="1.0" encoding="UTF-8"?>')
+        print('<!DOCTYPE tv SYSTEM "xmltv.dtd">\n')
+        print(f'<tv generator-info-name="{__title__} v{__version__}">')
 
-print('<?xml version="1.0" encoding="UTF-8"?>')
-print('<!DOCTYPE tv SYSTEM "xmltv.dtd">\n')
-print(f'<tv generator-info-name="{__title__} v{__version__}">')
+        provider.write_channel_headers()
+        provider.write_programs()
 
-provider.write_channel_headers()
-provider.write_programs()
-
-print("</tv>")
-sys.stdout.close()
-sys.stdout = sys.__stdout__
+        print("</tv>")
 
 log.info(f"Average size: {xmlfile.stat().st_size/num_gch/1000.:.2f} kbyte/ch")
 
