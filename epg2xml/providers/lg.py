@@ -2,18 +2,32 @@ import re
 import logging
 from datetime import datetime, timedelta, date
 
+from requests.packages import urllib3
+
 from epg2xml.providers import EPGProvider, EPGProgram
 
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 
 
 class LG(EPGProvider):
+    """EPGProvider for LG
+
+    데이터: jsonapi
+    요청수: #channels * #days
+    특이사항:
+    - 5일치만 제공
+    - 프로그램 시작 시각만 제공
+    참고:
+    - InsecureRequestWarning 문제가 있음.
+    - 사이트 리뉴얼 이후 프로그램 카테고리가 아직 명확히 정해지지 않은 듯 하다.
+    """
+
     referer = "https://www.lguplus.com/iptv/channel-guide"
     title_regex = r"\s?(?:\[.*?\])?(.*?)(?:\[(.*)\])?\s?(?:\(([\d,]+)회\))?\s?(<재>)?$"
     no_endtime = True
 
     gcode = {"0": 0, "1": 7, "2": 12, "3": 15, "4": 19}
-    # TODO: 사이트 리뉴얼 이후 프로그램 카테고리가 명확히 정해지지 않은 듯 하다.
     pcate = {
         "00": "영화",
         "02": "만화",
