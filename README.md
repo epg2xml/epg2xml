@@ -12,70 +12,42 @@
 
 플랫폼마다 파이썬 버전, 패키지 설치 가능 여부와 방법이 다르므로 검색을 통해 해결한다. 유명한 패키지들이라 어렵지 않을 것이다.
 
-## 설치
+## 빠른 시작
 
-### 1. PIP - 추천 방법
+### 설치
 
 pip와 git이 설치되어 있다면 아래와 같이 간단히 설치할 수 있다.
 
 ```bash
-$ python -m pip install git+https://github.com/epg2xml/epg2xml.git@{tag_branch_hash}
+python -m pip install git+https://github.com/epg2xml/epg2xml.git@{tag_branch_hash}
 ```
 
-`@{tag_branch_hash}`를 지정할 수 있으며 입력하지 않을 경우 `main` 브랜치에서 설치한다. [참고](https://pip.pypa.io/en/latest/topics/vcs-support/). 아니면 수동으로 git clone한 뒤 pip로 설치할 수 있다.
+`@{tag_branch_hash}`를 지정할 수 있으며 입력하지 않을 경우 `main` 브랜치에서 설치한다. [참고](https://pip.pypa.io/en/latest/topics/vcs-support/). 선택사항인 `lxml`과 함께 설치하려면 다음과 같이 입력한다.
 
 ```bash
-$ git clone https://github.com/epg2xml/epg2xml.git
-$ cd epg2xml
-$ pip install .
+pip install "epg2xml[lxml] @ git+https://github.com/epg2xml/epg2xml.git@{tag_branch_hash}"
 ```
 
-선택사항인 `lxml`과 함께 설치할 수 있는데 첫번째 한줄 설치 방법은
+그 외의 설치 방법은 [위키](https://github.com/epg2xml/epg2xml/wiki/%EC%84%A4%EC%B9%98)를 참고.
 
-```bash
-$ pip install "epg2xml[lxml] @ git+https://github.com/epg2xml/epg2xml.git@{tag_branch_hash}"
-```
-
-git clone한 소스로부터 설치할 경우는 다음과 같다.
-
-```bash
-$ pip install .[lxml]
-```
-
-### 2. 직접 다운로드
-
-저장소를 git clone하거나
-
-```bash
-$ git clone https://github.com/epg2xml/epg2xml
-```
-
-zip 파일로 다운로드 하여 적절한 장소에 압축을 해제한다.
-
-```bash
-$ curl -LJO https://github.com/epg2xml/epg2xml/archive/main.zip
-```
-
-## 실행
+### 실행
 
 1. PIP를 이용해서 설치했을 경우 epg2xml을 입력하여 실행 가능하다.
 
     ```bash
-    $ epg2xml -v
-    epg2xml v2.0.1
+    epg2xml -v
     ```
 
     반면 직접 다운로드의 경우 v1 버전과 다르게 epg2xml 폴더만 보이고 epg2xml.py 파일이 없는데 모듈 `-m`으로 실행해야 한다.
 
     ```bash
-    $ python -m epg2xml -v
-    epg2xml v2.0.1
+    python -m epg2xml -v
     ```
 
 2. 하위 명령어 `run`을 입력해보자.
 
     ```bash
-    $ python -m epg2xml run
+    python -m epg2xml run
     ```
 
     그러면 아래와 같은 결과가 나온다.
@@ -90,7 +62,7 @@ $ curl -LJO https://github.com/epg2xml/epg2xml/archive/main.zip
 3. 다시 같은 명령어로 실행해보자.
 
     ```bash
-    $ python -m epg2xml run
+    python -m epg2xml run
     ```
 
     ```bash
@@ -119,7 +91,7 @@ $ curl -LJO https://github.com/epg2xml/epg2xml/archive/main.zip
 4. epg를 파일로 출력하려면 다음과 같이 `--xmlfile` 옵션을 지정한다. 그렇지 않으면 언제나 화면 출력이 기본이다.
 
     ```bash
-    $ python -m epg2xml run --xmlfile=xmltv.xml
+    python -m epg2xml run --xmlfile=xmltv.xml
     ```
 
 ## 채널 파일(Channel.json)에 대하여
