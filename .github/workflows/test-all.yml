@@ -1,10 +1,6 @@
-name: test providers
+name: test providers all
 
 on:
-  push:
-    branches:
-      - 'main'
-  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -15,7 +11,6 @@ jobs:
       matrix:
         provider: [kt, lg, sk, daum, naver, wavve, tving]
         python-version: ['3.7', '3.10']
-        parser: ['lxml', 'bs4']
     steps:
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
@@ -26,17 +21,13 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        if [ "${{ matrix.parser }}" = "lxml" ]; then
-          pip install .[lxml]
-        else
-          pip install .
-        fi
+        pip install .[lxml]
         sudo apt-get install -y xmltv-util
     - name: Checkout
       uses: actions/checkout@v3
     - name: Test ${{ matrix.provider }}
       run: |
-        python -m tests.test_provider ${{ matrix.provider }} 10
+        python -m tests.test_provider ${{ matrix.provider }}
     - name: Upload Artifact
       uses: actions/upload-artifact@v3
       if: always()

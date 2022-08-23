@@ -2,6 +2,7 @@ import sys
 import logging
 import subprocess
 from pathlib import Path
+from random import shuffle
 from timeit import default_timer as timer
 from contextlib import redirect_stdout
 
@@ -50,6 +51,15 @@ provider.load_svc_channels()
 etime_ch = timer() - stime
 
 provider.load_my_channels()
+
+if len(sys.argv) > 2:
+    rch = provider.req_channels
+    log.info("Shuffling requested channels...")
+    shuffle(rch)
+    log.info(f"Using {sys.argv[2]}% of them...")
+    num_rch = max(10, int(len(rch) // float(sys.argv[2])))
+    rch = rch[:num_rch]
+    provider.req_channels = rch
 
 stime = timer()
 provider.get_programs(lazy_write=True)
