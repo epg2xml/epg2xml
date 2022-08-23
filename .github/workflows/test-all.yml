@@ -1,10 +1,6 @@
-name: test providers
+name: test providers all
 
 on:
-  push:
-    branches:
-      - 'main'
-  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -31,7 +27,7 @@ jobs:
         sudo apt-get install -y xmltv-util
     - name: Test ${{ matrix.provider }}
       run: |
-        python -m tests.test_provider ${{ matrix.provider }} 10
+        python -m tests.test_provider ${{ matrix.provider }}
     - name: Upload Artifact
       uses: actions/upload-artifact@v3
       if: always()
