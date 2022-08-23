@@ -2,6 +2,10 @@
 requires = ["setuptools>=45", "setuptools_scm[toml]>=6.2"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools]
+py-modules = []
+packages = ["epg2xml"]
+
 [tool.setuptools_scm]
 write_to = "epg2xml/_version.py"
 version_scheme = "release-branch-semver"
@@ -32,7 +36,10 @@ classifiers = [
     "Topic :: Internet :: WWW/HTTP",
     "Topic :: Software Development :: Libraries",
 ]
-dependencies = ["requests", "beautifulsoup4"]
+dependencies = [
+    "requests",
+    "beautifulsoup4>=4.8",
+]
 optional-dependencies = {lxml = ["lxml"]}
 dynamic = ["version"]
 
