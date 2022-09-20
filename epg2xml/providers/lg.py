@@ -19,7 +19,6 @@ class LG(EPGProvider):
     - 5일치만 제공
     - 프로그램 시작 시각만 제공
     참고:
-    - InsecureRequestWarning 문제가 있음.
     - 사이트 리뉴얼 이후 프로그램 카테고리가 아직 명확히 정해지지 않은 듯 하다.
     """
 
@@ -48,9 +47,9 @@ class LG(EPGProvider):
 
     def get_svc_channels(self):
         url = "https://www.lguplus.com/uhdc/fo/prdv/chnlgid/v1/tv-schedule-list"
-        data = self.request(url, verify=False)
+        data = self.request(url)
         cate = {x["urcBrdCntrTvChnlGnreCd"]: x["urcBrdCntrTvChnlGnreNm"] for x in data["brdGnreDtoList"]}
-        for ch in self.request(url, verify=False)["brdCntrTvChnlIDtoList"]:
+        for ch in self.request(url)["brdCntrTvChnlIDtoList"]:
             self.svc_channel_list.append(
                 {
                     "Name": ch["urcBrdCntrTvChnlDscr"],
@@ -83,7 +82,7 @@ class LG(EPGProvider):
                 day = date.today() + timedelta(days=nd)
                 params.update({"urcBrdCntrTvChnlId": _ch.svcid, "brdCntrTvChnlBrdDt": day.strftime("%Y%m%d")})
                 try:
-                    data = self.request(url, params=params, verify=False)
+                    data = self.request(url, params=params)
                     programs = data.get("brdCntTvSchIDtoList", [])
                     if not programs:
                         log.warning("EPG 정보가 없거나 없는 채널입니다: %s", _ch)
