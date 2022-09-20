@@ -20,7 +20,7 @@ class SK(EPGProvider):
     - 프로그램 시작 시각만 제공
     """
 
-    referer = "http://m.skbroadband.com/content/realtime/Channel_List.do"
+    referer = "https://m.skbroadband.com/content/realtime/Channel_List.do"
     title_regex = r"^(.*?)(\(([\d,]+)회\))?(<(.*)>)?(\((재)\))?$"
     no_endtime = True
 
@@ -65,7 +65,7 @@ class SK(EPGProvider):
                 self.provider_name,
                 max_ndays,
             )
-        url = "http://m.skbroadband.com/content/realtime/Channel_List.do"
+        url = "https://m.skbroadband.com/content/realtime/Channel_List.do"
         params = {"key_depth2": "SVCID", "key_depth3": "EPGDATE"}
 
         for idx, _ch in enumerate(self.req_channels):
