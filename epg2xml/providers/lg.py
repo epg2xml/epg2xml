@@ -53,7 +53,7 @@ class LG(EPGProvider):
         for ch in self.request(url, verify=False)["brdCntrTvChnlIDtoList"]:
             self.svc_channel_list.append(
                 {
-                    "Name": ch["urcBrdCntrTvChnlNm"],
+                    "Name": ch["urcBrdCntrTvChnlDscr"],
                     "No": ch["urcBrdCntrTvChnlNo"],
                     "ServiceId": ch["urcBrdCntrTvChnlId"],
                     "Category": cate[ch["urcBrdCntrTvChnlGnreCd"]],
