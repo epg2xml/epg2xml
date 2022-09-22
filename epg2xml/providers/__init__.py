@@ -82,6 +82,8 @@ class EPGProvider:
         self.cfg = cfg
         self.sess = Session()
         self.sess.headers.update({"User-Agent": ua, "Referer": self.referer})
+        if self.title_regex:
+            self.title_regex = re.compile(self.title_regex)
         # placeholders
         self.svc_channel_list: list = []
         self.svc_channel_dict: dict = {}

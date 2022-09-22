@@ -105,7 +105,7 @@ class SK(EPGProvider):
                             if cell.find("span"):
                                 cell.span.decompose()
                             _prog.title = cell.text.strip()
-                            matches = re.match(self.title_regex, _prog.title)
+                            matches = self.title_regex.match(_prog.title)
                             if matches:
                                 _prog.title = matches.group(1) or ""
                                 _prog.title_sub = matches.group(5) or ""

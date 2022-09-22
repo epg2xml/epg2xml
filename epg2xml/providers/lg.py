@@ -1,4 +1,3 @@
-import re
 import logging
 from datetime import datetime, timedelta, date
 
@@ -98,7 +97,7 @@ class LG(EPGProvider):
                             _prog.extras.append("화면해설")
                         if p["silaBrdYn"] == "Y":
                             _prog.extras.append("수화")
-                        matches = re.match(self.title_regex, _prog.title)
+                        matches = self.title_regex.match(_prog.title)
                         if matches:
                             _prog.title = (matches.group(1) or "").strip()
                             _prog.title_sub = (matches.group(2) or "").strip()

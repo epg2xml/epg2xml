@@ -1,4 +1,3 @@
-import re
 import logging
 from urllib.parse import quote
 from datetime import datetime, timedelta
@@ -88,7 +87,7 @@ class DAUM(EPGProvider):
                             else:
                                 # ico_live ico_hd ico_subtitle ico_hand ico_uhd ico_talk ico_st
                                 _prog.extras.append(span.text.strip())
-                        match = re.compile(self.title_regex).search(_prog.title)
+                        match = self.title_regex.search(_prog.title)
                         _prog.title = match.group("title") or None
                         _prog.part_num = match.group("part") or None
                         _prog.ep_num = match.group("epnum") or ""

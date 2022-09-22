@@ -1,4 +1,3 @@
-import re
 import logging
 from datetime import datetime, timedelta, date
 
@@ -73,7 +72,7 @@ class SPOTV(EPGProvider):
                     # 끝나는 시간이 없으면 해당일 자정으로 강제
                     _prog.etime = _prog.stime.replace(hour=0, minute=0) + timedelta(days=1)
 
-                matches = re.match(self.title_regex, _prog.title)
+                matches = self.title_regex.match(_prog.title)
                 if matches:
                     _prog.title = (matches.group(2) or "").strip()
                     _prog.title_sub = (matches.group(1) or "").strip()

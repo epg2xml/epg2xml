@@ -1,4 +1,3 @@
-import re
 import logging
 from xml.sax.saxutils import unescape
 from datetime import datetime, timedelta, date
@@ -79,7 +78,7 @@ class WAVVE(EPGProvider):
                     _prog.stime = datetime.strptime(program["starttime"], "%Y-%m-%d %H:%M")
                     _prog.etime = datetime.strptime(program["endtime"], "%Y-%m-%d %H:%M")
                     _prog.title = unescape(program["title"])
-                    matches = re.match(self.title_regex, _prog.title)
+                    matches = self.title_regex.match(_prog.title)
                     if matches:
                         _prog.title = (matches.group(1) or "").strip()
                         _prog.title_sub = (matches.group(4) or "").strip()
