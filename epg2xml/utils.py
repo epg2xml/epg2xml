@@ -5,7 +5,7 @@ import time
 import logging
 from xml.sax.saxutils import escape as _escape
 
-from requests import Session
+import requests
 
 ua = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.90 Safari/537.36"
@@ -25,10 +25,8 @@ def dump_json(file_path, data):
 
 
 def request_data(url, method="GET", session=None, **kwargs):
-    # TODO: retry on failure
-    # https://findwork.dev/blog/advanced-usage-python-requests-timeouts-retries-hooks/
     ret = ""
-    with session or Session() as sess:
+    with session or requests.Session() as sess:
         try:
             r = sess.request(method=method, url=url, **kwargs)
             r.raise_for_status()
@@ -36,6 +34,8 @@ def request_data(url, method="GET", session=None, **kwargs):
                 ret = r.json()
             except json.decoder.JSONDecodeError:
                 ret = r.text
+        except requests.exceptions.HTTPError as e:
+            log.error("요청 중 에러: %s", e)
         except Exception:
             log.exception("요청 중 에러:")
     time.sleep(req_sleep)

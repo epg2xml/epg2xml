@@ -119,6 +119,3 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
         sys.exit(0)
-    except Exception as _e:
-        log.exception(_e)
-        sys.exit(1)

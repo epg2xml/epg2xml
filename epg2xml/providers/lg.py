@@ -2,11 +2,8 @@ import re
 import logging
 from datetime import datetime, timedelta, date
 
-from requests.packages import urllib3
-
 from epg2xml.providers import EPGProvider, EPGProgram
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 
 

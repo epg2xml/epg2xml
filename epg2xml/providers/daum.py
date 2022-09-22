@@ -26,29 +26,26 @@ class DAUM(EPGProvider):
     def get_svc_channels(self):
         url = "https://search.daum.net/search?DA=B3T&w=tot&rtmaxcoll=B3T&q={}"
         channelcate = ["지상파", "종합편성", "케이블", "스카이라이프", "해외위성", "라디오"]
+        channelsel1 = 'div[id="channelNaviLayer"] > div[class="layer_tv layer_all scroll"] > div > ul > li'
+        channelsel2 = 'div[class="wrap_sub"] > span > a'
         for c in channelcate:
             search_url = url.format(f"{c} 편성표")
             data = self.request(search_url)
             soup = BeautifulSoup(data)
             if not soup.find_all(attrs={"disp-attr": "B3T"}):
                 continue
-            all_channels = [
-                str(x.text.strip())
-                for x in soup.select(
-                    'div[id="channelNaviLayer"] > div[class="layer_tv layer_all scroll"] > div > ul > li'
-                )
-            ]
+            all_channels = [str(x.text.strip()) for x in soup.select(channelsel1)]
             if not all_channels:
-                all_channels += [str(x.text.strip()) for x in soup.select('div[class="wrap_sub"] > span > a')]
+                all_channels += [str(x.text.strip()) for x in soup.select(channelsel2)]
             svc_cate = c.replace("스카이라이프", "SKYLIFE")
-            self.svc_channel_list += [
-                {
-                    "Name": x,
-                    "ServiceId": f"{svc_cate} {x}",
-                    "Category": c,
-                }
-                for x in all_channels
-            ]
+            for x in all_channels:
+                self.svc_channel_list.append(
+                    {
+                        "Name": x,
+                        "ServiceId": f"{svc_cate} {x}",
+                        "Category": c,
+                    }
+                )
 
     def get_programs(self, lazy_write=False):
         url = "https://search.daum.net/search?DA=B3T&w=tot&rtmaxcoll=B3T&q={}"
