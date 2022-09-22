@@ -59,6 +59,9 @@ class Config:
         "TVING": {
             "MY_CHANNELS": [],
         },
+        "SPOTV": {
+            "MY_CHANNELS": [],
+        },
     }
 
     base_settings = {
