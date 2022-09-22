@@ -160,6 +160,9 @@ pip install "epg2xml[lxml] @ git+https://github.com/epg2xml/epg2xml.git@{tag_bra
   "TVING": {
     "MY_CHANNELS": []
   }
+  "SPOTV": {
+    "MY_CHANNELS": []
+  }
 }
 ```
 
@@ -214,12 +217,13 @@ Online help: <https://github.com/epg2xml/epg2xml>
 | 소스 | 요청수  | 소요시간<sup id="a1">[1](#f1)</sup> | 크기<sup id="a2">[2](#f2)</sup> | 참고 |
 |---|---|---|---|---|
 | KT  | ```#channels * #days```  | 3.08s | 26.80 kb | 가끔 업데이트 지연 |
-| LG  | ```#channels * #days```  | 2.93s | 30.48 kb | 5일치만 제공
+| LG  | ```#channels * #days```  | 2.93s | 30.48 kb | 5일치만 제공 |
 | SK | ```#channels * #days```  | 7.52s | 23.57 kb | 4일치만 제공 |
 | DAUM | ```#channels``` | 2.14s | 84.56 kb | 최대 7일치를 한 번에 |
 | NAVER | ```#channels * #days``` | 3.33s | 21.78 kb | |
 | WAVVE | ```1```  | 0.03s | 30.53 kb | 옵션으로 추가 정보 가능 |
 | TVING | ```#channels/20 * #days * 24/3```  | 1.78s | 78.01 kb | |
+| SPOTV | ```#days```  | 0.32s | 12.23 kb | 5일치만 제공 |
 
 <b id="f1">1</b> 이틀 치를 기준으로, 채널당 평균 소요시간. 네트워크 환경에 따라 다를 수 있음. [↩](#a1)
 
