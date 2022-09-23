@@ -25,7 +25,7 @@ class DAUM(EPGProvider):
     def get_svc_channels(self):
         url = "https://search.daum.net/search?DA=B3T&w=tot&rtmaxcoll=B3T&q={}"
         channelcate = ["지상파", "종합편성", "케이블", "스카이라이프", "해외위성", "라디오"]
-        channelsel1 = 'div[id="channelNaviLayer"] > div[class="layer_tv layer_all scroll"] > div > ul > li'
+        channelsel1 = '#channelNaviLayer > div[class^="layer_tv layer_all"] ul > li'
         channelsel2 = 'div[class="wrap_sub"] > span > a'
         for c in channelcate:
             search_url = url.format(f"{c} 편성표")
