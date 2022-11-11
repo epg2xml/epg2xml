@@ -218,7 +218,7 @@ Online help: <https://github.com/epg2xml/epg2xml>
 |---|---|---|---|---|
 | KT  | ```#channels * #days```  | 3.08s | 26.80 kb | 가끔 업데이트 지연 |
 | LG  | ```#channels * #days```  | 2.93s | 30.48 kb | 5일치만 제공 |
-| SK | ```#channels * #days```  | 7.52s | 23.57 kb | 4일치만 제공 |
+| SK | ```#channels * #days```  | 7.52s | 23.57 kb | 2일치만 제공 |
 | DAUM | ```#channels``` | 2.14s | 84.56 kb | 최대 7일치를 한 번에 |
 | NAVER | ```#channels * #days``` | 3.33s | 21.78 kb | |
 | WAVVE | ```1```  | 0.03s | 30.53 kb | 옵션으로 추가 정보 가능 |
