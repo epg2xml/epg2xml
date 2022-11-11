@@ -1,11 +1,8 @@
-import re
 import logging
-from functools import partial
 from datetime import datetime, timedelta, date
 from xml.sax.saxutils import unescape
 
 from epg2xml.providers import EPGProvider, EPGProgram
-from epg2xml.providers import ParserBeautifulSoup as BeautifulSoup, SoupStrainer
 
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 
@@ -13,31 +10,21 @@ log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 class SK(EPGProvider):
     """EPGProvider for SK
 
-    데이터: jsonapi(채널목록) rawhtml(편성표)
+    데이터: jsonapi
     요청수: #channels * #days
     특이사항:
-    - 4일치만 제공
-    - 프로그램 시작 시각만 제공
+    - 2일치만 제공
     """
 
-    referer = "https://m.skbroadband.com/content/realtime/Channel_List.do"
+    referer = None
     title_regex = r"^(.*?)(\(([\d,]+)회\))?(<(.*)>)?(\((재)\))?$"
-    no_endtime = True
-
-    @staticmethod
-    def replacement(match, tag):
-        if match:
-            tag = tag.strip()
-            programName = unescape(match.group(1)).replace("<", "&lt;").replace(">", "&gt;").strip()
-            programName = f'<{tag} class="cont">{programName}'
-            return programName
-        return ""
+    no_endtime = False
 
     def get_svc_channels(self):
-        url = "https://m.skbroadband.com/content/realtime/Realtime_List_Ajax.do"
-        params = {"package_name": "PM50305785", "pack": "18"}
+        url = "https://www.skbroadband.com/content/realtime/realtime_list.ajax"
+        params = {"package_name": "PM50305785"}
         c_name = ""
-        for x in self.request(url, method="POST", data=params):
+        for x in self.request(url, params=params):
             if x["depth"] == "1":
                 c_name = x["m_name"]
             elif x["depth"] == "2" and c_name and c_name not in ["프로모션"]:
@@ -51,7 +38,7 @@ class SK(EPGProvider):
                 )
 
     def get_programs(self, lazy_write=False):
-        max_ndays = 4
+        max_ndays = 2
         if int(self.cfg["FETCH_LIMIT"]) > max_ndays:
             log.warning(
                 """
@@ -65,53 +52,45 @@ class SK(EPGProvider):
                 self.provider_name,
                 max_ndays,
             )
-        url = "https://m.skbroadband.com/content/realtime/Channel_List.do"
-        params = {"key_depth2": "SVCID", "key_depth3": "EPGDATE"}
+        url = "https://cyber.skbroadband.com/core-prod/product/btv-channel/day-frmt-list"
+        params = {"idSvc": "SVCID", "stdDt": "EPGDATE", "gubun": "day"}
+        genre_code = {
+            "1": "드라마",
+            "2": "영화",
+            "4": "만화",
+            "8": "스포츠",
+            "9": "교육",
+            "11": "홈쇼핑",
+            "13": "예능",
+            "14": "시사/다큐",
+            "15": "음악",
+            "16": "라이프",
+            "17": "교양",
+            "18": "뉴스",
+        }
 
         for idx, _ch in enumerate(self.req_channels):
             log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)
             for nd in range(min(int(self.cfg["FETCH_LIMIT"]), max_ndays)):
                 day = date.today() + timedelta(days=nd)
-                params.update({"key_depth2": _ch.svcid, "key_depth3": day.strftime("%Y%m%d")})
+                params.update({"idSvc": _ch.svcid, "stdDt": day.strftime("%Y%m%d")})
                 try:
-                    data = self.request(url, params=params)
-                    data = re.sub("EUC-KR", "utf-8", data)
-                    data = re.sub("<!--(.*?)-->", "", data, 0, re.I | re.S)
-                    data = re.sub('<span class="round_flag flag02">(.*?)</span>', "", data)
-                    data = re.sub('<span class="round_flag flag03">(.*?)</span>', "", data)
-                    data = re.sub('<span class="round_flag flag04">(.*?)</span>', "", data)
-                    data = re.sub('<span class="round_flag flag09">(.*?)</span>', "", data)
-                    data = re.sub('<span class="round_flag flag10">(.*?)</span>', "", data)
-                    data = re.sub('<span class="round_flag flag11">(.*?)</span>', "", data)
-                    data = re.sub('<span class="round_flag flag12">(.*?)</span>', "", data)
-                    data = re.sub('<strong class="hide">프로그램 안내</strong>', "", data)
-                    data = re.sub('<p class="cont">(.*)', partial(SK.replacement, tag="p"), data)
-                    data = re.sub('<p class="tit">(.*)', partial(SK.replacement, tag="p"), data)
-                    strainer = SoupStrainer("div", {"id": "uiScheduleTabContent"})
-                    soup = BeautifulSoup(data, parse_only=strainer)
-                    for row in soup.find_all("li", {"class": "list"}):
+                    for res in self.request(url, params=params).get("result", []):
                         _prog = EPGProgram(_ch.id)
-                        _prog.stime = datetime.strptime(
-                            f"{str(day)} {row.find('p', {'class': 'time'}).text}", "%Y-%m-%d %H:%M"
-                        )
-                        for itag in row.select('i[class="hide"]'):
-                            itxt = itag.text.strip()
-                            if "세 이상" in itxt:
-                                _prog.rating = int(itxt.replace("세 이상", "").strip())
-                            else:
-                                _prog.extras.append(itxt)
-                        cell = row.find("p", {"class": "cont"})
-                        if cell:
-                            if cell.find("span"):
-                                cell.span.decompose()
-                            _prog.title = cell.text.strip()
-                            matches = self.title_regex.match(_prog.title)
-                            if matches:
-                                _prog.title = matches.group(1) or ""
-                                _prog.title_sub = matches.group(5) or ""
-                                _prog.rebroadcast = bool(matches.group(7))
-                                _prog.ep_num = matches.group(3) or ""
-                            _ch.programs.append(_prog)
+                        _prog.title = res["nmTitle"]
+                        matches = self.title_regex.match(_prog.title)
+                        if matches:
+                            _prog.title = matches.group(1) or ""
+                            _prog.title_sub = matches.group(5) or ""
+                            _prog.rebroadcast = bool(matches.group(7))
+                            _prog.ep_num = matches.group(3) or ""
+                        _prog.rating = int(res.get("cdRating", "0"))
+                        _prog.stime = datetime.strptime(res["dtEventStart"], "%Y%m%d%H%M%S")
+                        _prog.etime = datetime.strptime(res["dtEventEnd"], "%Y%m%d%H%M%S")
+                        if res["cdGenre"] and (res["cdGenre"] in genre_code):
+                            _prog.category = genre_code[res["cdGenre"]]
+                        _prog.desc = res["nmSynop"]  # 값이 없음
+                        _ch.programs.append(_prog)
                 except Exception:
                     log.exception("파싱 에러: %s", _ch)
             if not lazy_write:

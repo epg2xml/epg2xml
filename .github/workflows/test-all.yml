@@ -9,7 +9,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        provider: [kt, lg, daum, naver, wavve, tving, spotv]
+        provider: [kt, lg, sk, daum, naver, wavve, tving, spotv]
         python-version: ['3.7', '3.10']
     steps:
     - name: Set up Python ${{ matrix.python-version }}
