@@ -5,12 +5,12 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
         provider: [kt, lg, sk, daum, naver, wavve, tving, spotv]
-        python-version: ['3.7', '3.10']
+        python-version: ['3.7', '3.11']
     steps:
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
