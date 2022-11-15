@@ -32,7 +32,7 @@ def request_data(url, method="GET", session=None, **kwargs):
             r.raise_for_status()
             try:
                 ret = r.json()
-            except json.decoder.JSONDecodeError:
+            except ValueError:
                 ret = r.text
         except requests.exceptions.HTTPError as e:
             log.error("요청 중 에러: %s", e)
