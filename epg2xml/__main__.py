@@ -3,10 +3,9 @@ import json
 import socket
 import logging
 from contextlib import ExitStack
-from logging.handlers import RotatingFileHandler
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from epg2xml.config import Config
+from epg2xml.config import Config, setup_root_logger
 from epg2xml.providers import load_providers, load_channels
 from epg2xml import __version__, __title__
 
@@ -15,39 +14,26 @@ from epg2xml import __version__, __title__
 ############################################################
 
 # logging
-log_fmt = "%(asctime)-15s %(levelname)-8s %(name)-7s %(lineno)4d: %(message)s"
-formatter = logging.Formatter(log_fmt, datefmt="%Y/%m/%d %H:%M:%S")
-rootLogger = logging.getLogger()
-rootLogger.setLevel(logging.INFO)
-
-# suppress modules logging
-logging.getLogger("requests").setLevel(logging.ERROR)
-logging.getLogger("urllib3.connectionpool").setLevel(logging.ERROR)
-
-# logging to console, stderr by default
-consolehandler = logging.StreamHandler()
-consolehandler.setFormatter(formatter)
-rootLogger.addHandler(consolehandler)
+setup_root_logger()
 
 # load initial config
 conf = Config()
 
 if conf.settings["logfile"] is not None:
+    from logging.handlers import RotatingFileHandler
+
     # logging to file
-    filehandler = RotatingFileHandler(
-        conf.settings["logfile"], maxBytes=1024 * 1024 * 2, backupCount=5, encoding="utf-8"
-    )
-    filehandler.setFormatter(formatter)
-    rootLogger.addHandler(filehandler)
+    fileHandler = RotatingFileHandler(conf.settings["logfile"], maxBytes=2 * 1024**2, backupCount=5, encoding="utf-8")
+    setup_root_logger(handler=fileHandler)
 
 # set configured log level
-rootLogger.setLevel(conf.settings["loglevel"])
+logging.getLogger().setLevel(conf.settings["loglevel"])
 
 # load config file
 conf.load()
 
 # logger
-log = rootLogger.getChild("MAIN")
+log = logging.getLogger("MAIN")
 
 ############################################################
 # MAIN

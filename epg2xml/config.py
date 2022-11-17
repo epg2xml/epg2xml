@@ -6,11 +6,38 @@ import sys
 import errno
 from copy import copy
 from pathlib import Path
+from typing import Union
 
 from epg2xml.utils import dump_json
 from epg2xml import __version__, __title__, __description__, __url__
 
+# suppress modules logging
+logging.getLogger("requests").setLevel(logging.ERROR)
+logging.getLogger("urllib3.connectionpool").setLevel(logging.ERROR)
+
 logger = logging.getLogger("CONFIG")
+
+
+def setup_root_logger(
+    *,
+    handler: logging.Handler = None,
+    formatter: logging.Formatter = None,
+    level: Union[int, str] = None,
+) -> None:
+    if level is None:
+        level = logging.INFO
+
+    if handler is None:
+        # Console logger, log to stdout instead of stderr
+        handler = logging.StreamHandler(sys.stdout)
+
+    if formatter is None:
+        log_fmt = "%(asctime)-15s %(levelname)-8s %(name)-7s %(lineno)4d: %(message)s"
+        formatter = logging.Formatter(log_fmt, datefmt="%Y/%m/%d %H:%M:%S")
+
+    handler.setFormatter(formatter)
+    logging.getLogger().addHandler(handler)
+    logging.getLogger().setLevel(level)
 
 
 class Singleton(type):
