@@ -64,7 +64,7 @@ def main():
         log.debug("Trying to load cached channels from json")
         with open(conf.settings["channelfile"], "r", encoding="utf-8") as fp:
             channeljson = json.load(fp)
-    except (json.decoder.JSONDecodeError, FileNotFoundError) as e:
+    except (json.decoder.JSONDecodeError, ValueError, FileNotFoundError) as e:
         log.debug("Failed to load cached channels from json: %s", e)
         channeljson = {}
 

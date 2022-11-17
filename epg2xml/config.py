@@ -194,7 +194,7 @@ class Config:
                     sys.exit(0)
 
             self.load_with_hidden(cfg)
-        except json.decoder.JSONDecodeError:
+        except (json.decoder.JSONDecodeError, ValueError):
             logger.exception("Please check your config here: %s", self.settings["config"])
             sys.exit(1)
 
