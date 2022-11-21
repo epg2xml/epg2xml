@@ -28,8 +28,8 @@ def setup_root_logger(
         level = logging.INFO
 
     if handler is None:
-        # Console logger, log to stdout instead of stderr
-        handler = logging.StreamHandler(sys.stdout)
+        # logging to console, stderr by default
+        handler = logging.StreamHandler()
 
     if formatter is None:
         log_fmt = "%(asctime)-15s %(levelname)-8s %(name)-7s %(lineno)4d: %(message)s"
