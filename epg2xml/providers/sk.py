@@ -37,8 +37,9 @@ class SK(EPGProvider):
     def get_svc_channels(self):
         url = "https://www.skbroadband.com/content/realtime/realtime_list.ajax"
         params = {"package_name": "PM50305785"}
+        headers = {"referer": "https://cyber.skbroadband.com/"}
         c_name = ""
-        for x in self.request(url, params=params):
+        for x in self.request(url, params=params, headers=headers):
             if x["depth"] == "1":
                 c_name = x["m_name"]
             elif x["depth"] == "2" and c_name and c_name not in ["프로모션"]:
@@ -68,12 +69,13 @@ class SK(EPGProvider):
             )
         url = "https://cyber.skbroadband.com/core-prod/product/btv-channel/week-frmt-list"
         params = {"idSvc": "SVCID", "stdDt": "EPGDATE", "gubun": "week"}
+        headers = {"referer": "https://cyber.skbroadband.com/"}
 
         for idx, _ch in enumerate(self.req_channels):
             log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)
             params.update({"idSvc": _ch.svcid, "stdDt": date.today().strftime("%Y%m%d")})
             try:
-                infolist = self.request(url, params=params)["result"]["chnlFrmtInfoList"]
+                infolist = self.request(url, params=params, headers=headers)["result"]["chnlFrmtInfoList"]
                 assert isinstance(infolist, list)
             except Exception:
                 log.exception("예상치 못한 응답: %s", params)
