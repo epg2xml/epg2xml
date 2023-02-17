@@ -16,7 +16,7 @@ class SK(EPGProvider):
     - 최대 3일치를 한 번에
     """
 
-    referer = None
+    referer = "https://cyber.skbroadband.com/"
     title_regex = r"^(.*?)(\(([\d,]+)회\))?(<(.*)>)?(\((재)\))?$"
     no_endtime = False
     genre_code = {
