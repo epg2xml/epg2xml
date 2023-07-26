@@ -20,7 +20,7 @@ class SPOTV(EPGProvider):
     no_endtime = False
 
     def get_svc_channels(self):
-        url = "https://www.spotvnow.co.kr/api/v2/channel"
+        url = "https://www.spotvnow.co.kr/api/v3/channel"
         for ch in self.request(url):
             self.svc_channel_list.append(
                 {
@@ -48,7 +48,7 @@ class SPOTV(EPGProvider):
         data = []
         for nd in range(min(int(self.cfg["FETCH_LIMIT"]), max_ndays)):
             day = date.today() + timedelta(days=nd)
-            url = "https://www.spotvnow.co.kr/api/v2/program/" + day.strftime("%Y-%m-%d")
+            url = "https://www.spotvnow.co.kr/api/v3/program/" + day.strftime("%Y-%m-%d")
             try:
                 data.extend(self.request(url))
             except Exception:
