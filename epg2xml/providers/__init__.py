@@ -288,9 +288,9 @@ class EPGProgram:
         contentType = contentTypeDict.get(category, "")
 
         print(f'  <programme start="{stime} +0900" stop="{etime} +0900" channel="{self.channelid}">')
-        print(f'    <title lang="kr">{title}</title>')
+        print(f'    <title lang="ko">{title}</title>')
         if title_sub:
-            print(f'    <sub-title lang="kr">{title_sub}</sub-title>')
+            print(f'    <sub-title lang="ko">{title_sub}</sub-title>')
         if cfg["ADD_DESCRIPTION"]:
             desclines = [title]
             if title_sub:
@@ -309,7 +309,7 @@ class EPGProgram:
             if desc:
                 desclines += [escape(desc)]
             desc = re.sub(" +", " ", "\n".join(desclines))
-            print(f'    <desc lang="kr">{desc}</desc>')
+            print(f'    <desc lang="ko">{desc}</desc>')
             if actors or staff:
                 print("    <credits>")
                 for actor in map(str.strip, self.actors):
@@ -320,7 +320,7 @@ class EPGProgram:
                         print(f"      <producer>{escape(staff)}</producer>")
                 print("    </credits>")
         if category:
-            print(f'    <category lang="kr">{category}</category>')
+            print(f'    <category lang="ko">{category}</category>')
         if contentType:
             print(f'    <category lang="en">{contentType}</category>')
         if poster_url:
