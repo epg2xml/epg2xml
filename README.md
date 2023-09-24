@@ -6,7 +6,7 @@
 
 ### 요구 조건
 
-1. Python 3.7 이상
+1. Python 3.8 이상
 2. Python Package `requests`, `beautifulsoup4`
 3. Python Package `lxml` (선택 사항으로 속도 향상을 기대할 수 있다.)
 
