@@ -7,6 +7,7 @@ from importlib import import_module
 from xml.sax.saxutils import unescape
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
+from typing import ClassVar, List
 
 from requests import Session
 from bs4 import BeautifulSoup, FeatureNotFound, SoupStrainer
@@ -239,9 +240,12 @@ class EPGProgram:
     # not usually given by default
     desc: str = None
     poster_url: str = None
-    actors: list = field(default_factory=list)
-    staff: list = field(default_factory=list)
-    extras: list = field(default_factory=list)
+    actors: List[str] = field(default_factory=list)
+    staff: List[str] = field(default_factory=list)
+    extras: List[str] = field(default_factory=list)
+
+    PTN_TITLE: ClassVar[re.Pattern] = re.compile(r"(.*) \(?(\d+부)\)?")
+    PTN_SPACES: ClassVar[re.Pattern] = re.compile(" +")
 
     def to_xml(self, cfg):
         stime = self.stime.strftime("%Y%m%d%H%M%S") if self.stime else ""
@@ -257,7 +261,7 @@ class EPGProgram:
         poster_url = self.poster_url
         desc = self.desc
 
-        matches = re.match(r"(.*) \(?(\d+부)\)?", unescape(title))
+        matches = self.PTN_TITLE.match(unescape(title))
         if matches:
             title = escape(matches.group(1)).strip()
             title_sub = (escape(matches.group(2)) + " " + title_sub).strip()
@@ -308,7 +312,7 @@ class EPGProgram:
             desclines += [f"등급 : {rating}"]
             if desc:
                 desclines += [escape(desc)]
-            desc = re.sub(" +", " ", "\n".join(desclines))
+            desc = self.PTN_SPACES.sub(" ", "\n".join(desclines))
             print(f'    <desc lang="ko">{desc}</desc>')
             if actors or staff:
                 print("    <credits>")
