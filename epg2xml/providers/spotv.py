@@ -30,6 +30,13 @@ class SPOTV(EPGProvider):
                 }
             )
 
+    def __dt(self, dt: str) -> datetime:
+        if not dt:
+            return None
+        if dt.endswith("24:00"):
+            return datetime.strptime(dt.replace("24:00", "00:00"), "%Y-%m-%d %H:%M") + timedelta(days=1)
+        return datetime.strptime(dt, "%Y-%m-%d %H:%M")
+
     def get_programs(self, lazy_write=False):
         max_ndays = 5
         if int(self.cfg["FETCH_LIMIT"]) > max_ndays:
@@ -65,12 +72,11 @@ class SPOTV(EPGProvider):
             for p in programs:
                 _prog = EPGProgram(_ch.id)
                 _prog.title = p["title"]
-                _prog.stime = datetime.strptime(p["startTime"], "%Y-%m-%d %H:%M")
-                if p["endTime"]:
-                    _prog.etime = datetime.strptime(p["endTime"], "%Y-%m-%d %H:%M")
-                else:
-                    # 끝나는 시간이 없으면 해당일 자정으로 강제
-                    _prog.etime = _prog.stime.replace(hour=0, minute=0) + timedelta(days=1)
+                _prog.stime = self.__dt(p["startTime"])
+                # 끝나는 시간이 없으면 해당일 자정으로 강제
+                _prog.etime = self.__dt(p["endTime"]) or (_prog.stime.replace(hour=0, minute=0) + timedelta(days=1))
+                if _prog.stime == _prog.etime:
+                    continue
 
                 matches = self.title_regex.match(_prog.title)
                 if matches:
