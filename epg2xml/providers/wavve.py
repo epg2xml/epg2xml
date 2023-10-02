@@ -135,8 +135,8 @@ class WAVVE(EPGProvider):
         try:
             contentid = request_data(url, params=param)["contentid"].strip()
 
-            # url2 = 'https://apis.wavve.com/cf/vod/contents/' + contentid
-            url2 = "https://apis.wavve.com/vod/contents/" + contentid  # 같은 주소지만 이게 더 안정적인듯
+            url2 = 'https://apis.wavve.com/cf/vod/contents/' + contentid # 둘 사이를 왔다갔다 하는 모양이네요 지금은 여기만 됩니다.
+            # url2 = "https://apis.wavve.com/vod/contents/" + contentid  
             ret = self.request(url2, params=param)
         except Exception:
             log.exception("Exception while requesting data for %s with %s", url2, param)
