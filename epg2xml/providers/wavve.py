@@ -3,7 +3,6 @@ from xml.sax.saxutils import unescape
 from datetime import datetime, timedelta, date
 
 from epg2xml.providers import EPGProvider, EPGProgram
-from epg2xml.utils import ua, request_data
 
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 today = date.today()
@@ -16,57 +15,76 @@ class WAVVE(EPGProvider):
     요청수: 1
     """
 
-    referer = "https://www.wavve.com/schedule/index.html"
+    referer = "https://www.wavve.com/"
     title_regex = r"^(.*?)(?:\s*[\(<]?([\d]+)회[\)>]?)?(?:\([월화수목금토일]?\))?(\([선별전주\(\)재방]*?재[\d방]?\))?\s*(?:\[(.+)\])?$"
-    url = "https://apis.wavve.com/live/epgs"
-    params = {
-        "enddatetime": "2020-01-20 24:00",
-        "genre": "all",
-        "limit": 200,
-        "offset": 0,
-        "startdatetime": "2020-01-20 21:00",
+    base_url = "https://apis.wavve.com"
+    base_params = {
         "apikey": "E5F3E0D30947AA5440556471321BB6D9",
-        "credential": "none",
+        "client_version": "6.0.1",
         "device": "pc",
         "drm": "wm",
         "partner": "pooq",
         "pooqzone": "none",
         "region": "kor",
-        "targetage": "auto",
+        "targetage": "all",
     }
     no_endtime = False
+
+    def __init__(self, cfg):
+        super().__init__(cfg)
+        self.sess.headers.update({"wavve-credential": "none"})
+
+    def __url(self, url: str) -> str:
+        """completes partial urls from api response or for api request"""
+        if url.startswith(("http://", "https://")):
+            return url
+        if url.startswith("/"):
+            return self.base_url + url
+        return "https://" + url
+
+    def __params(self, **params) -> dict:
+        """returns url parameters for api requests with base ones"""
+        p = self.base_params.copy()
+        p.update(params)
+        return p
+
+    def __get(self, url: str, **kwargs):
+        url = self.__url(url)
+        params = self.__params(**kwargs.pop("params", {}))
+        return self.request(url, params=params)
 
     def get_svc_channels(self):
         # update parameters for requests
         today_str = today.strftime("%Y-%m-%d")
         hour_min = datetime.now().hour // 3
-        self.params.update(
-            {
-                "startdatetime": f"{today_str} {hour_min*3:02d}:00",
-                "enddatetime": f"{today_str} {(hour_min+1)*3:02d}:00",
-            }
-        )
+        params = {
+            "enddatetime": f"{today_str} {(hour_min+1)*3:02d}:00",
+            "genre": "all",
+            "limit": 200,
+            "offset": 0,
+            "startdatetime": f"{today_str} {hour_min*3:02d}:00",
+        }
         self.svc_channel_list = [
             {
                 "Name": x["channelname"],
-                "Icon_url": "https://" + x["channelimage"],
+                "Icon_url": self.__url(x["channelimage"]),
                 "ServiceId": x["channelid"],
             }
-            for x in self.request(self.url, params=self.params)["list"]
+            for x in self.__get("/live/epgs", params=params)["list"]
         ]
 
     def get_programs(self, lazy_write=False):
         # for caching program details
         programcache = {}
         # update parameters for requests
-        self.params.update(
-            {
-                "startdatetime": today.strftime("%Y-%m-%d") + " 00:00",
-                "enddatetime": (today + timedelta(days=int(self.cfg["FETCH_LIMIT"]) - 1)).strftime("%Y-%m-%d")
-                + " 24:00",
-            }
-        )
-        channeldict = {x["channelid"]: x for x in self.request(self.url, params=self.params)["list"]}
+        params = {
+            "enddatetime": (today + timedelta(days=int(self.cfg["FETCH_LIMIT"]) - 1)).strftime("%Y-%m-%d") + " 24:00",
+            "genre": "all",
+            "limit": 200,
+            "offset": 0,
+            "startdatetime": today.strftime("%Y-%m-%d") + " 00:00",
+        }
+        channeldict = {x["channelid"]: x for x in self.__get("/live/epgs", params=params)["list"]}
 
         for idx, _ch in enumerate(self.req_channels):
             # 채널이름은 그대로 들어오고 프로그램 제목은 escape되어 들어옴
@@ -106,7 +124,7 @@ class WAVVE(EPGProvider):
                                 [x.replace("<br>", "\n").strip() for x in programdetail["programsynopsis"].splitlines()]
                             )  # carriage return(\r) 제거, <br> 제거
                             _prog.category = programdetail["genretext"].strip()
-                            _prog.poster_url = "https://" + programdetail["programposterimage"].strip()
+                            _prog.poster_url = self.__url(programdetail["programposterimage"].strip())
                             # tags = programdetail['tags']['list'][0]['text']
                             if programdetail["actors"]["list"]:
                                 _prog.actors = [x["text"] for x in programdetail["actors"]["list"]]
@@ -117,27 +135,14 @@ class WAVVE(EPGProvider):
                 _ch.to_xml(self.cfg, no_endtime=self.no_endtime)
 
     def get_program_details(self, programid):
-        url = "https://apis.wavve.com/vod/programs-contentid/" + programid
-        referer = "https://www.wavve.com/player/vod?programid=" + programid
-        param = {
-            "apikey": "E5F3E0D30947AA5440556471321BB6D9",
-            "credential": "none",
-            "device": "pc",
-            "drm": "wm",
-            "partner": "pooq",
-            "pooqzone": "none",
-            "region": "kor",
-            "targetage": "auto",
-        }
-        self.sess.headers.update({"User-Agent": ua, "Referer": referer})
-
         ret = None
         try:
-            contentid = request_data(url, params=param)["contentid"].strip()
+            contentid = self.__get(f"/vod/programs-contentid/{programid}")["contentid"].strip()
+            # log.info("contentid: %s", contentid)
 
-            url2 = 'https://apis.wavve.com/cf/vod/contents/' + contentid # 둘 사이를 왔다갔다 하는 모양이네요 지금은 여기만 됩니다.
-            # url2 = "https://apis.wavve.com/vod/contents/" + contentid  
-            ret = self.request(url2, params=param)
+            ret = self.__get(f"/cf/vod/contents/{contentid}")
+            # log.info("ret: %s", ret)
         except Exception:
-            log.exception("Exception while requesting data for %s with %s", url2, param)
+            pass
+            # log.exception("Exception while requesting data for %s with %s", url2, param)
         return ret
