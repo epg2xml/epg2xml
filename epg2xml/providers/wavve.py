@@ -52,12 +52,12 @@ class WAVVE(EPGProvider):
     def __get(self, url: str, **kwargs):
         url = self.__url(url)
         params = self.__params(**kwargs.pop("params", {}))
-        return self.request(url, params=params)
+        return self.request(url, params=params, **kwargs)
 
     def get_svc_channels(self):
-        # update parameters for requests
         today_str = today.strftime("%Y-%m-%d")
         hour_min = datetime.now().hour // 3
+        # 현재 시간과 가까운 미래에 서비스 가능한 채널만 가져옴
         params = {
             "enddatetime": f"{today_str} {(hour_min+1)*3:02d}:00",
             "genre": "all",
@@ -74,8 +74,44 @@ class WAVVE(EPGProvider):
             for x in self.__get("/live/epgs", params=params)["list"]
         ]
 
+    def __program(self, channelid: str, program: dict) -> EPGProgram:
+        _prog = EPGProgram(channelid)
+        _prog.stime = datetime.strptime(program["starttime"], "%Y-%m-%d %H:%M")
+        _prog.etime = datetime.strptime(program["endtime"], "%Y-%m-%d %H:%M")
+        _prog.title = unescape(program["title"])
+        matches = self.title_regex.match(_prog.title)
+        if matches:
+            _prog.title = (matches.group(1) or "").strip()
+            _prog.title_sub = (matches.group(4) or "").strip()
+            episode = (matches.group(2) or "").replace("회", "").strip()
+            _prog.ep_num = "" if episode == "0" else episode
+            _prog.rebroadcast = bool(matches.group(3))
+        _prog.rating = 0 if program["targetage"] == "n" else int(program["targetage"])
+
+        # 추가 정보 가져오기
+        if not self.cfg["GET_MORE_DETAILS"]:
+            return _prog
+        programid = program["programid"].strip()
+        if not programid:
+            # 개별 programid가 없는 경우도 있으니 체크해야함
+            return _prog
+        programdetail = self.get_program_details(programid)
+        if not programdetail:
+            return _prog
+        # programtitle = programdetail['programtitle']
+        # log.info('%s / %s' % (programName, programtitle))
+        _prog.desc = "\n".join(
+            [x.replace("<br>", "\n").strip() for x in programdetail["programsynopsis"].splitlines()]
+        )  # carriage return(\r) 제거, <br> 제거
+        _prog.category = programdetail["genretext"].strip()
+        _prog.poster_url = self.__url(programdetail["programposterimage"].strip())
+        # tags = programdetail['tags']['list'][0]['text']
+        if programdetail["actors"]["list"]:
+            _prog.actors = [x["text"] for x in programdetail["actors"]["list"]]
+        return _prog
+
     def get_programs(self, lazy_write=False):
-        # update parameters for requests
+        # parameters for requests
         params = {
             "enddatetime": (today + timedelta(days=int(self.cfg["FETCH_LIMIT"]) - 1)).strftime("%Y-%m-%d") + " 24:00",
             "genre": "all",
@@ -91,38 +127,11 @@ class WAVVE(EPGProvider):
             log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)
             for program in srcChannel["list"]:
                 try:
-                    _prog = EPGProgram(_ch.id)
-                    _prog.stime = datetime.strptime(program["starttime"], "%Y-%m-%d %H:%M")
-                    _prog.etime = datetime.strptime(program["endtime"], "%Y-%m-%d %H:%M")
-                    _prog.title = unescape(program["title"])
-                    matches = self.title_regex.match(_prog.title)
-                    if matches:
-                        _prog.title = (matches.group(1) or "").strip()
-                        _prog.title_sub = (matches.group(4) or "").strip()
-                        episode = (matches.group(2) or "").replace("회", "").strip()
-                        _prog.ep_num = "" if episode == "0" else episode
-                        _prog.rebroadcast = bool(matches.group(3))
-                    _prog.rating = 0 if program["targetage"] == "n" else int(program["targetage"])
-
-                    # 추가 정보 가져오기
-                    programid = program["programid"].strip()
-                    if self.cfg["GET_MORE_DETAILS"] and programid:
-                        # 개별 programid가 없는 경우도 있으니 체크해야함
-                        programdetail = self.get_program_details(programid)
-                        if programdetail:
-                            # programtitle = programdetail['programtitle']
-                            # log.info('%s / %s' % (programName, programtitle))
-                            _prog.desc = "\n".join(
-                                [x.replace("<br>", "\n").strip() for x in programdetail["programsynopsis"].splitlines()]
-                            )  # carriage return(\r) 제거, <br> 제거
-                            _prog.category = programdetail["genretext"].strip()
-                            _prog.poster_url = self.__url(programdetail["programposterimage"].strip())
-                            # tags = programdetail['tags']['list'][0]['text']
-                            if programdetail["actors"]["list"]:
-                                _prog.actors = [x["text"] for x in programdetail["actors"]["list"]]
-                    _ch.programs.append(_prog)
+                    _prog = self.__program(_ch.id, program)
                 except Exception:
-                    log.exception("파싱 에러: %s", program)
+                    log.exception("개별 프로그램 가져오는 중 예외: %s", program)
+                else:
+                    _ch.programs.append(_prog)
             if not lazy_write:
                 _ch.to_xml(self.cfg, no_endtime=self.no_endtime)
 
@@ -131,11 +140,7 @@ class WAVVE(EPGProvider):
         ret = None
         try:
             contentid = self.__get(f"/vod/programs-contentid/{programid}")["contentid"].strip()
-            # log.info("contentid: %s", contentid)
-
             ret = self.__get(f"/cf/vod/contents/{contentid}")
-            # log.info("ret: %s", ret)
         except Exception:
-            pass
-            # log.exception("Exception while requesting data for %s with %s", url2, param)
+            log.exception("프로그램(%s) 상세 정보 요청 중 예외:", programid)
         return ret
