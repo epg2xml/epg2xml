@@ -14,6 +14,8 @@ class WAVVE(EPGProvider):
 
     데이터: jsonapi
     요청수: 1
+    특이사항:
+    - 해외나 VPS는 차단 가능성이 높음
     """
 
     referer = "https://www.wavve.com/"
@@ -135,12 +137,11 @@ class WAVVE(EPGProvider):
             if not lazy_write:
                 _ch.to_xml(self.cfg, no_endtime=self.no_endtime)
 
-    @lru_cache()
-    def get_program_details(self, programid):
-        ret = None
+    @lru_cache
+    def get_program_details(self, programid: str):
         try:
             contentid = self.__get(f"/vod/programs-contentid/{programid}")["contentid"].strip()
-            ret = self.__get(f"/cf/vod/contents/{contentid}")
+            return self.__get(f"/cf/vod/contents/{contentid}")
         except Exception:
-            log.exception("프로그램(%s) 상세 정보 요청 중 예외:", programid)
-        return ret
+            log.exception("프로그램 상세 정보 요청 중 예외: %s", programid)
+            return None
