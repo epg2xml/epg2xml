@@ -1,8 +1,9 @@
 import logging
+from datetime import date, datetime, timedelta
+from functools import lru_cache
 from xml.sax.saxutils import unescape
-from datetime import datetime, timedelta, date
 
-from epg2xml.providers import EPGProvider, EPGProgram
+from epg2xml.providers import EPGProgram, EPGProvider
 
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 today = date.today()
@@ -60,7 +61,7 @@ class WAVVE(EPGProvider):
         params = {
             "enddatetime": f"{today_str} {(hour_min+1)*3:02d}:00",
             "genre": "all",
-            "limit": 200,
+            "limit": 500,
             "offset": 0,
             "startdatetime": f"{today_str} {hour_min*3:02d}:00",
         }
@@ -74,13 +75,11 @@ class WAVVE(EPGProvider):
         ]
 
     def get_programs(self, lazy_write=False):
-        # for caching program details
-        programcache = {}
         # update parameters for requests
         params = {
             "enddatetime": (today + timedelta(days=int(self.cfg["FETCH_LIMIT"]) - 1)).strftime("%Y-%m-%d") + " 24:00",
             "genre": "all",
-            "limit": 200,
+            "limit": 500,
             "offset": 0,
             "startdatetime": today.strftime("%Y-%m-%d") + " 00:00",
         }
@@ -106,18 +105,11 @@ class WAVVE(EPGProvider):
                     _prog.rating = 0 if program["targetage"] == "n" else int(program["targetage"])
 
                     # 추가 정보 가져오기
-                    if self.cfg["GET_MORE_DETAILS"]:
-                        programid = program["programid"].strip()
-                        if programid and (programid not in programcache):
-                            # 개별 programid가 없는 경우도 있으니 체크해야함
-                            programdetail = self.get_program_details(programid)
-                            if programdetail is not None:
-                                programdetail["hit"] = 0  # to know cache hit rate
-                            programcache[programid] = programdetail
-
-                        if (programid in programcache) and bool(programcache[programid]):
-                            programcache[programid]["hit"] += 1
-                            programdetail = programcache[programid]
+                    programid = program["programid"].strip()
+                    if self.cfg["GET_MORE_DETAILS"] and programid:
+                        # 개별 programid가 없는 경우도 있으니 체크해야함
+                        programdetail = self.get_program_details(programid)
+                        if programdetail:
                             # programtitle = programdetail['programtitle']
                             # log.info('%s / %s' % (programName, programtitle))
                             _prog.desc = "\n".join(
@@ -134,6 +126,7 @@ class WAVVE(EPGProvider):
             if not lazy_write:
                 _ch.to_xml(self.cfg, no_endtime=self.no_endtime)
 
+    @lru_cache()
     def get_program_details(self, programid):
         ret = None
         try:
