@@ -67,8 +67,7 @@ class SPOTV(EPGProvider):
             programs = [x for x in data if x["channelId"] == _ch.svcid]
             if not programs:
                 log.warning("EPG 정보가 없거나 없는 채널입니다: %s", _ch)
-                # 오늘 없으면 내일도 없는 채널로 간주
-                break
+                continue
             for p in programs:
                 _prog = EPGProgram(_ch.id)
                 _prog.title = p["title"]
