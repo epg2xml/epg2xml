@@ -105,7 +105,7 @@ class WAVVE(EPGProvider):
         _prog.desc = "\n".join(
             [x.replace("<br>", "\n").strip() for x in programdetail["programsynopsis"].splitlines()]
         )  # carriage return(\r) 제거, <br> 제거
-        _prog.category = programdetail["genretext"].strip()
+        _prog.categories = [programdetail["genretext"].strip()]
         _prog.poster_url = self.__url(programdetail["programposterimage"].strip())
         # tags = programdetail['tags']['list'][0]['text']
         if programdetail["actors"]["list"]:
