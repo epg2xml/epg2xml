@@ -101,7 +101,7 @@ class SK(EPGProvider):
             _prog.stime = datetime.strptime(info["dtEventStart"], "%Y%m%d%H%M%S")
             _prog.etime = datetime.strptime(info["dtEventEnd"], "%Y%m%d%H%M%S")
             if info["cdGenre"] and (info["cdGenre"] in self.genre_code):
-                _prog.category = self.genre_code[info["cdGenre"]]
+                _prog.categories = [self.genre_code[info["cdGenre"]]]
             _prog.desc = info["nmSynop"]  # 값이 없음
             return _prog
         except Exception:

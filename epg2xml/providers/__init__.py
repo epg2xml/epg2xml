@@ -234,7 +234,7 @@ class EPGProgram:
     title_sub: str = None
     part_num: str = None
     ep_num: str = None
-    category: str = None
+    categories: List[str] = field(default_factory=list)
     rebroadcast: bool = False
     rating: int = 0
     # not usually given by default
@@ -246,6 +246,22 @@ class EPGProgram:
 
     PTN_TITLE: ClassVar[re.Pattern] = re.compile(r"(.*) \(?(\d+부)\)?")
     PTN_SPACES: ClassVar[re.Pattern] = re.compile(" +")
+    CAT_KO2EN: ClassVar[dict] = {
+        "교양": "Arts / Culture (without music)",
+        "만화": "Cartoons / Puppets",
+        "교육": "Education / Science / Factual topics",
+        "취미": "Leisure hobbies",
+        "드라마": "Movie / Drama",
+        "영화": "Movie / Drama",
+        "음악": "Music / Ballet / Dance",
+        "뉴스": "News / Current affairs",
+        "다큐": "Documentary",
+        "라이프": "Documentary",
+        "시사/다큐": "Documentary",
+        "연예": "Show / Game show",
+        "스포츠": "Sports",
+        "홈쇼핑": "Advertisement / Shopping",
+    }
 
     def to_xml(self, cfg):
         stime = self.stime.strftime("%Y%m%d%H%M%S") if self.stime else ""
@@ -254,7 +270,8 @@ class EPGProgram:
         title_sub = escape(self.title_sub or "").strip()
         actors = escape(",".join(self.actors))
         staff = escape(",".join(self.staff))
-        category = escape(self.category or "")
+        cats_ko = [escape(x).strip() for x in self.categories if x]
+        cats_ko = [x for x in cats_ko if x]  # escape 결과가 empty string일 수 있으니 제거
         episode = self.ep_num or ""
         rating = "전체 관람가" if self.rating == 0 else f"{self.rating}세 이상 관람가"
         rebroadcast = self.rebroadcast
@@ -273,23 +290,6 @@ class EPGProgram:
             title += f" ({str(episode)}회)"
         if rebroadcast and cfg["ADD_REBROADCAST_TO_TITLE"]:
             title += " (재)"
-        contentTypeDict = {
-            "교양": "Arts / Culture (without music)",
-            "만화": "Cartoons / Puppets",
-            "교육": "Education / Science / Factual topics",
-            "취미": "Leisure hobbies",
-            "드라마": "Movie / Drama",
-            "영화": "Movie / Drama",
-            "음악": "Music / Ballet / Dance",
-            "뉴스": "News / Current affairs",
-            "다큐": "Documentary",
-            "라이프": "Documentary",
-            "시사/다큐": "Documentary",
-            "연예": "Show / Game show",
-            "스포츠": "Sports",
-            "홈쇼핑": "Advertisement / Shopping",
-        }
-        contentType = contentTypeDict.get(category, "")
 
         print(f'  <programme start="{stime} +0900" stop="{etime} +0900" channel="{self.channelid}">')
         print(f'    <title lang="ko">{title}</title>')
@@ -303,8 +303,8 @@ class EPGProgram:
                 desclines += ["방송 : 재방송"]
             if episode:
                 desclines += [f"회차 : {str(episode)}회"]
-            if category:
-                desclines += [f"장르 : {category}"]
+            if cats_ko:
+                desclines += [f"장르 : {','.join(cats_ko)}"]
             if actors:
                 desclines += [f"출연 : {actors.strip()}"]
             if staff:
@@ -323,10 +323,11 @@ class EPGProgram:
                     if staff:
                         print(f"      <producer>{escape(staff)}</producer>")
                 print("    </credits>")
-        if category:
-            print(f'    <category lang="ko">{category}</category>')
-        if contentType:
-            print(f'    <category lang="en">{contentType}</category>')
+        for cat_ko in cats_ko:
+            print(f'    <category lang="ko">{cat_ko}</category>')
+            cat_en = self.CAT_KO2EN.get(cat_ko)
+            if cat_en:
+                print(f'    <category lang="en">{cat_en}</category>')
         if poster_url:
             print(f'    <icon src="{escape(poster_url)}" />')
         if episode:

@@ -85,7 +85,7 @@ class KT(EPGProvider):
                                 f"{str(day)} {hour}:{minute.text.strip()}", "%Y-%m-%d %H:%M"
                             )
                             _prog.title = program.text.replace("방송중 ", "").strip()
-                            _prog.category = category.text.strip()
+                            _prog.categories = [category.text.strip()]
                             for image in program.find_all("img", alt=True):
                                 grade = re.match(r"([\d,]+)", image["alt"])
                                 _prog.rating = int(grade.group(1)) if grade else 0

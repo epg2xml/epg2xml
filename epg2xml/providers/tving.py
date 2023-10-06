@@ -139,7 +139,11 @@ class TVING(EPGProvider):
                     _prog.rating = self.gcode[sch[get_from].get("grade_code", "CPTG0100")]
                     _prog.title = sch[get_from]["name"]["ko"]
                     _prog.title_sub = sch[get_from]["name"].get("en", "")
-                    _prog.category = sch[get_from]["category1_name"].get("ko", "")
+                    _prog.categories = [sch[get_from]["category1_name"].get("ko", "")]
+                    try:
+                        _prog.categories += [sch[get_from]["category2_name"]["ko"]]
+                    except KeyError:
+                        pass
                     _prog.actors = sch[get_from]["actor"]
                     _prog.staff = sch[get_from]["director"]
 

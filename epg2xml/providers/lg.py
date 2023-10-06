@@ -103,7 +103,7 @@ class LG(EPGProvider):
                             _prog.title_sub = (matches.group(2) or "").strip()
                             _prog.ep_num = matches.group(3) or ""
                             _prog.rebroadcast = bool(matches.group(4))
-                        _prog.category = self.pcate.get(p["urcBrdCntrTvSchdGnreCd"], None)
+                        _prog.categories = [self.pcate[p["urcBrdCntrTvSchdGnreCd"]]]
                         _ch.programs.append(_prog)
                 except Exception:
                     log.exception("파싱 에러: %s", _ch)
