@@ -4,7 +4,6 @@ import logging
 from copy import copy
 from datetime import datetime, timedelta
 from importlib import import_module
-from xml.sax.saxutils import unescape
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import ClassVar, List
@@ -12,7 +11,7 @@ from typing import ClassVar, List
 from requests import Session
 from bs4 import BeautifulSoup, FeatureNotFound, SoupStrainer
 
-from epg2xml.utils import ua, request_data, dump_json, escape, PrefixLogger
+from epg2xml.utils import ua, request_data, dump_json, PrefixLogger, Element
 
 log = logging.getLogger("PROV")
 
@@ -156,7 +155,6 @@ class EPGProvider:
                     req_ch["Id"] = eval(f"f'{self.cfg['ID_FORMAT']}'", None, req_ch)
                 except Exception:
                     req_ch["Id"] = f'{req_ch["ServiceId"]}.{req_ch["Source"].lower()}'
-                req_ch["Id"] = escape(req_ch["Id"])
             if not self.cfg["ADD_CHANNEL_ICON"]:
                 req_ch.pop("Icon_url", None)
             req_channels.append(EPGChannel(req_ch))
@@ -165,17 +163,17 @@ class EPGProvider:
 
     def write_channel_headers(self):
         for ch in self.req_channels:
-            print(f'  <channel id="{ch.id}">')
+            chel = Element("channel", id=ch.id)
             # TODO: something better for display-name?
-            print(f"    <display-name>{escape(ch.name)}</display-name>")
-            print(f"    <display-name>{escape(ch.src)}</display-name>")
+            chel.append(Element("display-name", ch.name))
+            chel.append(Element("display-name", ch.src))
             if ch.no:
-                print(f"    <display-name>{ch.no}</display-name>")
-                print(f"    <display-name>{ch.no} {escape(ch.name)}</display-name>")
-                print(f"    <display-name>{ch.no} {escape(ch.src)}</display-name>")
+                chel.append(Element("display-name", f"{ch.no}"))
+                chel.append(Element("display-name", f"{ch.no} {ch.name}"))
+                chel.append(Element("display-name", f"{ch.no} {ch.src}"))
             if ch.icon:
-                print(f'    <icon src="{escape(ch.icon)}" />')
-            print("  </channel>")
+                chel.append(Element("icon", src=ch.icon))
+            print(chel.tostring(level=1))
 
     def get_programs(self, lazy_write=False):
         pass
@@ -264,24 +262,23 @@ class EPGProgram:
     }
 
     def to_xml(self, cfg):
-        stime = self.stime.strftime("%Y%m%d%H%M%S") if self.stime else ""
-        etime = self.etime.strftime("%Y%m%d%H%M%S") if self.etime else ""
-        title = escape(self.title or "").strip()
-        title_sub = escape(self.title_sub or "").strip()
-        actors = escape(",".join(self.actors))
-        staff = escape(",".join(self.staff))
-        cats_ko = [escape(x).strip() for x in self.categories if x]
-        cats_ko = [x for x in cats_ko if x]  # escape 결과가 empty string일 수 있으니 제거
+        stime = self.stime.strftime("%Y%m%d%H%M%S +0900")
+        etime = self.etime.strftime("%Y%m%d%H%M%S +0900")
+        title = (self.title or "").strip()
+        title_sub = (self.title_sub or "").strip()
+        actors = ",".join(self.actors)
+        staff = ",".join(self.staff)
+        cats_ko = [x.strip() for x in self.categories if x]
+        cats_ko = [x for x in cats_ko if x]  # 결과가 empty string일 수 있으니 제거
         episode = self.ep_num or ""
         rating = "전체 관람가" if self.rating == 0 else f"{self.rating}세 이상 관람가"
         rebroadcast = self.rebroadcast
-        poster_url = self.poster_url
         desc = self.desc
 
-        matches = self.PTN_TITLE.match(unescape(title))
+        matches = self.PTN_TITLE.match(title)
         if matches:
-            title = escape(matches.group(1)).strip()
-            title_sub = (escape(matches.group(2)) + " " + title_sub).strip()
+            title = matches.group(1).strip()
+            title_sub = (matches.group(2) + " " + title_sub).strip()
         if not title:
             title = title_sub
         if not title:
@@ -291,10 +288,10 @@ class EPGProgram:
         if rebroadcast and cfg["ADD_REBROADCAST_TO_TITLE"]:
             title += " (재)"
 
-        print(f'  <programme start="{stime} +0900" stop="{etime} +0900" channel="{self.channelid}">')
-        print(f'    <title lang="ko">{title}</title>')
+        _p = Element("programme", start=stime, stop=etime, channel=self.channelid)
+        _p.append(Element("title", title, lang="ko"))
         if title_sub:
-            print(f'    <sub-title lang="ko">{title_sub}</sub-title>')
+            _p.append(Element("sub-title", title_sub, lang="ko"))
         if cfg["ADD_DESCRIPTION"]:
             desclines = [title]
             if title_sub:
@@ -311,25 +308,26 @@ class EPGProgram:
                 desclines += [f"제작 : {staff.strip()}"]
             desclines += [f"등급 : {rating}"]
             if desc:
-                desclines += [escape(desc)]
+                desclines += [desc]
             desc = self.PTN_SPACES.sub(" ", "\n".join(desclines))
-            print(f'    <desc lang="ko">{desc}</desc>')
+            _p.append(Element("desc", desc, lang="ko"))
             if actors or staff:
-                print("    <credits>")
+                _c = Element("credits")
                 for actor in map(str.strip, self.actors):
                     if actor:
-                        print(f"      <actor>{escape(actor)}</actor>")
+                        _c.append(Element("actor", actor))
                 for staff in map(str.strip, self.staff):
                     if staff:
-                        print(f"      <producer>{escape(staff)}</producer>")
-                print("    </credits>")
+                        _c.append(Element("producer", staff))
+                _p.append(_c)
+
         for cat_ko in cats_ko:
-            print(f'    <category lang="ko">{cat_ko}</category>')
+            _p.append(Element("category", cat_ko, lang="ko"))
             cat_en = self.CAT_KO2EN.get(cat_ko)
             if cat_en:
-                print(f'    <category lang="en">{cat_en}</category>')
-        if poster_url:
-            print(f'    <icon src="{escape(poster_url)}" />')
+                _p.append(Element("category", cat_en, lang="en"))
+        if self.poster_url:
+            _p.append(Element("icon", src=self.poster_url))
         if episode:
             if cfg["ADD_XMLTV_NS"]:
                 try:
@@ -337,13 +335,13 @@ class EPGProgram:
                 except ValueError:
                     episode_ns = int(episode.split(",", 1)[0]) - 1
                 episode_ns = f"0.{str(episode_ns)}.0/0"
-                print(f'    <episode-num system="xmltv_ns">{episode_ns}</episode-num>')
+                _p.append(Element("episode-num", episode_ns, system="xmltv_ns"))
             else:
-                print(f'    <episode-num system="onscreen">{episode}</episode-num>')
+                _p.append(Element("episode-num", episode, system="onscreen"))
         if rebroadcast:
-            print("    <previously-shown />")
+            _p.append(Element("previously-shown"))
         if rating:
-            print('    <rating system="KMRB">')
-            print(f"      <value>{rating}</value>")
-            print("    </rating>")
-        print("  </programme>")
+            _r = Element("rating", system="KMRB")
+            _r.append(Element("value", rating))
+            _p.append(_r)
+        print(_p.tostring(level=1))

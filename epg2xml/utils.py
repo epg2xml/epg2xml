@@ -3,7 +3,7 @@ import sys
 import json
 import time
 import logging
-from xml.sax.saxutils import escape as _escape
+import xml.etree.ElementTree as ET
 
 import requests
 
@@ -77,8 +77,49 @@ _illegal_ranges = [rf"{chr(low)}-{chr(high)}" for (low, high) in _illegal_unichr
 _illegal_xml_chars_RE = re.compile("[" + "".join(_illegal_ranges) + "]")
 
 
-def escape(s):
-    return _escape(_illegal_xml_chars_RE.sub(" ", s))
+class Element(ET.Element):
+    def __init__(self, *args, **kwargs):
+        attrib = kwargs.pop("attrib", {})
+        super().__init__(args[0], attrib=attrib, **kwargs)
+        if len(args) > 1:
+            self.text = args[1]
+
+    def indent(self, space="  ", level=0):
+        if level < 0:
+            raise ValueError(f"Initial indentation level must be >= 0, got {level}")
+        if len(self) == 0:
+            return
+
+        # Reduce the memory consumption by reusing indentation strings.
+        indentations = ["\n" + level * space]
+
+        def _indent_children(elem, level):
+            # Start a new indentation level for the first child.
+            child_level = level + 1
+            try:
+                child_indentation = indentations[child_level]
+            except IndexError:
+                child_indentation = indentations[level] + space
+                indentations.append(child_indentation)
+
+            if not elem.text or not elem.text.strip():
+                elem.text = child_indentation
+
+            for child in elem:
+                if len(child):
+                    _indent_children(child, child_level)
+                if not child.tail or not child.tail.strip():
+                    child.tail = child_indentation
+
+            # Dedent after the last child by overwriting the previous indentation.
+            if not child.tail.strip():  # pylint: disable=undefined-loop-variable
+                child.tail = indentations[level]  # pylint: disable=undefined-loop-variable
+
+        _indent_children(self, 0)
+
+    def tostring(self, space="  ", level=0):
+        self.indent(space=space, level=level)
+        return _illegal_xml_chars_RE.sub("", space * level + ET.tostring(self, encoding="unicode"))
 
 
 class PrefixLogger(logging.LoggerAdapter):
