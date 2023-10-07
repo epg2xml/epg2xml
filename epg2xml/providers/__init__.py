@@ -4,7 +4,6 @@ import logging
 from copy import copy
 from datetime import datetime, timedelta
 from importlib import import_module
-from xml.sax.saxutils import unescape
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import ClassVar, List
@@ -12,7 +11,7 @@ from typing import ClassVar, List
 from requests import Session
 from bs4 import BeautifulSoup, FeatureNotFound, SoupStrainer
 
-from epg2xml.utils import ua, request_data, dump_json, escape, PrefixLogger, Element
+from epg2xml.utils import ua, request_data, dump_json, PrefixLogger, Element
 
 log = logging.getLogger("PROV")
 
@@ -156,7 +155,6 @@ class EPGProvider:
                     req_ch["Id"] = eval(f"f'{self.cfg['ID_FORMAT']}'", None, req_ch)
                 except Exception:
                     req_ch["Id"] = f'{req_ch["ServiceId"]}.{req_ch["Source"].lower()}'
-                req_ch["Id"] = escape(req_ch["Id"])
             if not self.cfg["ADD_CHANNEL_ICON"]:
                 req_ch.pop("Icon_url", None)
             req_channels.append(EPGChannel(req_ch))
@@ -266,22 +264,21 @@ class EPGProgram:
     def to_xml(self, cfg):
         stime = self.stime.strftime("%Y%m%d%H%M%S +0900")
         etime = self.etime.strftime("%Y%m%d%H%M%S +0900")
-        title = escape(self.title or "").strip()
-        title_sub = escape(self.title_sub or "").strip()
-        actors = escape(",".join(self.actors))
-        staff = escape(",".join(self.staff))
-        cats_ko = [escape(x).strip() for x in self.categories if x]
-        cats_ko = [x for x in cats_ko if x]  # escape 결과가 empty string일 수 있으니 제거
+        title = (self.title or "").strip()
+        title_sub = (self.title_sub or "").strip()
+        actors = ",".join(self.actors)
+        staff = ",".join(self.staff)
+        cats_ko = [x.strip() for x in self.categories if x]
+        cats_ko = [x for x in cats_ko if x]  # 결과가 empty string일 수 있으니 제거
         episode = self.ep_num or ""
         rating = "전체 관람가" if self.rating == 0 else f"{self.rating}세 이상 관람가"
         rebroadcast = self.rebroadcast
         desc = self.desc
-        log.error("%s", self.rating)
 
-        matches = self.PTN_TITLE.match(unescape(title))
+        matches = self.PTN_TITLE.match(title)
         if matches:
-            title = escape(matches.group(1)).strip()
-            title_sub = (escape(matches.group(2)) + " " + title_sub).strip()
+            title = matches.group(1).strip()
+            title_sub = (matches.group(2) + " " + title_sub).strip()
         if not title:
             title = title_sub
         if not title:
@@ -311,7 +308,7 @@ class EPGProgram:
                 desclines += [f"제작 : {staff.strip()}"]
             desclines += [f"등급 : {rating}"]
             if desc:
-                desclines += [escape(desc)]
+                desclines += [desc]
             desc = self.PTN_SPACES.sub(" ", "\n".join(desclines))
             progel.append(Element("desc", desc, lang="ko"))
             if actors or staff:
