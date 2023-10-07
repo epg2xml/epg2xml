@@ -1,10 +1,10 @@
 import logging
+from datetime import date, datetime, timedelta
 from itertools import islice
-from datetime import datetime, timedelta, date
 
 import requests
 
-from epg2xml.providers import EPGProvider, EPGProgram
+from epg2xml.providers import EPGProgram, EPGProvider
 from epg2xml.utils import request_data
 
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())

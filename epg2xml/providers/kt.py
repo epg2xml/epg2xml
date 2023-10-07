@@ -1,10 +1,11 @@
-import re
 import logging
+import re
+from datetime import date, datetime, timedelta
 from urllib.parse import unquote
-from datetime import datetime, timedelta, date
 
-from epg2xml.providers import EPGProvider, EPGProgram
-from epg2xml.providers import ParserBeautifulSoup as BeautifulSoup, SoupStrainer
+from epg2xml.providers import EPGProgram, EPGProvider
+from epg2xml.providers import ParserBeautifulSoup as BeautifulSoup
+from epg2xml.providers import SoupStrainer
 
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 

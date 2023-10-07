@@ -1,15 +1,15 @@
 import argparse
+import errno
 import json
 import logging
 import os
 import sys
-import errno
 from copy import copy
 from pathlib import Path
 from typing import Union
 
+from epg2xml import __description__, __title__, __url__, __version__
 from epg2xml.utils import dump_json
-from epg2xml import __version__, __title__, __description__, __url__
 
 # suppress modules logging
 logging.getLogger("requests").setLevel(logging.ERROR)

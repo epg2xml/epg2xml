@@ -1,17 +1,17 @@
+import logging
 import re
 import sys
-import logging
+from concurrent.futures import ThreadPoolExecutor
 from copy import copy
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from importlib import import_module
-from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field
 from typing import ClassVar, List
 
-from requests import Session
 from bs4 import BeautifulSoup, FeatureNotFound, SoupStrainer
+from requests import Session
 
-from epg2xml.utils import ua, request_data, dump_json, PrefixLogger, Element
+from epg2xml.utils import Element, PrefixLogger, dump_json, request_data, ua
 
 log = logging.getLogger("PROV")
 

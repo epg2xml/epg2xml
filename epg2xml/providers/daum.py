@@ -1,8 +1,8 @@
 import logging
-from urllib.parse import quote
 from datetime import datetime, timedelta
+from urllib.parse import quote
 
-from epg2xml.providers import EPGProvider, EPGProgram
+from epg2xml.providers import EPGProgram, EPGProvider
 from epg2xml.providers import ParserBeautifulSoup as BeautifulSoup
 
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())

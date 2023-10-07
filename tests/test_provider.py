@@ -1,10 +1,10 @@
-import sys
 import logging
 import subprocess
+import sys
+from contextlib import redirect_stdout
 from pathlib import Path
 from random import shuffle
 from timeit import default_timer as timer
-from contextlib import redirect_stdout
 
 from epg2xml import __title__, __version__
 from epg2xml.providers import load_providers

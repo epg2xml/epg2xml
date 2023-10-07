@@ -1,13 +1,13 @@
-import sys
 import json
-import socket
 import logging
-from contextlib import ExitStack
+import socket
+import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextlib import ExitStack
 
+from epg2xml import __title__, __version__
 from epg2xml.config import Config, setup_root_logger
-from epg2xml.providers import load_providers, load_channels
-from epg2xml import __version__, __title__
+from epg2xml.providers import load_channels, load_providers
 
 ############################################################
 # INIT

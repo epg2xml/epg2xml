@@ -1,7 +1,7 @@
 import logging
-from datetime import datetime, timedelta, date
+from datetime import date, datetime, timedelta
 
-from epg2xml.providers import EPGProvider, EPGProgram
+from epg2xml.providers import EPGProgram, EPGProvider
 
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 

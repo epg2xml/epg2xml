@@ -1,8 +1,8 @@
+import json
+import logging
 import re
 import sys
-import json
 import time
-import logging
 import xml.etree.ElementTree as ET
 
 import requests
