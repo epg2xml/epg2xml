@@ -89,8 +89,41 @@ class Element(ET.Element):
         if len(args) > 1:
             self.text = args[1]
 
+    def indent(self, space="  ", level=0):
+        if level < 0:
+            raise ValueError(f"Initial indentation level must be >= 0, got {level}")
+        if len(self) == 0:
+            return
+
+        # Reduce the memory consumption by reusing indentation strings.
+        indentations = ["\n" + level * space]
+
+        def _indent_children(elem, level):
+            # Start a new indentation level for the first child.
+            child_level = level + 1
+            try:
+                child_indentation = indentations[child_level]
+            except IndexError:
+                child_indentation = indentations[level] + space
+                indentations.append(child_indentation)
+
+            if not elem.text or not elem.text.strip():
+                elem.text = child_indentation
+
+            for child in elem:
+                if len(child):
+                    _indent_children(child, child_level)
+                if not child.tail or not child.tail.strip():
+                    child.tail = child_indentation
+
+            # Dedent after the last child by overwriting the previous indentation.
+            if not child.tail.strip():  # pylint: disable=undefined-loop-variable
+                child.tail = indentations[level]  # pylint: disable=undefined-loop-variable
+
+        _indent_children(self, 0)
+
     def tostring(self, space="  ", level=0):
-        ET.indent(self, space=space, level=level)
+        self.indent(space=space, level=level)
         return _illegal_xml_chars_RE.sub("", space * level + ET.tostring(self, encoding="unicode"))
 
 
