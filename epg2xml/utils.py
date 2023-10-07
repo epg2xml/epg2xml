@@ -3,6 +3,7 @@ import sys
 import json
 import time
 import logging
+import xml.etree.ElementTree as ET
 from xml.sax.saxutils import escape as _escape
 
 import requests
@@ -79,6 +80,18 @@ _illegal_xml_chars_RE = re.compile("[" + "".join(_illegal_ranges) + "]")
 
 def escape(s):
     return _escape(_illegal_xml_chars_RE.sub(" ", s))
+
+
+class Element(ET.Element):
+    def __init__(self, *args, **kwargs):
+        attrib = kwargs.pop("attrib", {})
+        super().__init__(args[0], attrib=attrib, **kwargs)
+        if len(args) > 1:
+            self.text = args[1]
+
+    def tostring(self, space="  ", level=0):
+        ET.indent(self, space=space, level=level)
+        return _illegal_xml_chars_RE.sub("", space * level + ET.tostring(self, encoding="unicode"))
 
 
 class PrefixLogger(logging.LoggerAdapter):
