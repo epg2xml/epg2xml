@@ -54,11 +54,17 @@ provider.load_my_channels()
 
 if len(sys.argv) > 2:
     rch = provider.req_channels
-    log.info("Shuffling requested channels...")
-    shuffle(rch)
-    log.info(f"Using {sys.argv[2]}% of them...")
-    num_rch = max(10, int(len(rch) // float(sys.argv[2])))
-    rch = rch[:num_rch]
+    if len(sys.argv) > 3 and sys.argv[3] == "--shuffle":
+        log.info("Shuffling requested channels...")
+        shuffle(rch)
+    if sys.argv[2].isdecimal():
+        log.info(f"Using {sys.argv[2]} of them...")
+        num_rch = int(sys.argv[2])
+    else:
+        per_rch = float(sys.argv[2]) * 100
+        log.info(f"Using {per_rch:3.1f}% of them...")
+        num_rch = int(len(rch) * float(sys.argv[2]))
+    rch = rch[: max(10, num_rch)]
     provider.req_channels = rch
 
 stime = timer()

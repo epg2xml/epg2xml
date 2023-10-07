@@ -31,7 +31,7 @@ jobs:
         sudo apt-get install -y xmltv-util
     - name: Test ${{ matrix.provider }}
       run: |
-        python -m tests.test_provider ${{ matrix.provider }} 10
+        python -m tests.test_provider ${{ matrix.provider }} 0.1 --shuffle
     - name: Upload Artifact
       uses: actions/upload-artifact@v3
       if: always()
