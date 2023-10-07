@@ -4,7 +4,6 @@ import json
 import time
 import logging
 import xml.etree.ElementTree as ET
-from xml.sax.saxutils import escape as _escape
 
 import requests
 
@@ -76,10 +75,6 @@ if sys.maxunicode >= 0x10000:  # not narrow build
     )
 _illegal_ranges = [rf"{chr(low)}-{chr(high)}" for (low, high) in _illegal_unichrs]
 _illegal_xml_chars_RE = re.compile("[" + "".join(_illegal_ranges) + "]")
-
-
-def escape(s):
-    return _escape(_illegal_xml_chars_RE.sub(" ", s))
 
 
 class Element(ET.Element):
