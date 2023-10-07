@@ -288,10 +288,10 @@ class EPGProgram:
         if rebroadcast and cfg["ADD_REBROADCAST_TO_TITLE"]:
             title += " (재)"
 
-        progel = Element("programme", start=stime, stop=etime, channel=self.channelid)
-        progel.append(Element("title", title, lang="ko"))
+        _p = Element("programme", start=stime, stop=etime, channel=self.channelid)
+        _p.append(Element("title", title, lang="ko"))
         if title_sub:
-            progel.append(Element("sub-title", title_sub, lang="ko"))
+            _p.append(Element("sub-title", title_sub, lang="ko"))
         if cfg["ADD_DESCRIPTION"]:
             desclines = [title]
             if title_sub:
@@ -310,23 +310,24 @@ class EPGProgram:
             if desc:
                 desclines += [desc]
             desc = self.PTN_SPACES.sub(" ", "\n".join(desclines))
-            progel.append(Element("desc", desc, lang="ko"))
+            _p.append(Element("desc", desc, lang="ko"))
             if actors or staff:
-                _credits = Element("credits")
+                _c = Element("credits")
                 for actor in map(str.strip, self.actors):
                     if actor:
-                        _credits.append(Element("actor", actor))
+                        _c.append(Element("actor", actor))
                 for staff in map(str.strip, self.staff):
                     if staff:
-                        _credits.append(Element("producer", staff))
+                        _c.append(Element("producer", staff))
+                _p.append(_c)
 
         for cat_ko in cats_ko:
-            progel.append(Element("category", cat_ko, lang="ko"))
+            _p.append(Element("category", cat_ko, lang="ko"))
             cat_en = self.CAT_KO2EN.get(cat_ko)
             if cat_en:
-                progel.append(Element("category", cat_en, lang="en"))
+                _p.append(Element("category", cat_en, lang="en"))
         if self.poster_url:
-            progel.append(Element("icon", src=self.poster_url))
+            _p.append(Element("icon", src=self.poster_url))
         if episode:
             if cfg["ADD_XMLTV_NS"]:
                 try:
@@ -334,13 +335,13 @@ class EPGProgram:
                 except ValueError:
                     episode_ns = int(episode.split(",", 1)[0]) - 1
                 episode_ns = f"0.{str(episode_ns)}.0/0"
-                progel.append(Element("episode-num", episode_ns, system="xmltv_ns"))
+                _p.append(Element("episode-num", episode_ns, system="xmltv_ns"))
             else:
-                progel.append(Element("episode-num", episode, system="onscreen"))
+                _p.append(Element("episode-num", episode, system="onscreen"))
         if rebroadcast:
-            progel.append(Element("previously-shown"))
+            _p.append(Element("previously-shown"))
         if rating:
-            ratel = Element("rating", system="KMRB")
-            ratel.append(Element("value", rating))
-            progel.append(ratel)
-        print(progel.tostring(level=1))
+            _r = Element("rating", system="KMRB")
+            _r.append(Element("value", rating))
+            _p.append(_r)
+        print(_p.tostring(level=1))
