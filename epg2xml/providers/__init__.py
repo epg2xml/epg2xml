@@ -3,10 +3,10 @@ import re
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from copy import copy
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from datetime import datetime, timedelta
 from importlib import import_module
-from typing import ClassVar, List
+from typing import List
 
 from bs4 import BeautifulSoup, FeatureNotFound, SoupStrainer
 from requests import Session
@@ -19,13 +19,14 @@ log = logging.getLogger("PROV")
 def load_providers(cfgs):
     providers = []
     for name, cfg in cfgs.items():
-        if cfg["ENABLED"]:
-            try:
-                m = import_module(f"epg2xml.providers.{name.lower()}")
-                providers.append(getattr(m, name.upper())(cfg))
-            except ModuleNotFoundError:
-                log.error("No such provider found: '%s'", name)
-                sys.exit(1)
+        if not cfg["ENABLED"]:
+            continue
+        try:
+            m = import_module(f"epg2xml.providers.{name.lower()}")
+            providers.append(getattr(m, name.upper())(cfg))
+        except ModuleNotFoundError:
+            log.error("No such provider found: '%s'", name)
+            sys.exit(1)
     return providers
 
 
@@ -221,6 +222,26 @@ class EPGChannel:
         self.programs.clear()
 
 
+PTN_TITLE = re.compile(r"(.*) \(?(\d+부)\)?")
+PTN_SPACES = re.compile(" +")
+CAT_KO2EN = {
+    "교양": "Arts / Culture (without music)",
+    "만화": "Cartoons / Puppets",
+    "교육": "Education / Science / Factual topics",
+    "취미": "Leisure hobbies",
+    "드라마": "Movie / Drama",
+    "영화": "Movie / Drama",
+    "음악": "Music / Ballet / Dance",
+    "뉴스": "News / Current affairs",
+    "다큐": "Documentary",
+    "라이프": "Documentary",
+    "시사/다큐": "Documentary",
+    "연예": "Show / Game show",
+    "스포츠": "Sports",
+    "홈쇼핑": "Advertisement / Shopping",
+}
+
+
 @dataclass
 class EPGProgram:
     """For individual program entities"""
@@ -242,92 +263,84 @@ class EPGProgram:
     staff: List[str] = field(default_factory=list)
     extras: List[str] = field(default_factory=list)
 
-    PTN_TITLE: ClassVar[re.Pattern] = re.compile(r"(.*) \(?(\d+부)\)?")
-    PTN_SPACES: ClassVar[re.Pattern] = re.compile(" +")
-    CAT_KO2EN: ClassVar[dict] = {
-        "교양": "Arts / Culture (without music)",
-        "만화": "Cartoons / Puppets",
-        "교육": "Education / Science / Factual topics",
-        "취미": "Leisure hobbies",
-        "드라마": "Movie / Drama",
-        "영화": "Movie / Drama",
-        "음악": "Music / Ballet / Dance",
-        "뉴스": "News / Current affairs",
-        "다큐": "Documentary",
-        "라이프": "Documentary",
-        "시사/다큐": "Documentary",
-        "연예": "Show / Game show",
-        "스포츠": "Sports",
-        "홈쇼핑": "Advertisement / Shopping",
-    }
+    def sanitize(self) -> None:
+        for f in fields(self):
+            attr = getattr(self, f.name)
+            if f.type == List[str]:
+                setattr(self, f.name, [x.strip() for x in filter(bool, attr) if x.strip()])
+            elif f.type == str:
+                setattr(self, f.name, (attr or "").strip())
 
-    def to_xml(self, cfg):
+    def to_xml(self, cfg: dict) -> None:
+        self.sanitize()
+
+        # local variables
         stime = self.stime.strftime("%Y%m%d%H%M%S +0900")
         etime = self.etime.strftime("%Y%m%d%H%M%S +0900")
-        title = (self.title or "").strip()
-        title_sub = (self.title_sub or "").strip()
-        actors = ",".join(self.actors)
-        staff = ",".join(self.staff)
-        cats_ko = [x.strip() for x in self.categories if x]
-        cats_ko = [x for x in cats_ko if x]  # 결과가 empty string일 수 있으니 제거
-        episode = self.ep_num or ""
+        title = self.title
+        title_sub = self.title_sub
+        actors = self.actors
+        staff = self.staff
+        categories = self.categories
+        episode = self.ep_num
+        rebroadcast = "재" if self.rebroadcast else ""
         rating = "전체 관람가" if self.rating == 0 else f"{self.rating}세 이상 관람가"
-        rebroadcast = self.rebroadcast
-        desc = self.desc
 
-        matches = self.PTN_TITLE.match(title)
+        # programm
+        _p = Element("programme", start=stime, stop=etime, channel=self.channelid)
+
+        # title, sub-title
+        matches = PTN_TITLE.match(title)
         if matches:
             title = matches.group(1).strip()
             title_sub = (matches.group(2) + " " + title_sub).strip()
-        if not title:
-            title = title_sub
-        if not title:
-            title = "제목 없음"
-        if episode and cfg["ADD_EPNUM_TO_TITLE"]:
-            title += f" ({str(episode)}회)"
-        if rebroadcast and cfg["ADD_REBROADCAST_TO_TITLE"]:
-            title += " (재)"
-
-        _p = Element("programme", start=stime, stop=etime, channel=self.channelid)
+        title = [
+            title or title_sub or "제목 없음",
+            f"({episode}회)" if episode and cfg["ADD_EPNUM_TO_TITLE"] else "",
+            f" ({rebroadcast})" if rebroadcast and cfg["ADD_REBROADCAST_TO_TITLE"] else "",
+        ]
+        title = " ".join(filter(bool, title))
         _p.append(Element("title", title, lang="ko"))
         if title_sub:
             _p.append(Element("sub-title", title_sub, lang="ko"))
+
+        # desc
         if cfg["ADD_DESCRIPTION"]:
-            desclines = [title]
-            if title_sub:
-                desclines += [f"부제 : {title_sub}"]
-            if rebroadcast and cfg["ADD_REBROADCAST_TO_TITLE"]:
-                desclines += ["방송 : 재방송"]
-            if episode:
-                desclines += [f"회차 : {str(episode)}회"]
-            if cats_ko:
-                desclines += [f"장르 : {','.join(cats_ko)}"]
-            if actors:
-                desclines += [f"출연 : {actors.strip()}"]
-            if staff:
-                desclines += [f"제작 : {staff.strip()}"]
-            desclines += [f"등급 : {rating}"]
-            if desc:
-                desclines += [desc]
-            desc = self.PTN_SPACES.sub(" ", "\n".join(desclines))
+            desc = [
+                title,
+                f"부제 : {title_sub}" if title_sub else "",
+                f"방송 : {rebroadcast}방송" if rebroadcast and cfg["ADD_REBROADCAST_TO_TITLE"] else "",
+                f"회차 : {episode}회" if episode else "",
+                f"장르 : {','.join(categories)}" if categories else "",
+                f"출연 : {','.join(actors)}" if actors else "",
+                f"제작 : {','.join(staff)}" if staff else "",
+                f"등급 : {rating}",
+                self.desc,
+            ]
+            desc = PTN_SPACES.sub(" ", "\n".join(filter(bool, desc)))
             _p.append(Element("desc", desc, lang="ko"))
+
+            # credits
             if actors or staff:
                 _c = Element("credits")
-                for actor in map(str.strip, self.actors):
-                    if actor:
-                        _c.append(Element("actor", actor))
-                for staff in map(str.strip, self.staff):
-                    if staff:
-                        _c.append(Element("producer", staff))
+                for actor in actors:
+                    _c.append(Element("actor", actor))
+                for stf in staff:
+                    _c.append(Element("producer", stf))
                 _p.append(_c)
 
-        for cat_ko in cats_ko:
+        # categories
+        for cat_ko in categories:
             _p.append(Element("category", cat_ko, lang="ko"))
-            cat_en = self.CAT_KO2EN.get(cat_ko)
+            cat_en = CAT_KO2EN.get(cat_ko)
             if cat_en:
                 _p.append(Element("category", cat_en, lang="en"))
+
+        # icon
         if self.poster_url:
             _p.append(Element("icon", src=self.poster_url))
+
+        # episode-num
         if episode:
             if cfg["ADD_XMLTV_NS"]:
                 try:
@@ -338,10 +351,16 @@ class EPGProgram:
                 _p.append(Element("episode-num", episode_ns, system="xmltv_ns"))
             else:
                 _p.append(Element("episode-num", episode, system="onscreen"))
+
+        # previously-shown
         if rebroadcast:
             _p.append(Element("previously-shown"))
+
+        # rating
         if rating:
             _r = Element("rating", system="KMRB")
             _r.append(Element("value", rating))
             _p.append(_r)
+
+        # dumps
         print(_p.tostring(level=1))

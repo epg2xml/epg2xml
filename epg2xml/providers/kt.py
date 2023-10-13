@@ -82,9 +82,7 @@ class KT(EPGProvider):
                             cell[1].find_all("p"), cell[2].find_all("p"), cell[3].find_all("p")
                         ):
                             _prog = EPGProgram(_ch.id)
-                            _prog.stime = datetime.strptime(
-                                f"{str(day)} {hour}:{minute.text.strip()}", "%Y-%m-%d %H:%M"
-                            )
+                            _prog.stime = datetime.strptime(f"{day} {hour}:{minute.text.strip()}", "%Y-%m-%d %H:%M")
                             _prog.title = program.text.replace("방송중 ", "").strip()
                             _prog.categories = [category.text.strip()]
                             for image in program.find_all("img", alt=True):
