@@ -309,7 +309,7 @@ class EPGProgram:
             desc = [
                 title,
                 f"부제 : {title_sub}" if title_sub else "",
-                f"방송 : {rebroadcast}방송" if rebroadcast and cfg["ADD_REBROADCAST_TO_TITLE"] else "",
+                f"방송 : {rebroadcast}방송" if rebroadcast else "",
                 f"회차 : {episode}회" if episode else "",
                 f"장르 : {','.join(categories)}" if categories else "",
                 f"출연 : {','.join(actors)}" if actors else "",
