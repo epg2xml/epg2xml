@@ -294,12 +294,12 @@ class EPGProgram:
         if matches:
             title = matches.group(1).strip()
             title_sub = (matches.group(2) + " " + title_sub).strip()
-        if not title:
-            title = title_sub or "제목 없음"
-        if episode and cfg["ADD_EPNUM_TO_TITLE"]:
-            title += f" ({episode}회)"
-        if rebroadcast and cfg["ADD_REBROADCAST_TO_TITLE"]:
-            title += f" ({rebroadcast})"
+        title = [
+            title or title_sub or "제목 없음",
+            f"({episode}회)" if episode and cfg["ADD_EPNUM_TO_TITLE"] else "",
+            f" ({rebroadcast})" if rebroadcast and cfg["ADD_REBROADCAST_TO_TITLE"] else "",
+        ]
+        title = " ".join(filter(bool, title))
         _p.append(Element("title", title, lang="ko"))
         if title_sub:
             _p.append(Element("sub-title", title_sub, lang="ko"))
