@@ -223,7 +223,7 @@ class EPGChannel:
 
 
 PTN_TITLE = re.compile(r"(.*) \(?(\d+부)\)?")
-PTN_SPACES = re.compile(" +")
+PTN_SPACES = re.compile(r" {2,}")
 CAT_KO2EN = {
     "교양": "Arts / Culture (without music)",
     "만화": "Cartoons / Puppets",
@@ -299,7 +299,7 @@ class EPGProgram:
             f"({episode}회)" if episode and cfg["ADD_EPNUM_TO_TITLE"] else "",
             f" ({rebroadcast})" if rebroadcast and cfg["ADD_REBROADCAST_TO_TITLE"] else "",
         ]
-        title = " ".join(filter(bool, title))
+        title = PTN_SPACES.sub(" ", " ".join(title))
         _p.append(Element("title", title, lang="ko"))
         if title_sub:
             _p.append(Element("sub-title", title_sub, lang="ko"))
