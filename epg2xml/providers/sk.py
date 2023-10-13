@@ -80,30 +80,31 @@ class SK(EPGProvider):
                 continue
             for nd in range(min(int(self.cfg["FETCH_LIMIT"]), max_ndays)):
                 daystr = (date.today() + timedelta(days=nd)).strftime("%Y%m%d")
-                for info in filter(lambda x: x["eventDt"] == daystr, infolist):
-                    _prog = self._new_program(_ch.id, info)
-                    if _prog:
+                for info in infolist:
+                    if info["eventDt"] != daystr:
+                        continue
+                    try:
+                        _prog = self._new_program(_ch.id, info)
+                    except Exception:
+                        log.exception("프로그램 파싱 에러: %s", info)
+                    else:
                         _ch.programs.append(_prog)
             if not lazy_write:
                 _ch.to_xml(self.cfg, no_endtime=self.no_endtime)
 
     def _new_program(self, channelid: str, info: dict) -> EPGProgram:
-        try:
-            _prog = EPGProgram(channelid)
-            _prog.title = info["nmTitle"]
-            matches = self.title_regex.match(_prog.title)
-            if matches:
-                _prog.title = matches.group(1) or ""
-                _prog.title_sub = matches.group(5) or ""
-                _prog.rebroadcast = bool(matches.group(7))
-                _prog.ep_num = matches.group(3) or ""
-            _prog.rating = int(info.get("cdRating") or "0")
-            _prog.stime = datetime.strptime(info["dtEventStart"], "%Y%m%d%H%M%S")
-            _prog.etime = datetime.strptime(info["dtEventEnd"], "%Y%m%d%H%M%S")
-            if info["cdGenre"] and (info["cdGenre"] in self.genre_code):
-                _prog.categories = [self.genre_code[info["cdGenre"]]]
-            _prog.desc = info["nmSynop"]  # 값이 없음
-            return _prog
-        except Exception:
-            log.exception("프로그램 파싱 에러: %s", info)
-            return None
+        _prog = EPGProgram(channelid)
+        _prog.title = info["nmTitle"]
+        matches = self.title_regex.match(_prog.title)
+        if matches:
+            _prog.title = matches.group(1) or ""
+            _prog.title_sub = matches.group(5) or ""
+            _prog.rebroadcast = bool(matches.group(7))
+            _prog.ep_num = matches.group(3) or ""
+        _prog.rating = int(info.get("cdRating") or "0")
+        _prog.stime = datetime.strptime(info["dtEventStart"], "%Y%m%d%H%M%S")
+        _prog.etime = datetime.strptime(info["dtEventEnd"], "%Y%m%d%H%M%S")
+        if info["cdGenre"] and (info["cdGenre"] in self.genre_code):
+            _prog.categories = [self.genre_code[info["cdGenre"]]]
+        _prog.desc = info["nmSynop"]  # 값이 없음
+        return _prog
