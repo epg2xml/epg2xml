@@ -320,14 +320,14 @@ class EPGProgram:
             desc = PTN_SPACES.sub(" ", "\n".join(filter(bool, desc)))
             _p.append(Element("desc", desc, lang="ko"))
 
-            # credits
-            if actors or staff:
-                _c = Element("credits")
-                for actor in actors:
-                    _c.append(Element("actor", actor))
-                for stf in staff:
-                    _c.append(Element("producer", stf))
-                _p.append(_c)
+        # credits
+        if actors or staff:
+            _c = Element("credits")
+            for actor in actors:
+                _c.append(Element("actor", actor))
+            for stf in staff:
+                _c.append(Element("producer", stf))
+            _p.append(_c)
 
         # categories
         for cat_ko in categories:
