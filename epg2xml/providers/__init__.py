@@ -262,6 +262,7 @@ class EPGProgram:
     actors: List[str] = field(default_factory=list)
     staff: List[str] = field(default_factory=list)
     extras: List[str] = field(default_factory=list)
+    keywords: List[str] = field(default_factory=list)
 
     def sanitize(self) -> None:
         for f in fields(self):
@@ -282,6 +283,7 @@ class EPGProgram:
         actors = self.actors
         staff = self.staff
         categories = self.categories
+        keywords = self.keywords
         episode = self.ep_num
         rebroadcast = "재" if self.rebroadcast else ""
         rating = "전체 관람가" if self.rating == 0 else f"{self.rating}세 이상 관람가"
@@ -335,6 +337,10 @@ class EPGProgram:
             cat_en = CAT_KO2EN.get(cat_ko)
             if cat_en:
                 _p.append(Element("category", cat_en, lang="en"))
+
+        # keywords
+        for keyword in keywords:
+            _p.append(Element("keyword", keyword, lang="ko"))
 
         # icon
         if self.poster_url:
