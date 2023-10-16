@@ -76,63 +76,62 @@ class WAVVE(EPGProvider):
             for x in self.__get("/live/epgs", params=params)["list"]
         ]
 
-    def __program(self, channelid: str, program: dict) -> EPGProgram:
-        _prog = EPGProgram(channelid)
-        _prog.stime = datetime.strptime(program["starttime"], "%Y-%m-%d %H:%M")
-        _prog.etime = datetime.strptime(program["endtime"], "%Y-%m-%d %H:%M")
-        _prog.title = unescape(program["title"])
-        matches = self.title_regex.match(_prog.title)
+    def __epg_of_program(self, channelid: str, program: dict) -> EPGProgram:
+        _epg = EPGProgram(channelid)
+        _epg.stime = datetime.strptime(program["starttime"], "%Y-%m-%d %H:%M")
+        _epg.etime = datetime.strptime(program["endtime"], "%Y-%m-%d %H:%M")
+        # 채널이름은 그대로 들어오고 프로그램 제목은 escape되어 들어옴
+        _epg.title = unescape(program["title"])
+        matches = self.title_regex.match(_epg.title)
         if matches:
-            _prog.title = (matches.group(1) or "").strip()
-            _prog.title_sub = (matches.group(4) or "").strip()
+            _epg.title = (matches.group(1) or "").strip()
+            _epg.title_sub = (matches.group(4) or "").strip()
             episode = (matches.group(2) or "").replace("회", "").strip()
-            _prog.ep_num = "" if episode == "0" else episode
-            _prog.rebroadcast = bool(matches.group(3))
-        _prog.rating = 0 if program["targetage"] == "n" else int(program["targetage"])
+            _epg.ep_num = "" if episode == "0" else episode
+            _epg.rebroadcast = bool(matches.group(3))
+        _epg.rating = 0 if program["targetage"] == "n" else int(program["targetage"])
 
         # 추가 정보 가져오기
         if not self.cfg["GET_MORE_DETAILS"]:
-            return _prog
+            return _epg
         programid = program["programid"].strip()
         if not programid:
             # 개별 programid가 없는 경우도 있으니 체크해야함
-            return _prog
+            return _epg
         programdetail = self.get_program_details(programid)
         if not programdetail:
-            return _prog
+            return _epg
         # programtitle = programdetail['programtitle']
         # log.info('%s / %s' % (programName, programtitle))
-        _prog.desc = "\n".join(
+        _epg.desc = "\n".join(
             [x.replace("<br>", "\n").strip() for x in programdetail["programsynopsis"].splitlines()]
         )  # carriage return(\r) 제거, <br> 제거
-        _prog.categories = [programdetail["genretext"].strip()]
-        _prog.poster_url = self.__url(programdetail["programposterimage"].strip())
+        _epg.categories = [programdetail["genretext"].strip()]
+        _epg.poster_url = self.__url(programdetail["programposterimage"].strip())
         # tags = programdetail['tags']['list'][0]['text']
-        _prog.cast = [{"name": x["text"], "title": "actor"} for x in programdetail["actors"]["list"]]
-        return _prog
+        _epg.cast = [{"name": x["text"], "title": "actor"} for x in programdetail["actors"]["list"]]
+        return _epg
 
     def get_programs(self, lazy_write=False):
         # parameters for requests
         params = {
-            "enddatetime": (today + timedelta(days=int(self.cfg["FETCH_LIMIT"]) - 1)).strftime("%Y-%m-%d") + " 24:00",
+            "enddatetime": (today + timedelta(days=int(self.cfg["FETCH_LIMIT"]) - 1)).strftime("%Y-%m-%d 24:00"),
             "genre": "all",
             "limit": 500,
             "offset": 0,
-            "startdatetime": today.strftime("%Y-%m-%d") + " 00:00",
+            "startdatetime": today.strftime("%Y-%m-%d 00:00"),
         }
         channeldict = {x["channelid"]: x for x in self.__get("/live/epgs", params=params)["list"]}
 
         for idx, _ch in enumerate(self.req_channels):
-            # 채널이름은 그대로 들어오고 프로그램 제목은 escape되어 들어옴
-            srcChannel = channeldict[_ch.svcid]
             log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)
-            for program in srcChannel["list"]:
+            for program in channeldict[_ch.svcid]["list"]:
                 try:
-                    _prog = self.__program(_ch.id, program)
+                    _epg = self.__epg_of_program(_ch.id, program)
                 except Exception:
-                    log.exception("개별 프로그램 가져오는 중 예외: %s", program)
+                    log.exception("프로그램 파싱 중 예외: %s", _ch)
                 else:
-                    _ch.programs.append(_prog)
+                    _ch.programs.append(_epg)
             if not lazy_write:
                 _ch.to_xml(self.cfg, no_endtime=self.no_endtime)
 

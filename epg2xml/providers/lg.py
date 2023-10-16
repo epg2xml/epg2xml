@@ -1,5 +1,6 @@
 import logging
 from datetime import date, datetime, timedelta
+from typing import List
 
 from epg2xml.providers import EPGProgram, EPGProvider
 
@@ -77,35 +78,41 @@ class LG(EPGProvider):
             for nd in range(min(int(self.cfg["FETCH_LIMIT"]), max_ndays)):
                 day = date.today() + timedelta(days=nd)
                 params.update({"urcBrdCntrTvChnlId": _ch.svcid, "brdCntrTvChnlBrdDt": day.strftime("%Y%m%d")})
+                data = self.request(url, params=params) or {}
+                data = data.get("brdCntTvSchIDtoList", [])
+                if not data:
+                    log.warning("EPG 정보가 없거나 없는 채널입니다: %s %s", _ch, day)
+                    break  # 오늘 없으면 내일도 없는 채널로 간주
                 try:
-                    data = self.request(url, params=params)
-                    programs = data.get("brdCntTvSchIDtoList", [])
-                    if not programs:
-                        log.warning("EPG 정보가 없거나 없는 채널입니다: %s", _ch)
-                        # 오늘 없으면 내일도 없는 채널로 간주
-                        break
-                    for p in programs:
-                        _prog = EPGProgram(_ch.id)
-                        _prog.title = p["brdPgmTitNm"]
-                        _prog.desc = p["brdPgmDscr"]
-                        _prog.stime = datetime.strptime(p["brdCntrTvChnlBrdDt"] + p["epgStrtTme"], "%Y%m%d%H:%M:%S")
-                        _prog.rating = self.gcode.get(p["brdWtchAgeGrdCd"], 0)
-                        _prog.extras.append(p["brdPgmRsolNm"])  # 화질
-                        if p["subtBrdYn"] == "Y":
-                            _prog.extras.append("자막")
-                        if p["explBrdYn"] == "Y":
-                            _prog.extras.append("화면해설")
-                        if p["silaBrdYn"] == "Y":
-                            _prog.extras.append("수화")
-                        matches = self.title_regex.match(_prog.title)
-                        if matches:
-                            _prog.title = (matches.group(1) or "").strip()
-                            _prog.title_sub = (matches.group(2) or "").strip()
-                            _prog.ep_num = matches.group(3) or ""
-                            _prog.rebroadcast = bool(matches.group(4))
-                        _prog.categories = [self.pcate[p["urcBrdCntrTvSchdGnreCd"]]]
-                        _ch.programs.append(_prog)
+                    _epgs = self.__epgs_of_day(_ch.id, data)
                 except Exception:
-                    log.exception("파싱 에러: %s", _ch)
+                    log.exception("프로그램 파싱 중 예외: %s, %s", _ch, day)
+                else:
+                    _ch.programs.extend(_epgs)
             if not lazy_write:
                 _ch.to_xml(self.cfg, no_endtime=self.no_endtime)
+
+    def __epgs_of_day(self, channelid: str, data: list) -> List[EPGProgram]:
+        _epgs = []
+        for p in data:
+            _epg = EPGProgram(channelid)
+            _epg.title = p["brdPgmTitNm"]
+            _epg.desc = p["brdPgmDscr"]
+            _epg.stime = datetime.strptime(p["brdCntrTvChnlBrdDt"] + p["epgStrtTme"], "%Y%m%d%H:%M:%S")
+            _epg.rating = self.gcode.get(p["brdWtchAgeGrdCd"], 0)
+            _epg.extras.append(p["brdPgmRsolNm"])  # 화질
+            if p["subtBrdYn"] == "Y":
+                _epg.extras.append("자막")
+            if p["explBrdYn"] == "Y":
+                _epg.extras.append("화면해설")
+            if p["silaBrdYn"] == "Y":
+                _epg.extras.append("수화")
+            matches = self.title_regex.match(_epg.title)
+            if matches:
+                _epg.title = (matches.group(1) or "").strip()
+                _epg.title_sub = (matches.group(2) or "").strip()
+                _epg.ep_num = matches.group(3) or ""
+                _epg.rebroadcast = bool(matches.group(4))
+            _epg.categories = [self.pcate[p["urcBrdCntrTvSchdGnreCd"]]]
+            _epgs.append(_epg)
+        return _epgs

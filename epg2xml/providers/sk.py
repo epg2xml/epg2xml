@@ -1,5 +1,6 @@
 import logging
 from datetime import date, datetime, timedelta
+from typing import List
 from xml.sax.saxutils import unescape
 
 from epg2xml.providers import EPGProgram, EPGProvider
@@ -79,32 +80,34 @@ class SK(EPGProvider):
                 log.exception("예상치 못한 응답: %s", params)
                 continue
             for nd in range(min(int(self.cfg["FETCH_LIMIT"]), max_ndays)):
-                daystr = (date.today() + timedelta(days=nd)).strftime("%Y%m%d")
-                for info in infolist:
-                    if info["eventDt"] != daystr:
-                        continue
-                    try:
-                        _prog = self._new_program(_ch.id, info)
-                    except Exception:
-                        log.exception("프로그램 파싱 에러: %s", info)
-                    else:
-                        _ch.programs.append(_prog)
+                day = date.today() + timedelta(days=nd)
+                try:
+                    _epgs = self.__epgs_of_day(_ch.id, infolist, day)
+                except Exception:
+                    log.exception("프로그램 파싱 중 예외: %s, %s", _ch, day)
+                else:
+                    _ch.programs.extend(_epgs)
             if not lazy_write:
                 _ch.to_xml(self.cfg, no_endtime=self.no_endtime)
 
-    def _new_program(self, channelid: str, info: dict) -> EPGProgram:
-        _prog = EPGProgram(channelid)
-        _prog.title = info["nmTitle"]
-        matches = self.title_regex.match(_prog.title)
-        if matches:
-            _prog.title = matches.group(1) or ""
-            _prog.title_sub = matches.group(5) or ""
-            _prog.rebroadcast = bool(matches.group(7))
-            _prog.ep_num = matches.group(3) or ""
-        _prog.rating = int(info.get("cdRating") or "0")
-        _prog.stime = datetime.strptime(info["dtEventStart"], "%Y%m%d%H%M%S")
-        _prog.etime = datetime.strptime(info["dtEventEnd"], "%Y%m%d%H%M%S")
-        if info["cdGenre"] and (info["cdGenre"] in self.genre_code):
-            _prog.categories = [self.genre_code[info["cdGenre"]]]
-        _prog.desc = info["nmSynop"]  # 값이 없음
-        return _prog
+    def __epgs_of_day(self, channelid: str, data: list, day: datetime) -> List[EPGProgram]:
+        _epgs = []
+        for info in data:
+            if info["eventDt"] != day.strftime("%Y%m%d"):
+                continue
+            _epg = EPGProgram(channelid)
+            _epg.title = info["nmTitle"]
+            matches = self.title_regex.match(_epg.title)
+            if matches:
+                _epg.title = matches.group(1) or ""
+                _epg.title_sub = matches.group(5) or ""
+                _epg.rebroadcast = bool(matches.group(7))
+                _epg.ep_num = matches.group(3) or ""
+            _epg.rating = int(info.get("cdRating") or "0")
+            _epg.stime = datetime.strptime(info["dtEventStart"], "%Y%m%d%H%M%S")
+            _epg.etime = datetime.strptime(info["dtEventEnd"], "%Y%m%d%H%M%S")
+            if info["cdGenre"] and (info["cdGenre"] in self.genre_code):
+                _epg.categories = [self.genre_code[info["cdGenre"]]]
+            _epg.desc = info["nmSynop"]  # 값이 없음
+            _epgs.append(_epg)
+        return _epgs

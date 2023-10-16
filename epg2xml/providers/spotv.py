@@ -1,5 +1,6 @@
 import logging
 from datetime import date, datetime, timedelta
+from typing import List
 
 from epg2xml.providers import EPGProgram, EPGProvider
 
@@ -64,29 +65,40 @@ class SPOTV(EPGProvider):
 
         for idx, _ch in enumerate(self.req_channels):
             log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)
-            programs = [x for x in data if x["channelId"] == _ch.svcid]
-            if not programs:
-                log.warning("EPG 정보가 없거나 없는 채널입니다: %s", _ch)
-                continue
-            for p in programs:
-                _prog = EPGProgram(_ch.id)
-                _prog.title = p["title"]
-                _prog.stime = self.__dt(p["startTime"])
-                # 끝나는 시간이 없으면 해당일 자정으로 강제
-                _prog.etime = self.__dt(p["endTime"]) or (_prog.stime.replace(hour=0, minute=0) + timedelta(days=1))
-                if _prog.stime == _prog.etime:
-                    continue
-
-                matches = self.title_regex.match(_prog.title)
-                if matches:
-                    _prog.title = (matches.group(2) or "").strip()
-                    _prog.title_sub = (matches.group(1) or "").strip()
-                    if matches.group(3):
-                        _prog.title_sub += " " + matches.group(3).strip()
-                    _prog.ep_num = matches.group(4) or ""
-                if p["type"] == 300:
-                    # 100: live, 200: 본방송
-                    _prog.rebroadcast = True
-                _ch.programs.append(_prog)
+            try:
+                _epgs = self.__epgs_of_channel(_ch.id, data, _ch.svcid)
+            except AssertionError as e:
+                log.warning("%s: %s", e, _ch)
+            except Exception:
+                log.exception("프로그램 파싱 중 예외: %s", _ch)
+            else:
+                _ch.programs.extend(_epgs)
             if not lazy_write:
                 _ch.to_xml(self.cfg, no_endtime=self.no_endtime)
+
+    def __epgs_of_channel(self, channelid: str, data: dict, svcid: str) -> List[EPGProgram]:
+        programs = [x for x in data if x["channelId"] == svcid]
+        assert programs, "EPG 정보가 없거나 없는 채널입니다"
+
+        _epgs = []
+        for p in programs:
+            _epg = EPGProgram(channelid)
+            _epg.title = p["title"]
+            _epg.stime = self.__dt(p["startTime"])
+            # 끝나는 시간이 없으면 해당일 자정으로 강제
+            _epg.etime = self.__dt(p["endTime"]) or (_epg.stime.replace(hour=0, minute=0) + timedelta(days=1))
+            if _epg.stime == _epg.etime:
+                continue
+
+            matches = self.title_regex.match(_epg.title)
+            if matches:
+                _epg.title = (matches.group(2) or "").strip()
+                _epg.title_sub = (matches.group(1) or "").strip()
+                if matches.group(3):
+                    _epg.title_sub += " " + matches.group(3).strip()
+                _epg.ep_num = matches.group(4) or ""
+            if p["type"] == 300:
+                # 100: live, 200: 본방송
+                _epg.rebroadcast = True
+            _epgs.append(_epg)
+        return _epgs

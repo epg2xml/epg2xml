@@ -1,6 +1,7 @@
 import logging
 import re
 from datetime import date, datetime, timedelta
+from typing import List
 from urllib.parse import unquote
 
 from epg2xml.providers import EPGProgram, EPGProvider
@@ -72,24 +73,29 @@ class KT(EPGProvider):
             for nd in range(int(self.cfg["FETCH_LIMIT"])):
                 day = date.today() + timedelta(days=nd)
                 params.update({"service_ch_no": _ch.svcid, "seldate": day.strftime("%Y%m%d")})
+                data = self.request(url, method="POST", data=params)
                 try:
-                    data = self.request(url, method="POST", data=params)
-                    soup = BeautifulSoup(data, parse_only=SoupStrainer("tbody"))
-                    for row in soup.find_all("tr"):
-                        cell = row.find_all("td")
-                        hour = cell[0].text.strip()
-                        for minute, program, category in zip(
-                            cell[1].find_all("p"), cell[2].find_all("p"), cell[3].find_all("p")
-                        ):
-                            _prog = EPGProgram(_ch.id)
-                            _prog.stime = datetime.strptime(f"{day} {hour}:{minute.text.strip()}", "%Y-%m-%d %H:%M")
-                            _prog.title = program.text.replace("방송중 ", "").strip()
-                            _prog.categories = [category.text.strip()]
-                            for image in program.find_all("img", alt=True):
-                                grade = re.match(r"([\d,]+)", image["alt"])
-                                _prog.rating = int(grade.group(1)) if grade else 0
-                            _ch.programs.append(_prog)
+                    _epgs = self.__epgs_of_day(_ch.id, data, day)
                 except Exception:
-                    log.exception("파싱 에러: %s", _ch)
+                    log.exception("프로그램 파싱 중 예외: %s, %s", _ch, day)
+                else:
+                    _ch.programs.extend(_epgs)
             if not lazy_write:
                 _ch.to_xml(self.cfg, no_endtime=self.no_endtime)
+
+    def __epgs_of_day(self, channelid: str, data: str, day: datetime) -> List[EPGProgram]:
+        _epgs = []
+        soup = BeautifulSoup(data, parse_only=SoupStrainer("tbody"))
+        for row in soup.find_all("tr"):
+            cell = row.find_all("td")
+            hour = cell[0].text.strip()
+            for minute, program, category in zip(cell[1].find_all("p"), cell[2].find_all("p"), cell[3].find_all("p")):
+                _epg = EPGProgram(channelid)
+                _epg.stime = datetime.strptime(f"{day} {hour}:{minute.text.strip()}", "%Y-%m-%d %H:%M")
+                _epg.title = program.text.replace("방송중 ", "").strip()
+                _epg.categories = [category.text.strip()]
+                for image in program.find_all("img", alt=True):
+                    grade = re.match(r"([\d,]+)", image["alt"])
+                    _epg.rating = int(grade.group(1)) if grade else 0
+                _epgs.append(_epg)
+        return _epgs

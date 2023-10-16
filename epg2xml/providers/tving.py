@@ -1,6 +1,7 @@
 import logging
 from datetime import date, datetime, timedelta
 from itertools import islice
+from typing import List
 
 import requests
 
@@ -86,8 +87,8 @@ class TVING(EPGProvider):
             {
                 "broadDate": today.strftime("%Y%m%d"),
                 "broadcastDate": today.strftime("%Y%m%d"),
-                "startBroadTime": datetime.now().strftime("%H") + "0000",
-                "endBroadTime": (datetime.now() + timedelta(hours=3)).strftime("%H") + "0000",
+                "startBroadTime": datetime.now().strftime("%H0000"),
+                "endBroadTime": (datetime.now() + timedelta(hours=3)).strftime("%H0000"),
             }
         )
         self.svc_channel_list = [
@@ -126,37 +127,47 @@ class TVING(EPGProvider):
 
             for idx, _ch in enumerate(chgroup):
                 log.info("%03d/%03d %s", gid * 20 + idx + 1, len(self.req_channels), _ch)
-                for sch in channeldict[_ch.svcid]["schedules"]:
-                    _prog = EPGProgram(_ch.id)
-                    # 공통
-                    _prog.stime = datetime.strptime(str(sch["broadcast_start_time"]), "%Y%m%d%H%M%S")
-                    _prog.etime = datetime.strptime(str(sch["broadcast_end_time"]), "%Y%m%d%H%M%S")
-                    _prog.rebroadcast = sch["rerun_yn"] == "Y"
-
-                    get_from = "movie" if sch["movie"] else "program"
-                    img_code = "CAIM2100" if sch["movie"] else "CAIP0900"
-
-                    _prog.rating = self.gcode[sch[get_from].get("grade_code", "CPTG0100")]
-                    _prog.title = sch[get_from]["name"]["ko"]
-                    _prog.title_sub = sch[get_from]["name"].get("en", "")
-                    _prog.categories = [sch[get_from]["category1_name"].get("ko", "")]
-                    try:
-                        _prog.categories += [sch[get_from]["category2_name"]["ko"]]
-                    except KeyError:
-                        pass
-                    _prog.cast = [{"name": x, "title": "actor"} for x in sch[get_from]["actor"]]
-                    _prog.crew = [{"name": x, "title": "director"} for x in sch[get_from]["director"]]
-
-                    poster = [x["url"] for x in sch[get_from]["image"] if x["code"] == img_code]
-                    if poster:
-                        _prog.poster_url = "https://image.tving.com" + poster[0]
-                        # _prog.poster_url += '/dims/resize/236'
-
-                    _prog.desc = sch[get_from]["story" if sch["movie"] else "synopsis"]["ko"]
-                    if sch["episode"]:
-                        episode = sch["episode"]["frequency"]
-                        _prog.ep_num = "" if episode == 0 else str(episode)
-                        _prog.desc = sch["episode"]["synopsis"]["ko"]
-                    _ch.programs.append(_prog)
+                try:
+                    _epgs = self.__epgs_of_channel(_ch.id, channeldict[_ch.svcid])
+                except Exception:
+                    log.exception("프로그램 파싱 중 예외: %s", _ch)
+                else:
+                    _ch.programs.extend(_epgs)
                 if not lazy_write:
                     _ch.to_xml(self.cfg, no_endtime=self.no_endtime)
+
+    def __epgs_of_channel(self, channelid: str, data: dict) -> List[EPGProgram]:
+        _epgs = []
+        for sch in data["schedules"]:
+            _epg = EPGProgram(channelid)
+            # 공통
+            _epg.stime = datetime.strptime(str(sch["broadcast_start_time"]), "%Y%m%d%H%M%S")
+            _epg.etime = datetime.strptime(str(sch["broadcast_end_time"]), "%Y%m%d%H%M%S")
+            _epg.rebroadcast = sch["rerun_yn"] == "Y"
+
+            get_from = "movie" if sch["movie"] else "program"
+            img_code = "CAIM2100" if sch["movie"] else "CAIP0900"
+
+            _epg.rating = self.gcode[sch[get_from].get("grade_code", "CPTG0100")]
+            _epg.title = sch[get_from]["name"]["ko"]
+            _epg.title_sub = sch[get_from]["name"].get("en", "")
+            _epg.categories = [sch[get_from]["category1_name"].get("ko", "")]
+            try:
+                _epg.categories += [sch[get_from]["category2_name"]["ko"]]
+            except KeyError:
+                pass
+            _epg.cast = [{"name": x, "title": "actor"} for x in sch[get_from]["actor"]]
+            _epg.crew = [{"name": x, "title": "director"} for x in sch[get_from]["director"]]
+
+            poster = [x["url"] for x in sch[get_from]["image"] if x["code"] == img_code]
+            if poster:
+                _epg.poster_url = "https://image.tving.com" + poster[0]
+                # _prog.poster_url += '/dims/resize/236'
+
+            _epg.desc = sch[get_from]["story" if sch["movie"] else "synopsis"]["ko"]
+            if sch["episode"]:
+                episode = sch["episode"]["frequency"]
+                _epg.ep_num = "" if episode == 0 else str(episode)
+                _epg.desc = sch["episode"]["synopsis"]["ko"]
+            _epgs.append(_epg)
+        return _epgs

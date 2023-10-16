@@ -1,5 +1,6 @@
 import logging
 from datetime import date, datetime, timedelta
+from typing import List
 from xml.sax.saxutils import unescape
 
 from epg2xml.providers import EPGProgram, EPGProvider
@@ -68,28 +69,35 @@ class NAVER(EPGProvider):
                 day = today + timedelta(days=nd)
                 params.update({"u1": _ch.svcid, "u2": day.strftime("%Y%m%d")})
                 data = self.request(url, params=params)
+                if data["statusCode"].lower() != "success":
+                    log.error("유효한 응답이 아닙니다: %s %s", _ch, data["statusCode"])
+                    continue
                 try:
-                    if data["statusCode"].lower() != "success":
-                        log.error("유효한 응답이 아닙니다: %s %s", _ch, data["statusCode"])
-                        continue
-                    soup = BeautifulSoup("".join(data["dataHtml"]))
-                    for row in soup.find_all("li", {"class": "list"}):
-                        cell = row.find_all("div")
-                        _prog = EPGProgram(_ch.id)
-                        _prog.title = unescape(cell[4].text.strip())
-                        _prog.stime = datetime.strptime(f"{str(day)} {cell[1].text.strip()}", "%Y-%m-%d %H:%M")
-                        for span in cell[3].findAll("span", {"class": "state_ico"}):
-                            span_txt = span.text.strip()
-                            if "re" in span["class"]:
-                                _prog.rebroadcast = True
-                            else:
-                                _prog.extras.append(span_txt)
-                        try:
-                            _prog.title_sub = cell[5].text.strip()
-                        except Exception:
-                            pass
-                        _ch.programs.append(_prog)
+                    _epgs = self.__epgs_of_day(_ch.id, data, day)
                 except Exception:
-                    log.exception("파싱 에러: %s", _ch)
+                    log.exception("프로그램 파싱 중 예외: %s, %s", _ch, day)
+                else:
+                    _ch.programs.extend(_epgs)
             if not lazy_write:
                 _ch.to_xml(self.cfg, no_endtime=self.no_endtime)
+
+    def __epgs_of_day(self, channelid: str, data: dict, day: datetime) -> List[EPGProgram]:
+        _epgs = []
+        soup = BeautifulSoup("".join(data["dataHtml"]))
+        for row in soup.find_all("li", {"class": "list"}):
+            cell = row.find_all("div")
+            _epg = EPGProgram(channelid)
+            _epg.title = unescape(cell[4].text.strip())
+            _epg.stime = datetime.strptime(f"{str(day)} {cell[1].text.strip()}", "%Y-%m-%d %H:%M")
+            for span in cell[3].findAll("span", {"class": "state_ico"}):
+                span_txt = span.text.strip()
+                if "re" in span["class"]:
+                    _epg.rebroadcast = True
+                else:
+                    _epg.extras.append(span_txt)
+            try:
+                _epg.title_sub = cell[5].text.strip()
+            except Exception:
+                pass
+            _epgs.append(_epg)
+        return _epgs
