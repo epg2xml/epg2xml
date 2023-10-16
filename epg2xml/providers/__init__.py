@@ -240,6 +240,18 @@ CAT_KO2EN = {
     "스포츠": "Sports",
     "홈쇼핑": "Advertisement / Shopping",
 }
+TAG_CREDITS = (
+    "director",
+    "actor",
+    "writer",
+    "adapter",
+    "producer",
+    "composer",
+    "editor",
+    "presenter",
+    "commentator",
+    "guest",
+)
 
 
 @dataclass
@@ -259,8 +271,8 @@ class EPGProgram:
     # not usually given by default
     desc: str = None
     poster_url: str = None
-    actors: List[str] = field(default_factory=list)
-    staff: List[str] = field(default_factory=list)
+    cast: List[dict] = field(default_factory=list)  # 출연진
+    crew: List[dict] = field(default_factory=list)  # 제작진
     extras: List[str] = field(default_factory=list)
     keywords: List[str] = field(default_factory=list)
 
@@ -280,8 +292,8 @@ class EPGProgram:
         etime = self.etime.strftime("%Y%m%d%H%M%S +0900")
         title = self.title
         title_sub = self.title_sub
-        actors = self.actors
-        staff = self.staff
+        cast = self.cast
+        crew = self.crew
         categories = self.categories
         keywords = self.keywords
         episode = self.ep_num
@@ -299,7 +311,7 @@ class EPGProgram:
         title = [
             title or title_sub or "제목 없음",
             f"({episode}회)" if episode and cfg["ADD_EPNUM_TO_TITLE"] else "",
-            f" ({rebroadcast})" if rebroadcast and cfg["ADD_REBROADCAST_TO_TITLE"] else "",
+            f"({rebroadcast})" if rebroadcast and cfg["ADD_REBROADCAST_TO_TITLE"] else "",
         ]
         title = PTN_SPACES.sub(" ", " ".join(title))
         _p.append(Element("title", title, lang="ko"))
@@ -314,8 +326,8 @@ class EPGProgram:
                 f"방송 : {rebroadcast}방송" if rebroadcast else "",
                 f"회차 : {episode}회" if episode else "",
                 f"장르 : {','.join(categories)}" if categories else "",
-                f"출연 : {','.join(actors)}" if actors else "",
-                f"제작 : {','.join(staff)}" if staff else "",
+                f"출연 : {','.join(x['name'] for x in cast)}" if cast else "",
+                f"제작 : {','.join(x['name'] for x in crew)}" if crew else "",
                 f"등급 : {rating}",
                 self.desc,
             ]
@@ -323,12 +335,12 @@ class EPGProgram:
             _p.append(Element("desc", desc, lang="ko"))
 
         # credits
-        if actors or staff:
+        if cast or crew:
             _c = Element("credits")
-            for actor in actors:
-                _c.append(Element("actor", actor))
-            for stf in staff:
-                _c.append(Element("producer", stf))
+            for cc in sorted(cast + crew, key=lambda x: TAG_CREDITS.index(x["title"])):
+                title = cc.pop("title")
+                name = cc.pop("name")
+                _c.append(Element(title, name, **cc))
             _p.append(_c)
 
         # categories

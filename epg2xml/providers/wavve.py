@@ -108,8 +108,7 @@ class WAVVE(EPGProvider):
         _prog.categories = [programdetail["genretext"].strip()]
         _prog.poster_url = self.__url(programdetail["programposterimage"].strip())
         # tags = programdetail['tags']['list'][0]['text']
-        if programdetail["actors"]["list"]:
-            _prog.actors = [x["text"] for x in programdetail["actors"]["list"]]
+        _prog.cast = [{"name": x["text"], "title": "actor"} for x in programdetail["actors"]["list"]]
         return _prog
 
     def get_programs(self, lazy_write=False):

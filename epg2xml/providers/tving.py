@@ -144,8 +144,8 @@ class TVING(EPGProvider):
                         _prog.categories += [sch[get_from]["category2_name"]["ko"]]
                     except KeyError:
                         pass
-                    _prog.actors = sch[get_from]["actor"]
-                    _prog.staff = sch[get_from]["director"]
+                    _prog.cast = [{"name": x, "title": "actor"} for x in sch[get_from]["actor"]]
+                    _prog.crew = [{"name": x, "title": "director"} for x in sch[get_from]["director"]]
 
                     poster = [x["url"] for x in sch[get_from]["image"] if x["code"] == img_code]
                     if poster:
