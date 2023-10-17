@@ -29,7 +29,6 @@ def request_data(url, method="GET", session=None, **kwargs):
     with session or requests.Session() as sess:
         try:
             r = sess.request(method=method, url=url, **kwargs)
-            r.raise_for_status()
             try:
                 ret = r.json()
             except (json.decoder.JSONDecodeError, ValueError):
@@ -37,7 +36,7 @@ def request_data(url, method="GET", session=None, **kwargs):
         except requests.exceptions.HTTPError as e:
             log.error("요청 중 에러: %s", e)
         except Exception:
-            log.exception("요청 중 에러:")
+            log.exception("요청 중 예외:")
     time.sleep(req_sleep)
     return ret
 
