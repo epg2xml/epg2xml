@@ -376,6 +376,7 @@ class EPGProgram:
 
         # rating
         if rating:
+            # TODO: 영상물등급위원회(KMRB)는 TV프로그램 심의에 관여하지 않으므로 수정이 필요
             _r = Element("rating", system="KMRB")
             _r.append(Element("value", rating))
             _p.append(_r)
