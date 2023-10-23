@@ -20,10 +20,10 @@ class SPOTV(EPGProvider):
     title_regex = r"\s?(?:\[(.*?)\])?\s?(.*?)\s?(?:\((.*)\))?\s?(?:<([\d,]+)회>)?\s?$"
     no_endtime = False
 
-    def get_svc_channels(self):
+    def get_svc_channels(self) -> None:
         url = "https://www.spotvnow.co.kr/api/v3/channel"
         for ch in self.request(url):
-            self.svc_channel_list.append(
+            self.svc_channels.append(
                 {
                     "Name": ch["name"],
                     "ServiceId": ch["id"],
@@ -38,7 +38,7 @@ class SPOTV(EPGProvider):
             return datetime.strptime(dt.replace("24:00", "00:00"), "%Y-%m-%d %H:%M") + timedelta(days=1)
         return datetime.strptime(dt, "%Y-%m-%d %H:%M")
 
-    def get_programs(self, lazy_write=False):
+    def get_programs(self, lazy_write: bool = False) -> None:
         max_ndays = 5
         if int(self.cfg["FETCH_LIMIT"]) > max_ndays:
             log.warning(

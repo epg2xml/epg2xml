@@ -35,7 +35,7 @@ class SK(EPGProvider):
         "18": "뉴스",
     }
 
-    def get_svc_channels(self):
+    def get_svc_channels(self) -> None:
         url = "https://www.skbroadband.com/content/realtime/realtime_list.ajax"
         params = {"package_name": "PM50305785"}
         c_name = ""
@@ -43,7 +43,7 @@ class SK(EPGProvider):
             if x["depth"] == "1":
                 c_name = x["m_name"]
             elif x["depth"] == "2" and c_name and c_name not in ["프로모션"]:
-                self.svc_channel_list.append(
+                self.svc_channels.append(
                     {
                         "Name": unescape(x["m_name"]),
                         "No": str(x["ch_no"]),
@@ -52,7 +52,7 @@ class SK(EPGProvider):
                     }
                 )
 
-    def get_programs(self, lazy_write=False):
+    def get_programs(self, lazy_write: bool = False) -> None:
         max_ndays = 3
         if int(self.cfg["FETCH_LIMIT"]) > max_ndays:
             log.warning(

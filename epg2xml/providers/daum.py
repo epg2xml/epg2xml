@@ -23,7 +23,7 @@ class DAUM(EPGProvider):
     no_endtime = True
     title_regex = r"^(?P<title>.*?)\s?([\<\(]?(?P<part>\d{1})부[\>\)]?)?\s?(<(?P<subname1>.*)>)?\s?((?P<epnum>\d+)회)?\s?(<(?P<subname2>.*)>)?$"
 
-    def get_svc_channels(self):
+    def get_svc_channels(self) -> None:
         url = "https://search.daum.net/search?DA=B3T&w=tot&rtmaxcoll=B3T&q={}"
         channelcate = ["지상파", "종합편성", "케이블", "스카이라이프", "해외위성", "라디오"]
         channelsel1 = '#channelNaviLayer > div[class^="layer_tv layer_all"] ul > li'
@@ -39,7 +39,7 @@ class DAUM(EPGProvider):
                 all_channels += [str(x.text.strip()) for x in soup.select(channelsel2)]
             svc_cate = c.replace("스카이라이프", "SKYLIFE")
             for x in all_channels:
-                self.svc_channel_list.append(
+                self.svc_channels.append(
                     {
                         "Name": x,
                         "ServiceId": f"{svc_cate} {x}",
@@ -47,7 +47,7 @@ class DAUM(EPGProvider):
                     }
                 )
 
-    def get_programs(self, lazy_write=False):
+    def get_programs(self, lazy_write: bool = False) -> None:
         url = "https://search.daum.net/search?DA=B3T&w=tot&rtmaxcoll=B3T&q={}"
         for idx, _ch in enumerate(self.req_channels):
             log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)

@@ -56,7 +56,7 @@ class WAVVE(EPGProvider):
         params = self.__params(**kwargs.pop("params", {}))
         return self.request(url, params=params, **kwargs)
 
-    def get_svc_channels(self):
+    def get_svc_channels(self) -> None:
         today_str = today.strftime("%Y-%m-%d")
         hour_min = datetime.now().hour // 3
         # 현재 시간과 가까운 미래에 서비스 가능한 채널만 가져옴
@@ -67,7 +67,7 @@ class WAVVE(EPGProvider):
             "offset": 0,
             "startdatetime": f"{today_str} {hour_min*3:02d}:00",
         }
-        self.svc_channel_list = [
+        self.svc_channels = [
             {
                 "Name": x["channelname"],
                 "Icon_url": self.__url(x["channelimage"]),
@@ -119,7 +119,7 @@ class WAVVE(EPGProvider):
         _epg.crew += [{"name": x["text"], "title": "writer"} for x in writers["list"]]
         return _epg
 
-    def get_programs(self, lazy_write=False):
+    def get_programs(self, lazy_write: bool = False) -> None:
         # parameters for requests
         params = {
             "enddatetime": (today + timedelta(days=int(self.cfg["FETCH_LIMIT"]) - 1)).strftime("%Y-%m-%d 24:00"),
@@ -143,7 +143,7 @@ class WAVVE(EPGProvider):
                 _ch.to_xml(self.cfg, no_endtime=self.no_endtime)
 
     @lru_cache
-    def get_program_details(self, programid: str):
+    def get_program_details(self, programid: str) -> dict:
         try:
             params = {"history": "season", "programid": programid}
             data = self.__get("/fz/vod/programs/landing", params=params)

@@ -42,12 +42,12 @@ class LG(EPGProvider):
         "31": "기타",
     }
 
-    def get_svc_channels(self):
+    def get_svc_channels(self) -> None:
         url = "https://www.lguplus.com/uhdc/fo/prdv/chnlgid/v1/tv-schedule-list"
         data = self.request(url)
         cate = {x["urcBrdCntrTvChnlGnreCd"]: x["urcBrdCntrTvChnlGnreNm"] for x in data["brdGnreDtoList"]}
         for ch in self.request(url)["brdCntrTvChnlIDtoList"]:
-            self.svc_channel_list.append(
+            self.svc_channels.append(
                 {
                     "Name": ch["urcBrdCntrTvChnlDscr"],
                     "No": ch["urcBrdCntrTvChnlNo"],
@@ -56,7 +56,7 @@ class LG(EPGProvider):
                 }
             )
 
-    def get_programs(self, lazy_write=False):
+    def get_programs(self, lazy_write: bool = False) -> None:
         max_ndays = 5
         if int(self.cfg["FETCH_LIMIT"]) > max_ndays:
             log.warning(

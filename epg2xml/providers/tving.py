@@ -54,7 +54,7 @@ class TVING(EPGProvider):
     }
     no_endtime = False
 
-    def request(self, url, method="GET", **kwargs):
+    def request(self, url: str, method: str = "GET", **kwargs) -> List[dict]:
         kwargs.setdefault("params", {})
         _page = 1
         _results = []
@@ -67,18 +67,18 @@ class TVING(EPGProvider):
             if _data["body"]["has_more"] == "Y":
                 _page += 1
             else:
-                return _results
+                break
+        return _results
 
-    def get_svc_channels(self):
+    def get_svc_channels(self) -> None:
         def get_imgurl(_item):
             priority_img_code = ["CAIC1600", "CAIC0100", "CAIC0400"]
             for _code in priority_img_code:
                 try:
                     img_list = [x for x in _item["image"] if x["code"] == _code]
-                    if img_list:
-                        return "https://image.tving.com" + (
-                            img_list[0]["url"] if "url" in img_list[0] else img_list[0]["url2"]
-                        )
+                    if not img_list:
+                        continue
+                    return img_list[0].get("url") or img_list[0]["url2"]
                 except Exception:
                     pass
             return ""
@@ -91,7 +91,7 @@ class TVING(EPGProvider):
                 "endBroadTime": (datetime.now() + timedelta(hours=3)).strftime("%H0000"),
             }
         )
-        self.svc_channel_list = [
+        self.svc_channels = [
             {
                 "Name": x["channel_name"]["ko"],
                 "Icon_url": get_imgurl(x),
@@ -102,7 +102,7 @@ class TVING(EPGProvider):
             if x["schedules"] is not None
         ]
 
-    def get_programs(self, lazy_write=False):
+    def get_programs(self, lazy_write: bool = False) -> None:
         def grouper(iterable, n):
             it = iter(iterable)
             group = tuple(islice(it, n))

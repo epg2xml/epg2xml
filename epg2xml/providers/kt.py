@@ -24,7 +24,7 @@ class KT(EPGProvider):
     referer = "https://tv.kt.com/"
     no_endtime = True
 
-    def get_svc_channels(self):
+    def get_svc_channels(self) -> None:
         channelcate = [
             # 0은 전체 채널
             {"name": "지상파/종합편성", "id": "3"},
@@ -51,7 +51,7 @@ class KT(EPGProvider):
             raw_channels = [unquote(x.find("span", {"class": "ch"}).text.strip()) for x in soup.select("li > a")]
             # 몇몇 채널은 (TV로만 제공, 유료채널) 웹에서 막혀있지만 실제로는 데이터가 있을 수 있다.
             for x in raw_channels:
-                self.svc_channel_list.append(
+                self.svc_channels.append(
                     {
                         "Name": " ".join(x.split()[1:]),
                         "No": str(x.split()[0]),
@@ -60,7 +60,7 @@ class KT(EPGProvider):
                     }
                 )
 
-    def get_programs(self, lazy_write=False):
+    def get_programs(self, lazy_write: bool = False) -> None:
         url = "https://tv.kt.com/tv/channel/pSchedule.asp"
         params = {
             "ch_type": "1",  # 1: live 2: skylife 3: uhd live 4: uhd skylife

@@ -16,39 +16,6 @@ from epg2xml.utils import Element, PrefixLogger, dump_json, request_data, ua
 log = logging.getLogger("PROV")
 
 
-def load_providers(cfgs):
-    providers = []
-    for name, cfg in cfgs.items():
-        if not cfg["ENABLED"]:
-            continue
-        try:
-            m = import_module(f"epg2xml.providers.{name.lower()}")
-            providers.append(getattr(m, name.upper())(cfg))
-        except ModuleNotFoundError:
-            log.error("No such provider found: '%s'", name)
-            sys.exit(1)
-    return providers
-
-
-def load_channels(providers, conf, channeljson=None):
-    if conf.settings["parallel"]:
-        with ThreadPoolExecutor() as exe:
-            for p in providers:
-                exe.submit(p.load_svc_channels, channeljson=channeljson)
-    else:
-        for p in providers:
-            p.load_svc_channels(channeljson=channeljson)
-    if any(p.need_channel_update for p in providers):
-        for p in providers:
-            channeljson[p.provider_name.upper()] = {
-                "UPDATED": datetime.now().isoformat(),
-                "TOTAL": len(p.svc_channel_list),
-                "CHANNELS": p.svc_channel_list,
-            }
-        dump_json(conf.settings["channelfile"], channeljson)
-        log.info("Channel file was upgraded. You may check the changes here: %s", conf.settings["channelfile"])
-
-
 class ParserBeautifulSoup(BeautifulSoup):
     """A ``bs4.BeautifulSoup`` that picks the first available parser."""
 
@@ -86,14 +53,13 @@ class EPGProvider:
         if self.title_regex:
             self.title_regex = re.compile(self.title_regex)
         # placeholders
-        self.svc_channel_list: list = []
-        self.svc_channel_dict: dict = {}
-        self.req_channels: list = []
+        self.svc_channels: List[dict] = []
+        self.req_channels: List[EPGChannel] = []
 
     def request(self, url, method="GET", **kwargs):
         return request_data(url=url, method=method, session=self.sess, **kwargs)
 
-    def load_svc_channels(self, channeljson=None):
+    def load_svc_channels(self, channeljson: dict = None) -> None:
         plog = PrefixLogger(log, f"[{self.provider_name:5s}]")
 
         # check if update required
@@ -103,9 +69,9 @@ class EPGProvider:
             channels = channelinfo["CHANNELS"]
             assert total == len(channels), "TOTAL != len(CHANNELS)"
             updated = channelinfo["UPDATED"]
-            datetime_up = datetime.fromisoformat(updated)
-            if (datetime.now() - datetime_up).total_seconds() <= 3600 * 24 * 4:
-                self.svc_channel_list = channels
+            updated_at = datetime.fromisoformat(updated)
+            if (datetime.now() - updated_at).total_seconds() <= 3600 * 24 * 4:
+                self.svc_channels = channels
                 self.need_channel_update = False
             else:
                 plog.debug("Updating service channels as outdated ...")
@@ -114,43 +80,42 @@ class EPGProvider:
 
         if self.need_channel_update:
             try:
-                self.svc_channel_list.clear()
+                self.svc_channels.clear()
                 self.get_svc_channels()
-                plog.info("%03d service channels successfully fetched from server.", len(self.svc_channel_list))
+                plog.info("%03d service channels successfully fetched from server.", len(self.svc_channels))
             except Exception:
                 plog.exception("Exception while retrieving service channels:")
                 sys.exit(1)
         else:
-            plog.info("%03d service channels loaded from cache.", len(self.svc_channel_list))
-        self.svc_channel_dict = {x["ServiceId"]: x for x in self.svc_channel_list}
+            plog.info("%03d service channels loaded from cache.", len(self.svc_channels))
 
-    def get_svc_channels(self):
+    def get_svc_channels(self) -> None:
         pass
 
-    def load_my_channels(self):
+    def load_my_channels(self) -> None:
         """from MY_CHANNELS to req_channels"""
         plog = PrefixLogger(log, f"[{self.provider_name:5s}]")
         my_channels = self.cfg["MY_CHANNELS"]
         if my_channels == "*":
             plog.debug("Overriding all MY_CHANNELS by service channels ...")
-            my_channels = self.svc_channel_list
+            my_channels = self.svc_channels
         if not my_channels:
             return
         req_channels = []
+        svc_channels = {x["ServiceId"]: x for x in self.svc_channels}
         for my_no, my_ch in enumerate(my_channels):
             if "ServiceId" not in my_ch:
                 plog.warning("'ServiceId' Not Found: %s", my_ch)
                 continue
-            if my_ch["ServiceId"] not in self.svc_channel_dict:
+            req_ch = svc_channels.pop(my_ch["ServiceId"], None)
+            if req_ch is None:
                 plog.warning("'ServiceId' Not in Service: %s", my_ch)
                 continue
-            req_ch = copy(self.svc_channel_dict[my_ch["ServiceId"]])
             for _k, _v in my_ch.items():
                 if _v:
                     req_ch[_k] = _v
             req_ch["Source"] = self.provider_name
-            if "No" not in req_ch:
-                req_ch["No"] = str(my_no)
+            req_ch.setdefault("No", str(my_no))
             if "Id" not in req_ch:
                 try:
                     req_ch["Id"] = eval(f"f'{self.cfg['ID_FORMAT']}'", None, req_ch)
@@ -162,7 +127,7 @@ class EPGProvider:
         plog.info("요청 %d - 불가 %d = 최종 %d", len(my_channels), len(my_channels) - len(req_channels), len(req_channels))
         self.req_channels = req_channels
 
-    def write_channel_headers(self):
+    def write_channel_headers(self) -> None:
         for ch in self.req_channels:
             chel = Element("channel", id=ch.id)
             # TODO: something better for display-name?
@@ -176,10 +141,10 @@ class EPGProvider:
                 chel.append(Element("icon", src=ch.icon))
             print(chel.tostring(level=1))
 
-    def get_programs(self, lazy_write=False):
+    def get_programs(self, lazy_write: bool = False) -> None:
         pass
 
-    def write_programs(self):
+    def write_programs(self) -> None:
         for ch in self.req_channels:
             ch.to_xml(self.cfg, no_endtime=self.no_endtime)
 
@@ -383,3 +348,36 @@ class EPGProgram:
 
         # dumps
         print(_p.tostring(level=1))
+
+
+def load_providers(cfgs: dict) -> List[EPGProvider]:
+    providers = []
+    for name, cfg in cfgs.items():
+        if not cfg["ENABLED"]:
+            continue
+        try:
+            m = import_module(f"epg2xml.providers.{name.lower()}")
+            providers.append(getattr(m, name.upper())(cfg))
+        except ModuleNotFoundError:
+            log.error("No such provider found: '%s'", name)
+            sys.exit(1)
+    return providers
+
+
+def load_channels(providers: List[EPGProvider], conf, channeljson: dict = None) -> None:
+    if conf.settings["parallel"]:
+        with ThreadPoolExecutor() as exe:
+            for p in providers:
+                exe.submit(p.load_svc_channels, channeljson=channeljson)
+    else:
+        for p in providers:
+            p.load_svc_channels(channeljson=channeljson)
+    if any(p.need_channel_update for p in providers):
+        for p in providers:
+            channeljson[p.provider_name.upper()] = {
+                "UPDATED": datetime.now().isoformat(),
+                "TOTAL": len(p.svc_channels),
+                "CHANNELS": p.svc_channels,
+            }
+        dump_json(conf.settings["channelfile"], channeljson)
+        log.info("Channel file was upgraded. You may check the changes here: %s", conf.settings["channelfile"])

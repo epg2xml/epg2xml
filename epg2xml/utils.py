@@ -15,13 +15,13 @@ req_sleep = 1
 log = logging.getLogger("UTILS")
 
 
-def dump_json(file_path, data):
+def dump_json(file_path, data) -> int:
     with open(file_path, "w", encoding="utf-8") as f:
         txt = json.dumps(data, ensure_ascii=False, indent=2)
         # for compact form of channellist in json files
         txt = re.sub(r",\n\s{8}\"", ', "', txt)
         txt = re.sub(r"\s{6}{\s+(.*)\s+}", r"      { \g<1> }", txt)
-        f.write(txt)
+        return f.write(txt)
 
 
 def request_data(url, method="GET", session=None, **kwargs):
