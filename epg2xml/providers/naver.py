@@ -9,6 +9,15 @@ from epg2xml.providers import ParserBeautifulSoup as BeautifulSoup
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 today = date.today()
 
+CH_CATE = [
+    {"name": "지상파", "u1": "100"},
+    {"name": "종합 편성", "u1": "500"},
+    {"name": "케이블", "u1": "200"},
+    {"name": "스카이라이프", "u1": "300"},
+    {"name": "해외위성", "u1": "9000"},
+    {"name": "라디오", "u1": "400"},
+]
+
 
 class NAVER(EPGProvider):
     """EPGProvider for NAVER
@@ -23,14 +32,6 @@ class NAVER(EPGProvider):
     no_endtime = True
 
     def get_svc_channels(self) -> None:
-        channelcate = [
-            {"name": "지상파", "u1": "100"},
-            {"name": "종합 편성", "u1": "500"},
-            {"name": "케이블", "u1": "200"},
-            {"name": "스카이라이프", "u1": "300"},
-            {"name": "해외위성", "u1": "9000"},
-            {"name": "라디오", "u1": "400"},
-        ]
         url = "https://m.search.naver.com/p/csearch/content/nqapirender.nhn"
         params = {
             "key": "ScheduleChannelList",
@@ -38,7 +39,7 @@ class NAVER(EPGProvider):
             "pkid": "66",
             "u1": "CATEGORY_CODE",
         }
-        for c in channelcate:
+        for c in CH_CATE:
             params.update({"u1": c["u1"]})
             data = self.request(url, params=params)
             if data["statusCode"].lower() != "success":

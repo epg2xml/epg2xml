@@ -10,6 +10,25 @@ from epg2xml.providers import SoupStrainer
 
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 
+CH_CATE = [
+    # 0은 전체 채널
+    {"name": "지상파/종합편성", "id": "3"},
+    {"name": "홈쇼핑", "id": "4"},
+    {"name": "드라마/여성", "id": "5"},
+    {"name": "오락/음악", "id": "6"},
+    {"name": "영화/시리즈", "id": "8"},
+    {"name": "스포츠", "id": "10"},
+    {"name": "취미/레저", "id": "12"},
+    {"name": "애니/유아/교육", "id": "137"},
+    {"name": "다큐/교양", "id": "206"},
+    {"name": "뉴스/경제", "id": "317"},
+    {"name": "공공/공익/정보", "id": "442"},
+    {"name": "종교", "id": "446"},
+    {"name": "오픈", "id": "447"},
+    {"name": "유료", "id": "448"},
+    {"name": "오디오", "id": "449"},
+]
+
 
 class KT(EPGProvider):
     """EPGProvider for KT
@@ -25,27 +44,9 @@ class KT(EPGProvider):
     no_endtime = True
 
     def get_svc_channels(self) -> None:
-        channelcate = [
-            # 0은 전체 채널
-            {"name": "지상파/종합편성", "id": "3"},
-            {"name": "홈쇼핑", "id": "4"},
-            {"name": "드라마/여성", "id": "5"},
-            {"name": "오락/음악", "id": "6"},
-            {"name": "영화/시리즈", "id": "8"},
-            {"name": "스포츠", "id": "10"},
-            {"name": "취미/레저", "id": "12"},
-            {"name": "애니/유아/교육", "id": "137"},
-            {"name": "다큐/교양", "id": "206"},
-            {"name": "뉴스/경제", "id": "317"},
-            {"name": "공공/공익/정보", "id": "442"},
-            {"name": "종교", "id": "446"},
-            {"name": "오픈", "id": "447"},
-            {"name": "유료", "id": "448"},
-            {"name": "오디오", "id": "449"},
-        ]
         url = "https://tv.kt.com/tv/channel/pChList.asp"
         params = {"ch_type": "1", "parent_menu_id": "0"}
-        for c in channelcate:
+        for c in CH_CATE:
             params.update({"parent_menu_id": c["id"]})
             soup = BeautifulSoup(self.request(url, method="POST", data=params))
             raw_channels = [unquote(x.find("span", {"class": "ch"}).text.strip()) for x in soup.select("li > a")]

@@ -11,6 +11,18 @@ from epg2xml.utils import request_data
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 today = date.today()
 
+G_CODE = {
+    "CPTG0100": 0,
+    "CPTG0200": 7,
+    "CPTG0300": 12,
+    "CPTG0400": 15,
+    "CPTG0500": 19,
+    "CMMG0100": 0,
+    "CMMG0200": 12,
+    "CMMG0300": 15,
+    "CMMG0400": 19,
+}
+
 
 class TVING(EPGProvider):
     """EPGProvider for TVING
@@ -40,17 +52,6 @@ class TVING(EPGProvider):
         "osCode": "CSOD0900",
         "teleCode": "CSCD0900",
         "apiKey": "1e7952d0917d6aab1f0293a063697610",
-    }
-    gcode = {
-        "CPTG0100": 0,
-        "CPTG0200": 7,
-        "CPTG0300": 12,
-        "CPTG0400": 15,
-        "CPTG0500": 19,
-        "CMMG0100": 0,
-        "CMMG0200": 12,
-        "CMMG0300": 15,
-        "CMMG0400": 19,
     }
     no_endtime = False
 
@@ -148,7 +149,7 @@ class TVING(EPGProvider):
             get_from = "movie" if sch["movie"] else "program"
             img_code = "CAIM2100" if sch["movie"] else "CAIP0900"
 
-            _epg.rating = self.gcode[sch[get_from].get("grade_code", "CPTG0100")]
+            _epg.rating = G_CODE[sch[get_from].get("grade_code", "CPTG0100")]
             _epg.title = sch[get_from]["name"]["ko"]
             _epg.title_sub = sch[get_from]["name"].get("en", "")
             _epg.categories = [sch[get_from]["category1_name"].get("ko", "")]

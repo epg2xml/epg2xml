@@ -8,6 +8,8 @@ from epg2xml.providers import ParserBeautifulSoup as BeautifulSoup
 
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 
+CH_CATE = ["지상파", "종합편성", "케이블", "스카이라이프", "해외위성", "라디오"]
+
 
 class DAUM(EPGProvider):
     """EPGProvider for DAUM
@@ -25,10 +27,9 @@ class DAUM(EPGProvider):
 
     def get_svc_channels(self) -> None:
         url = "https://search.daum.net/search?DA=B3T&w=tot&rtmaxcoll=B3T&q={}"
-        channelcate = ["지상파", "종합편성", "케이블", "스카이라이프", "해외위성", "라디오"]
         channelsel1 = '#channelNaviLayer > div[class^="layer_tv layer_all"] ul > li'
         channelsel2 = 'div[class="wrap_sub"] > span > a'
-        for c in channelcate:
+        for c in CH_CATE:
             search_url = url.format(f"{c} 편성표")
             data = self.request(search_url)
             soup = BeautifulSoup(data)
