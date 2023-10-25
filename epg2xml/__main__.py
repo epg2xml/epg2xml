@@ -63,7 +63,7 @@ def main():
             stack.callback(print, "</tv>")
 
             log.debug("Loading service channels ...")
-            load_channels(providers, conf, channeljson=channeljson)
+            load_channels(providers, conf, channeljson)
 
             log.debug("Loading MY_CHANNELS ...")
             for p in providers:
@@ -92,7 +92,7 @@ def main():
 
             log.info("Done.")
     elif conf.args["cmd"] == "update_channels":
-        load_channels(providers, conf, channeljson=channeljson)
+        load_channels(providers, conf, channeljson)
     else:
         raise NotImplementedError(f"Unknown command: {conf.args['cmd']}")
 
