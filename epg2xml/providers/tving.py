@@ -33,8 +33,10 @@ class TVING(EPGProvider):
     - 최대 20채널 최대 3시간 허용
     """
 
-    url = "https://api.tving.com/v2/media/schedules"
     referer = "https://www.tving.com/schedule/main.do"
+    no_endtime = False
+
+    url = "https://api.tving.com/v2/media/schedules"
     params = {
         "pageNo": "1",
         "pageSize": "20",  # maximum 20
@@ -53,7 +55,6 @@ class TVING(EPGProvider):
         "teleCode": "CSCD0900",
         "apiKey": "1e7952d0917d6aab1f0293a063697610",
     }
-    no_endtime = False
 
     def request(self, url: str, method: str = "GET", **kwargs) -> List[dict]:
         kwargs.setdefault("params", {})
@@ -71,7 +72,7 @@ class TVING(EPGProvider):
                 break
         return _results
 
-    def get_svc_channels(self) -> None:
+    def get_svc_channels(self) -> List[dict]:
         def get_imgurl(_item):
             priority_img_code = ["CAIC1600", "CAIC0100", "CAIC0400"]
             for _code in priority_img_code:
@@ -92,7 +93,7 @@ class TVING(EPGProvider):
                 "endBroadTime": (datetime.now() + timedelta(hours=3)).strftime("%H0000"),
             }
         )
-        self.svc_channels = [
+        return [
             {
                 "Name": x["channel_name"]["ko"],
                 "Icon_url": get_imgurl(x),

@@ -31,7 +31,8 @@ class NAVER(EPGProvider):
     referer = "https://m.search.naver.com/search.naver?where=m&query=%ED%8E%B8%EC%84%B1%ED%91%9C"
     no_endtime = True
 
-    def get_svc_channels(self) -> None:
+    def get_svc_channels(self) -> List[dict]:
+        svc_channels = []
         url = "https://m.search.naver.com/p/csearch/content/nqapirender.nhn"
         params = {
             "key": "ScheduleChannelList",
@@ -50,7 +51,7 @@ class NAVER(EPGProvider):
                 try:
                     svcid = ch.select("div > div[data-cid]")[0]["data-cid"]
                     name = str(ch.select('div[class="channel_name"] > a')[0].text)
-                    self.svc_channels.append(
+                    svc_channels.append(
                         {
                             "Name": name,
                             "ServiceId": svcid,
@@ -59,6 +60,7 @@ class NAVER(EPGProvider):
                     )
                 except Exception:
                     pass
+        return svc_channels
 
     def get_programs(self, lazy_write: bool = False) -> None:
         url = "https://m.search.naver.com/p/csearch/content/nqapirender.nhn"

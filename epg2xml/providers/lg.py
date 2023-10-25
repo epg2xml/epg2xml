@@ -42,12 +42,13 @@ class LG(EPGProvider):
     title_regex = r"\s?(?:\[.*?\])?(.*?)(?:\[(.*)\])?\s?(?:\(([\d,]+)회\))?\s?(<재>)?$"
     no_endtime = True
 
-    def get_svc_channels(self) -> None:
+    def get_svc_channels(self) -> List[dict]:
+        svc_channels = []
         url = "https://www.lguplus.com/uhdc/fo/prdv/chnlgid/v1/tv-schedule-list"
         data = self.request(url)
         cate = {x["urcBrdCntrTvChnlGnreCd"]: x["urcBrdCntrTvChnlGnreNm"] for x in data["brdGnreDtoList"]}
         for ch in self.request(url)["brdCntrTvChnlIDtoList"]:
-            self.svc_channels.append(
+            svc_channels.append(
                 {
                     "Name": ch["urcBrdCntrTvChnlDscr"],
                     "No": ch["urcBrdCntrTvChnlNo"],
@@ -55,6 +56,7 @@ class LG(EPGProvider):
                     "Category": cate[ch["urcBrdCntrTvChnlGnreCd"]],
                 }
             )
+        return svc_channels
 
     def get_programs(self, lazy_write: bool = False) -> None:
         max_ndays = 5

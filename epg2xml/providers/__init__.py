@@ -77,15 +77,15 @@ class EPGProvider:
             plog.debug("Updating service channels as cache broken: %s", e)
 
         try:
-            self.svc_channels.clear()
-            self.get_svc_channels()
+            channels = self.get_svc_channels()
         except Exception:
             plog.exception("Exception while retrieving service channels:")
         else:
+            self.svc_channels = channels
             self.was_channel_updated = True
-            plog.info("%03d service channels successfully fetched from server.", len(self.svc_channels))
+            plog.info("%03d service channels successfully fetched from server.", len(channels))
 
-    def get_svc_channels(self) -> None:
+    def get_svc_channels(self) -> List[dict]:
         raise NotImplementedError("method 'get_svc_channels' must be implemented")
 
     def load_my_channels(self) -> None:

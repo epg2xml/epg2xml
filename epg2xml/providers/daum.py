@@ -25,7 +25,8 @@ class DAUM(EPGProvider):
     no_endtime = True
     title_regex = r"^(?P<title>.*?)\s?([\<\(]?(?P<part>\d{1})부[\>\)]?)?\s?(<(?P<subname1>.*)>)?\s?((?P<epnum>\d+)회)?\s?(<(?P<subname2>.*)>)?$"
 
-    def get_svc_channels(self) -> None:
+    def get_svc_channels(self) -> List[dict]:
+        svc_channels = []
         url = "https://search.daum.net/search?DA=B3T&w=tot&rtmaxcoll=B3T&q={}"
         channelsel1 = '#channelNaviLayer > div[class^="layer_tv layer_all"] ul > li'
         channelsel2 = 'div[class="wrap_sub"] > span > a'
@@ -40,13 +41,14 @@ class DAUM(EPGProvider):
                 all_channels += [str(x.text.strip()) for x in soup.select(channelsel2)]
             svc_cate = c.replace("스카이라이프", "SKYLIFE")
             for x in all_channels:
-                self.svc_channels.append(
+                svc_channels.append(
                     {
                         "Name": x,
                         "ServiceId": f"{svc_cate} {x}",
                         "Category": c,
                     }
                 )
+        return svc_channels
 
     def get_programs(self, lazy_write: bool = False) -> None:
         url = "https://search.daum.net/search?DA=B3T&w=tot&rtmaxcoll=B3T&q={}"

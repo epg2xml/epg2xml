@@ -43,7 +43,8 @@ class KT(EPGProvider):
     referer = "https://tv.kt.com/"
     no_endtime = True
 
-    def get_svc_channels(self) -> None:
+    def get_svc_channels(self) -> List[dict]:
+        svc_channels = []
         url = "https://tv.kt.com/tv/channel/pChList.asp"
         params = {"ch_type": "1", "parent_menu_id": "0"}
         for c in CH_CATE:
@@ -52,7 +53,7 @@ class KT(EPGProvider):
             raw_channels = [unquote(x.find("span", {"class": "ch"}).text.strip()) for x in soup.select("li > a")]
             # 몇몇 채널은 (TV로만 제공, 유료채널) 웹에서 막혀있지만 실제로는 데이터가 있을 수 있다.
             for x in raw_channels:
-                self.svc_channels.append(
+                svc_channels.append(
                     {
                         "Name": " ".join(x.split()[1:]),
                         "No": str(x.split()[0]),
@@ -60,6 +61,7 @@ class KT(EPGProvider):
                         "Category": c["name"],
                     }
                 )
+        return svc_channels
 
     def get_programs(self, lazy_write: bool = False) -> None:
         url = "https://tv.kt.com/tv/channel/pSchedule.asp"

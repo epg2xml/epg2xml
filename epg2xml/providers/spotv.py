@@ -20,16 +20,16 @@ class SPOTV(EPGProvider):
     title_regex = r"\s?(?:\[(.*?)\])?\s?(.*?)\s?(?:\((.*)\))?\s?(?:<([\d,]+)회>)?\s?$"
     no_endtime = False
 
-    def get_svc_channels(self) -> None:
+    def get_svc_channels(self) -> List[dict]:
         url = "https://www.spotvnow.co.kr/api/v3/channel"
-        for ch in self.request(url):
-            self.svc_channels.append(
-                {
-                    "Name": ch["name"],
-                    "ServiceId": ch["id"],
-                    "Icon_url": ch["logo"],
-                }
-            )
+        return [
+            {
+                "Name": ch["name"],
+                "ServiceId": ch["id"],
+                "Icon_url": ch["logo"],
+            }
+            for ch in self.request(url)
+        ]
 
     def __dt(self, dt: str) -> datetime:
         if not dt:

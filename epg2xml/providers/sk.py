@@ -36,7 +36,8 @@ class SK(EPGProvider):
     title_regex = r"^(.*?)(\(([\d,]+)회\))?(<(.*)>)?(\((재)\))?$"
     no_endtime = False
 
-    def get_svc_channels(self) -> None:
+    def get_svc_channels(self) -> List[dict]:
+        svc_channels = []
         url = "https://www.skbroadband.com/content/realtime/realtime_list.ajax"
         params = {"package_name": "PM50305785"}
         c_name = ""
@@ -44,7 +45,7 @@ class SK(EPGProvider):
             if x["depth"] == "1":
                 c_name = x["m_name"]
             elif x["depth"] == "2" and c_name and c_name not in ["프로모션"]:
-                self.svc_channels.append(
+                svc_channels.append(
                     {
                         "Name": unescape(x["m_name"]),
                         "No": str(x["ch_no"]),
@@ -52,6 +53,7 @@ class SK(EPGProvider):
                         "Category": c_name,
                     }
                 )
+        return svc_channels
 
     def get_programs(self, lazy_write: bool = False) -> None:
         max_ndays = 3
