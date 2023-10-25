@@ -58,7 +58,7 @@ class EPGProvider:
     def request(self, url, method="GET", **kwargs):
         return request_data(url=url, method=method, session=self.sess, **kwargs)
 
-    def load_svc_channels(self, channeljson: dict) -> None:
+    def load_svc_channels(self, channeljson: dict = None) -> None:
         plog = PrefixLogger(log, f"[{self.provider_name:5s}]")
 
         # check if update required
@@ -363,14 +363,14 @@ def load_providers(cfgs: dict) -> List[EPGProvider]:
     return providers
 
 
-def load_channels(providers: List[EPGProvider], conf, channeljson: dict) -> None:
+def load_channels(providers: List[EPGProvider], conf, channeljson: dict = None) -> None:
     if conf.settings["parallel"]:
         with ThreadPoolExecutor() as exe:
             for p in providers:
-                exe.submit(p.load_svc_channels, channeljson)
+                exe.submit(p.load_svc_channels, channeljson=channeljson)
     else:
         for p in providers:
-            p.load_svc_channels(channeljson)
+            p.load_svc_channels(channeljson=channeljson)
     if any(p.need_channel_update for p in providers):
         for p in providers:
             channeljson[p.provider_name.upper()] = {
