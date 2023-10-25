@@ -42,7 +42,7 @@ class EPGProvider:
     referer = None
     title_regex = ""
     no_endtime = False
-    need_channel_update = True
+    was_channel_updated = False
 
     def __init__(self, cfg):
         self.provider_name = self.__class__.__name__
@@ -67,25 +67,23 @@ class EPGProvider:
             total = channelinfo["TOTAL"]
             channels = channelinfo["CHANNELS"]
             assert total == len(channels), "TOTAL != len(CHANNELS)"
-            updated = channelinfo["UPDATED"]
-            updated_at = datetime.fromisoformat(updated)
+            updated_at = datetime.fromisoformat(channelinfo["UPDATED"])
             if (datetime.now() - updated_at).total_seconds() <= 3600 * 24 * 4:
                 self.svc_channels = channels
-                self.need_channel_update = False
-            else:
-                plog.debug("Updating service channels as outdated ...")
-        except Exception:
-            plog.debug("Updating service channels as cache broken")
+                plog.info("%03d service channels loaded from cache.", len(channels))
+                return
+            plog.debug("Updating service channels as outdated ...")
+        except Exception as e:
+            plog.debug("Updating service channels as cache broken: %s", e)
 
-        if self.need_channel_update:
-            try:
-                self.svc_channels.clear()
-                self.get_svc_channels()
-                plog.info("%03d service channels successfully fetched from server.", len(self.svc_channels))
-            except Exception:
-                plog.exception("Exception while retrieving service channels:")
+        try:
+            self.svc_channels.clear()
+            self.get_svc_channels()
+        except Exception:
+            plog.exception("Exception while retrieving service channels:")
         else:
-            plog.info("%03d service channels loaded from cache.", len(self.svc_channels))
+            self.was_channel_updated = True
+            plog.info("%03d service channels successfully fetched from server.", len(self.svc_channels))
 
     def get_svc_channels(self) -> None:
         raise NotImplementedError("method 'get_svc_channels' must be implemented")
@@ -370,7 +368,7 @@ def load_channels(providers: List[EPGProvider], conf, channeljson: dict = None) 
     else:
         for p in providers:
             p.load_svc_channels(channeljson=channeljson)
-    if any(p.need_channel_update for p in providers):
+    if any(p.was_channel_updated for p in providers):
         for p in providers:
             channeljson[p.provider_name.upper()] = {
                 "UPDATED": datetime.now().isoformat(),
