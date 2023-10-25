@@ -89,7 +89,7 @@ class EPGProvider:
             plog.info("%03d service channels loaded from cache.", len(self.svc_channels))
 
     def get_svc_channels(self) -> None:
-        pass
+        raise NotImplementedError("method 'get_svc_channels' must be implemented")
 
     def load_my_channels(self) -> None:
         """from MY_CHANNELS to req_channels"""
@@ -141,7 +141,7 @@ class EPGProvider:
             print(chel.tostring(level=1))
 
     def get_programs(self, lazy_write: bool = False) -> None:
-        pass
+        raise NotImplementedError("method 'get_programs' must be implemented")
 
     def write_programs(self) -> None:
         for ch in self.req_channels:
