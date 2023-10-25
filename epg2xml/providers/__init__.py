@@ -2,7 +2,6 @@ import logging
 import re
 import sys
 from concurrent.futures import ThreadPoolExecutor
-from copy import copy
 from dataclasses import dataclass, field, fields
 from datetime import datetime, timedelta
 from importlib import import_module
