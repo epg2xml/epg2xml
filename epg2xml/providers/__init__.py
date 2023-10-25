@@ -84,7 +84,6 @@ class EPGProvider:
                 plog.info("%03d service channels successfully fetched from server.", len(self.svc_channels))
             except Exception:
                 plog.exception("Exception while retrieving service channels:")
-                sys.exit(1)
         else:
             plog.info("%03d service channels loaded from cache.", len(self.svc_channels))
 
