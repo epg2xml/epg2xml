@@ -8,6 +8,8 @@ from epg2xml.providers import ParserBeautifulSoup as BeautifulSoup
 
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 
+CH_CATE = ["지상파", "종합편성", "케이블", "스카이라이프", "해외위성", "라디오"]
+
 
 class DAUM(EPGProvider):
     """EPGProvider for DAUM
@@ -23,12 +25,12 @@ class DAUM(EPGProvider):
     no_endtime = True
     title_regex = r"^(?P<title>.*?)\s?([\<\(]?(?P<part>\d{1})부[\>\)]?)?\s?(<(?P<subname1>.*)>)?\s?((?P<epnum>\d+)회)?\s?(<(?P<subname2>.*)>)?$"
 
-    def get_svc_channels(self) -> None:
+    def get_svc_channels(self) -> List[dict]:
+        svc_channels = []
         url = "https://search.daum.net/search?DA=B3T&w=tot&rtmaxcoll=B3T&q={}"
-        channelcate = ["지상파", "종합편성", "케이블", "스카이라이프", "해외위성", "라디오"]
         channelsel1 = '#channelNaviLayer > div[class^="layer_tv layer_all"] ul > li'
         channelsel2 = 'div[class="wrap_sub"] > span > a'
-        for c in channelcate:
+        for c in CH_CATE:
             search_url = url.format(f"{c} 편성표")
             data = self.request(search_url)
             soup = BeautifulSoup(data)
@@ -39,13 +41,14 @@ class DAUM(EPGProvider):
                 all_channels += [str(x.text.strip()) for x in soup.select(channelsel2)]
             svc_cate = c.replace("스카이라이프", "SKYLIFE")
             for x in all_channels:
-                self.svc_channels.append(
+                svc_channels.append(
                     {
                         "Name": x,
                         "ServiceId": f"{svc_cate} {x}",
                         "Category": c,
                     }
                 )
+        return svc_channels
 
     def get_programs(self, lazy_write: bool = False) -> None:
         url = "https://search.daum.net/search?DA=B3T&w=tot&rtmaxcoll=B3T&q={}"

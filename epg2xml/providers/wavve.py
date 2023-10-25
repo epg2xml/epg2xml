@@ -1,6 +1,7 @@
 import logging
 from datetime import date, datetime, timedelta
 from functools import lru_cache
+from typing import List
 from xml.sax.saxutils import unescape
 
 from epg2xml.providers import EPGProgram, EPGProvider
@@ -20,6 +21,8 @@ class WAVVE(EPGProvider):
 
     referer = "https://www.wavve.com/"
     title_regex = r"^(.*?)(?:\s*[\(<]?([\d]+)회[\)>]?)?(?:\([월화수목금토일]?\))?(\([선별전주\(\)재방]*?재[\d방]?\))?\s*(?:\[(.+)\])?$"
+    no_endtime = False
+
     base_url = "https://apis.wavve.com"
     base_params = {
         "apikey": "E5F3E0D30947AA5440556471321BB6D9",
@@ -31,7 +34,6 @@ class WAVVE(EPGProvider):
         "region": "kor",
         "targetage": "all",
     }
-    no_endtime = False
 
     def __init__(self, cfg):
         super().__init__(cfg)
@@ -56,7 +58,7 @@ class WAVVE(EPGProvider):
         params = self.__params(**kwargs.pop("params", {}))
         return self.request(url, params=params, **kwargs)
 
-    def get_svc_channels(self) -> None:
+    def get_svc_channels(self) -> List[dict]:
         today_str = today.strftime("%Y-%m-%d")
         hour_min = datetime.now().hour // 3
         # 현재 시간과 가까운 미래에 서비스 가능한 채널만 가져옴
@@ -67,7 +69,7 @@ class WAVVE(EPGProvider):
             "offset": 0,
             "startdatetime": f"{today_str} {hour_min*3:02d}:00",
         }
-        self.svc_channels = [
+        return [
             {
                 "Name": x["channelname"],
                 "Icon_url": self.__url(x["channelimage"]),

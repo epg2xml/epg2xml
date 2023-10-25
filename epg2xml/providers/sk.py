@@ -7,6 +7,21 @@ from epg2xml.providers import EPGProgram, EPGProvider
 
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 
+GENRE_CODE = {
+    "1": "드라마",
+    "2": "영화",
+    "4": "만화",
+    "8": "스포츠",
+    "9": "교육",
+    "11": "홈쇼핑",
+    "13": "예능",
+    "14": "시사/다큐",
+    "15": "음악",
+    "16": "라이프",
+    "17": "교양",
+    "18": "뉴스",
+}
+
 
 class SK(EPGProvider):
     """EPGProvider for SK
@@ -20,22 +35,9 @@ class SK(EPGProvider):
     referer = "https://cyber.skbroadband.com/"
     title_regex = r"^(.*?)(\(([\d,]+)회\))?(<(.*)>)?(\((재)\))?$"
     no_endtime = False
-    genre_code = {
-        "1": "드라마",
-        "2": "영화",
-        "4": "만화",
-        "8": "스포츠",
-        "9": "교육",
-        "11": "홈쇼핑",
-        "13": "예능",
-        "14": "시사/다큐",
-        "15": "음악",
-        "16": "라이프",
-        "17": "교양",
-        "18": "뉴스",
-    }
 
-    def get_svc_channels(self) -> None:
+    def get_svc_channels(self) -> List[dict]:
+        svc_channels = []
         url = "https://www.skbroadband.com/content/realtime/realtime_list.ajax"
         params = {"package_name": "PM50305785"}
         c_name = ""
@@ -43,7 +45,7 @@ class SK(EPGProvider):
             if x["depth"] == "1":
                 c_name = x["m_name"]
             elif x["depth"] == "2" and c_name and c_name not in ["프로모션"]:
-                self.svc_channels.append(
+                svc_channels.append(
                     {
                         "Name": unescape(x["m_name"]),
                         "No": str(x["ch_no"]),
@@ -51,6 +53,7 @@ class SK(EPGProvider):
                         "Category": c_name,
                     }
                 )
+        return svc_channels
 
     def get_programs(self, lazy_write: bool = False) -> None:
         max_ndays = 3
@@ -106,8 +109,8 @@ class SK(EPGProvider):
             _epg.rating = int(info.get("cdRating") or "0")
             _epg.stime = datetime.strptime(info["dtEventStart"], "%Y%m%d%H%M%S")
             _epg.etime = datetime.strptime(info["dtEventEnd"], "%Y%m%d%H%M%S")
-            if info["cdGenre"] and (info["cdGenre"] in self.genre_code):
-                _epg.categories = [self.genre_code[info["cdGenre"]]]
+            if info["cdGenre"] and (info["cdGenre"] in GENRE_CODE):
+                _epg.categories = [GENRE_CODE[info["cdGenre"]]]
             _epg.desc = info["nmSynop"]  # 값이 없음
             _epgs.append(_epg)
         return _epgs

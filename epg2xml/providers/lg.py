@@ -6,6 +6,25 @@ from epg2xml.providers import EPGProgram, EPGProvider
 
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 
+G_CODE = {"0": 0, "1": 7, "2": 12, "3": 15, "4": 19}
+P_CATE = {
+    "00": "영화",
+    "02": "만화",
+    "03": "드라마",
+    "05": "스포츠",
+    "06": "교육",
+    "07": None,  # 어린이/교육
+    "08": "연예/오락",
+    "09": "공연/음악",
+    "10": None,  # 게임
+    "11": "다큐",
+    "12": "뉴스/정보",
+    "13": "라이프",
+    "15": None,  # 홈쇼핑
+    "16": None,  # 경제/부동산
+    "31": "기타",
+}
+
 
 class LG(EPGProvider):
     """EPGProvider for LG
@@ -23,31 +42,13 @@ class LG(EPGProvider):
     title_regex = r"\s?(?:\[.*?\])?(.*?)(?:\[(.*)\])?\s?(?:\(([\d,]+)회\))?\s?(<재>)?$"
     no_endtime = True
 
-    gcode = {"0": 0, "1": 7, "2": 12, "3": 15, "4": 19}
-    pcate = {
-        "00": "영화",
-        "02": "만화",
-        "03": "드라마",
-        "05": "스포츠",
-        "06": "교육",
-        "07": None,  # 어린이/교육
-        "08": "연예/오락",
-        "09": "공연/음악",
-        "10": None,  # 게임
-        "11": "다큐",
-        "12": "뉴스/정보",
-        "13": "라이프",
-        "15": None,  # 홈쇼핑
-        "16": None,  # 경제/부동산
-        "31": "기타",
-    }
-
-    def get_svc_channels(self) -> None:
+    def get_svc_channels(self) -> List[dict]:
+        svc_channels = []
         url = "https://www.lguplus.com/uhdc/fo/prdv/chnlgid/v1/tv-schedule-list"
         data = self.request(url)
         cate = {x["urcBrdCntrTvChnlGnreCd"]: x["urcBrdCntrTvChnlGnreNm"] for x in data["brdGnreDtoList"]}
         for ch in self.request(url)["brdCntrTvChnlIDtoList"]:
-            self.svc_channels.append(
+            svc_channels.append(
                 {
                     "Name": ch["urcBrdCntrTvChnlDscr"],
                     "No": ch["urcBrdCntrTvChnlNo"],
@@ -55,6 +56,7 @@ class LG(EPGProvider):
                     "Category": cate[ch["urcBrdCntrTvChnlGnreCd"]],
                 }
             )
+        return svc_channels
 
     def get_programs(self, lazy_write: bool = False) -> None:
         max_ndays = 5
@@ -99,7 +101,7 @@ class LG(EPGProvider):
             _epg.title = p["brdPgmTitNm"]
             _epg.desc = p["brdPgmDscr"]
             _epg.stime = datetime.strptime(p["brdCntrTvChnlBrdDt"] + p["epgStrtTme"], "%Y%m%d%H:%M:%S")
-            _epg.rating = self.gcode.get(p["brdWtchAgeGrdCd"], 0)
+            _epg.rating = G_CODE.get(p["brdWtchAgeGrdCd"], 0)
             _epg.extras.append(p["brdPgmRsolNm"])  # 화질
             if p["subtBrdYn"] == "Y":
                 _epg.extras.append("자막")
@@ -113,6 +115,6 @@ class LG(EPGProvider):
                 _epg.title_sub = (matches.group(2) or "").strip()
                 _epg.ep_num = matches.group(3) or ""
                 _epg.rebroadcast = bool(matches.group(4))
-            _epg.categories = [self.pcate[p["urcBrdCntrTvSchdGnreCd"]]]
+            _epg.categories = [P_CATE[p["urcBrdCntrTvSchdGnreCd"]]]
             _epgs.append(_epg)
         return _epgs
