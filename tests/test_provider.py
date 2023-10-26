@@ -50,7 +50,7 @@ stime = timer()
 provider.load_svc_channels()
 etime_ch = timer() - stime
 
-provider.load_my_channels()
+provider.load_req_channels()
 
 if len(sys.argv) > 2:
     rch = provider.req_channels
