@@ -274,7 +274,7 @@ class EPGProgram:
             f"({episode}회)" if episode and cfg["ADD_EPNUM_TO_TITLE"] else "",
             f"({rebroadcast})" if rebroadcast and cfg["ADD_REBROADCAST_TO_TITLE"] else "",
         ]
-        title = PTN_SPACES.sub(" ", " ".join(title))
+        title = PTN_SPACES.sub(" ", " ".join(filter(bool, title)))
         _p.append(Element("title", title, lang="ko"))
         if title_sub:
             _p.append(Element("sub-title", title_sub, lang="ko"))
