@@ -70,9 +70,9 @@ class EPGProvider:
             updated_at = datetime.fromisoformat(channelinfo["UPDATED"])
             if (datetime.now() - updated_at).total_seconds() <= 3600 * 24 * 4:
                 self.svc_channels = channels
-                plog.info("%03d service channels loaded from cache.", len(channels))
+                plog.info("%03d service channels loaded from cache", len(channels))
                 return
-            plog.debug("Updating service channels as outdated ...")
+            plog.debug("Updating service channels as outdated...")
         except Exception as e:
             plog.debug("Updating service channels as cache broken: %s", e)
 
@@ -83,17 +83,17 @@ class EPGProvider:
         else:
             self.svc_channels = channels
             self.was_channel_updated = True
-            plog.info("%03d service channels successfully fetched from server.", len(channels))
+            plog.info("%03d service channels successfully fetched from server", len(channels))
 
     def get_svc_channels(self) -> List[dict]:
         raise NotImplementedError("method 'get_svc_channels' must be implemented")
 
-    def load_my_channels(self) -> None:
+    def load_req_channels(self) -> None:
         """from MY_CHANNELS to req_channels"""
         plog = PrefixLogger(log, f"[{self.provider_name:5s}]")
         my_channels = self.cfg["MY_CHANNELS"]
         if my_channels == "*":
-            plog.debug("Overriding all MY_CHANNELS by service channels ...")
+            plog.debug("Overriding all MY_CHANNELS by service channels...")
             my_channels = self.svc_channels
         if not my_channels:
             return
@@ -120,7 +120,7 @@ class EPGProvider:
             if not self.cfg["ADD_CHANNEL_ICON"]:
                 req_ch.pop("Icon_url", None)
             req_channels.append(EPGChannel(req_ch))
-        plog.info("요청 %d - 불가 %d = 최종 %d", len(my_channels), len(my_channels) - len(req_channels), len(req_channels))
+        plog.info("요청 %3d - 불가 %3d = 최종 %3d", len(my_channels), len(my_channels) - len(req_channels), len(req_channels))
         self.req_channels = req_channels
 
     def write_channel_headers(self) -> None:
