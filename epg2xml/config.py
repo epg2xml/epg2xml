@@ -5,6 +5,7 @@ import logging
 import os
 import sys
 from copy import copy
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Union
 
@@ -266,6 +267,14 @@ class Config:
                 logger.error(FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), filepath))
                 sys.exit(1)
 
+        # logging to file
+        if setts["logfile"] is not None:
+            fileHandler = RotatingFileHandler(setts["logfile"], maxBytes=2 * 1024**2, backupCount=5, encoding="utf-8")
+            setup_root_logger(handler=fileHandler)
+
+        # set configured log level
+        logging.getLogger().setLevel(setts["loglevel"])
+
         return setts
 
     # Parse command line arguments
@@ -355,3 +364,7 @@ class Config:
 
         else:
             return vars(parser.parse_args())
+
+
+# logging
+setup_root_logger()

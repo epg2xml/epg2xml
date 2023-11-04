@@ -6,28 +6,15 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import ExitStack
 
 from epg2xml import __title__, __version__
-from epg2xml.config import Config, setup_root_logger
+from epg2xml.config import Config
 from epg2xml.providers import load_channels, load_providers
 
 ############################################################
 # INIT
 ############################################################
 
-# logging
-setup_root_logger()
-
 # load initial config
 conf = Config()
-
-if conf.settings["logfile"] is not None:
-    from logging.handlers import RotatingFileHandler
-
-    # logging to file
-    fileHandler = RotatingFileHandler(conf.settings["logfile"], maxBytes=2 * 1024**2, backupCount=5, encoding="utf-8")
-    setup_root_logger(handler=fileHandler)
-
-# set configured log level
-logging.getLogger().setLevel(conf.settings["loglevel"])
 
 # load config file
 conf.load()
