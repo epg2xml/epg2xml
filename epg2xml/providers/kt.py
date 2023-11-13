@@ -68,7 +68,7 @@ class KT(EPGProvider):
                 )
         return svc_channels
 
-    def get_programs(self, lazy_write: bool = False) -> None:
+    def get_programs(self) -> None:
         url = "https://tv.kt.com/tv/channel/pSchedule.asp"
         params = {
             "ch_type": "1",  # 1: live 2: skylife 3: uhd live 4: uhd skylife
@@ -88,8 +88,6 @@ class KT(EPGProvider):
                     log.exception("프로그램 파싱 중 예외: %s, %s", _ch, day)
                 else:
                     _ch.programs.extend(_epgs)
-            if not lazy_write:
-                _ch.to_xml(self.cfg, no_endtime=self.no_endtime)
 
     def __epgs_of_day(self, channelid: str, data: str, day: datetime) -> List[EPGProgram]:
         _epgs = []

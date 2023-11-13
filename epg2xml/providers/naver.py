@@ -62,7 +62,7 @@ class NAVER(EPGProvider):
                     pass
         return svc_channels
 
-    def get_programs(self, lazy_write: bool = False) -> None:
+    def get_programs(self) -> None:
         url = "https://m.search.naver.com/p/csearch/content/nqapirender.nhn"
         params = {"key": "SingleChannelDailySchedule", "where": "m", "pkid": "66", "u1": "SVCID", "u2": "EPGDATE"}
 
@@ -81,8 +81,6 @@ class NAVER(EPGProvider):
                     log.exception("프로그램 파싱 중 예외: %s, %s", _ch, day)
                 else:
                     _ch.programs.extend(_epgs)
-            if not lazy_write:
-                _ch.to_xml(self.cfg, no_endtime=self.no_endtime)
 
     def __epgs_of_day(self, channelid: str, data: dict, day: datetime) -> List[EPGProgram]:
         _epgs = []

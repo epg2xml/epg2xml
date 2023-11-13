@@ -50,7 +50,7 @@ class DAUM(EPGProvider):
                 )
         return svc_channels
 
-    def get_programs(self, lazy_write: bool = False) -> None:
+    def get_programs(self) -> None:
         url = "https://search.daum.net/search?DA=B3T&w=tot&rtmaxcoll=B3T&q={}"
         for idx, _ch in enumerate(self.req_channels):
             log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)
@@ -64,8 +64,6 @@ class DAUM(EPGProvider):
                 log.exception("프로그램 파싱 중 예외: %s", _ch)
             else:
                 _ch.programs.extend(_epgs)
-            if not lazy_write:
-                _ch.to_xml(self.cfg, no_endtime=self.no_endtime)
 
     def __epgs_of_days(self, channelid: str, data: str) -> List[EPGProgram]:
         soup = BeautifulSoup(data)

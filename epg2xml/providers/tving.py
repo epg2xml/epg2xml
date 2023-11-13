@@ -104,7 +104,7 @@ class TVING(EPGProvider):
             if x["schedules"] is not None
         ]
 
-    def get_programs(self, lazy_write: bool = False) -> None:
+    def get_programs(self) -> None:
         def grouper(iterable, n):
             it = iter(iterable)
             group = tuple(islice(it, n))
@@ -135,8 +135,6 @@ class TVING(EPGProvider):
                     log.exception("프로그램 파싱 중 예외: %s", _ch)
                 else:
                     _ch.programs.extend(_epgs)
-                if not lazy_write:
-                    _ch.to_xml(self.cfg, no_endtime=self.no_endtime)
 
     def __epgs_of_channel(self, channelid: str, data: dict) -> List[EPGProgram]:
         _epgs = []

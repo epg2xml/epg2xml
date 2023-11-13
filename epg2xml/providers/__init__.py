@@ -116,7 +116,7 @@ class EPGProvider:
                 chel.append(Element("icon", src=ch.icon))
             print(chel.tostring(level=1))
 
-    def get_programs(self, lazy_write: bool = False) -> None:
+    def get_programs(self) -> None:
         raise NotImplementedError("method 'get_programs' must be implemented")
 
     def write_programs(self) -> None:
