@@ -1,3 +1,4 @@
+import json
 import logging
 import re
 import sys
@@ -338,8 +339,15 @@ def load_providers(cfgs: dict) -> List[EPGProvider]:
     return providers
 
 
-def load_channels(providers: List[EPGProvider], conf, channeljson: dict = None) -> None:
-    if conf.settings["parallel"]:
+def load_channels(providers: List[EPGProvider], channelfile: str, parallel: bool = False) -> None:
+    try:
+        log.debug("Trying to load cached channels from json")
+        with open(channelfile, "r", encoding="utf-8") as fp:
+            channeljson = json.load(fp)
+    except (json.decoder.JSONDecodeError, ValueError, FileNotFoundError) as e:
+        log.debug("Failed to load cached channels from json: %s", e)
+        channeljson = {}
+    if parallel:
         with ThreadPoolExecutor() as exe:
             for p in providers:
                 exe.submit(p.load_svc_channels, channeljson=channeljson)
@@ -353,5 +361,5 @@ def load_channels(providers: List[EPGProvider], conf, channeljson: dict = None) 
                 "TOTAL": len(p.svc_channels),
                 "CHANNELS": p.svc_channels,
             }
-        dump_json(conf.settings["channelfile"], channeljson)
-        log.info("Channel file was upgraded. You may check the changes here: %s", conf.settings["channelfile"])
+        dump_json(channelfile, channeljson)
+        log.info("Channel file was upgraded. You may check the changes here: %s", channelfile)

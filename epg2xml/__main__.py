@@ -1,4 +1,3 @@
-import json
 import logging
 import socket
 import sys
@@ -30,13 +29,6 @@ log = logging.getLogger("MAIN")
 def main():
     log.debug("Loading providers...")
     providers = load_providers(conf.configs)
-    try:
-        log.debug("Trying to load cached channels from json")
-        with open(conf.settings["channelfile"], "r", encoding="utf-8") as fp:
-            channeljson = json.load(fp)
-    except (json.decoder.JSONDecodeError, ValueError, FileNotFoundError) as e:
-        log.debug("Failed to load cached channels from json: %s", e)
-        channeljson = {}
 
     if conf.args["cmd"] == "run":
         with ExitStack() as stack:
@@ -49,7 +41,7 @@ def main():
                 sys.stdout = stack.enter_context(sock.makefile("w"))
 
             log.debug("Loading service channels...")
-            load_channels(providers, conf, channeljson=channeljson)
+            load_channels(providers, conf.settings["channelfile"], conf.settings["parallel"])
 
             log.debug("Loading requested channels...")
             for p in providers:
@@ -79,7 +71,7 @@ def main():
 
             log.info("Done")
     elif conf.args["cmd"] == "update_channels":
-        load_channels(providers, conf, channeljson=channeljson)
+        load_channels(providers, conf.settings["channelfile"], conf.settings["parallel"])
     else:
         raise NotImplementedError(f"Unknown command: {conf.args['cmd']}")
 
