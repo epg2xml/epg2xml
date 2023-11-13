@@ -90,7 +90,7 @@ with open(xmlfile, "w", encoding="utf-8") as f:
         print('<!DOCTYPE tv SYSTEM "xmltv.dtd">\n')
         print(f'<tv generator-info-name="{__title__} v{__version__}">')
 
-        provider.write_channel_headers()
+        provider.write_channels()
         provider.write_programs()
 
         print("</tv>")

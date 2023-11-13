@@ -102,7 +102,7 @@ class EPGProvider:
         plog.info("요청 %3d - 불가 %3d = 최종 %3d", len(my_channels), len(my_channels) - len(req_channels), len(req_channels))
         self.req_channels = req_channels
 
-    def write_channel_headers(self) -> None:
+    def write_channels(self) -> None:
         for ch in self.req_channels:
             chel = Element("channel", id=ch.id)
             # TODO: something better for display-name?

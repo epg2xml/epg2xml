@@ -53,9 +53,9 @@ def main():
             print(f'<tv generator-info-name="{__title__} v{__version__}">')
             stack.callback(print, "</tv>")
 
-            log.debug("Writing channel headers...")
+            log.debug("Writing channels...")
             for p in providers:
-                p.write_channel_headers()
+                p.write_channels()
 
             log.debug("Getting EPG...")
             if conf.settings["parallel"]:
