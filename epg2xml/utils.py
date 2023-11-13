@@ -6,6 +6,7 @@ import time
 import xml.etree.ElementTree as ET
 
 import requests
+from bs4 import BeautifulSoup, FeatureNotFound
 
 ua = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.90 Safari/537.36"
@@ -128,3 +129,24 @@ class PrefixLogger(logging.LoggerAdapter):
 
     def process(self, msg, kwargs):
         return f"{self.prefix} {msg}", kwargs
+
+
+class ParserBeautifulSoup(BeautifulSoup):
+    """A ``bs4.BeautifulSoup`` that picks the first available parser."""
+
+    def insert_before(self, *args):
+        pass
+
+    def insert_after(self, *args):
+        pass
+
+    def __init__(self, markup, **kwargs):
+        # pick the first parser available
+        for parser in ["lxml", "html.parser"]:
+            try:
+                super().__init__(markup, parser, **kwargs)
+                return
+            except FeatureNotFound:
+                pass
+
+        raise FeatureNotFound

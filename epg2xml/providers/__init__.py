@@ -7,33 +7,11 @@ from datetime import datetime, timedelta
 from importlib import import_module
 from typing import List
 
-from bs4 import BeautifulSoup, FeatureNotFound, SoupStrainer
 from requests import Session
 
 from epg2xml.utils import Element, PrefixLogger, dump_json, request_data, ua
 
 log = logging.getLogger("PROV")
-
-
-class ParserBeautifulSoup(BeautifulSoup):
-    """A ``bs4.BeautifulSoup`` that picks the first available parser."""
-
-    def insert_before(self, *args):
-        pass
-
-    def insert_after(self, *args):
-        pass
-
-    def __init__(self, markup, **kwargs):
-        # pick the first parser available
-        for parser in ["lxml", "html.parser"]:
-            try:
-                super().__init__(markup, parser, **kwargs)
-                return
-            except FeatureNotFound:
-                pass
-
-        raise FeatureNotFound
 
 
 class EPGProvider:

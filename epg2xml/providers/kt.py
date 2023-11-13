@@ -4,9 +4,10 @@ from datetime import date, datetime, timedelta
 from typing import List
 from urllib.parse import unquote
 
+from bs4 import SoupStrainer
+
 from epg2xml.providers import EPGProgram, EPGProvider
-from epg2xml.providers import ParserBeautifulSoup as BeautifulSoup
-from epg2xml.providers import SoupStrainer
+from epg2xml.utils import ParserBeautifulSoup as BeautifulSoup
 
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 
