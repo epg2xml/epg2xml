@@ -34,7 +34,6 @@ class TVING(EPGProvider):
     """
 
     referer = "https://www.tving.com/schedule/main.do"
-    no_endtime = False
 
     url = "https://api.tving.com/v2/media/schedules"
     params = {

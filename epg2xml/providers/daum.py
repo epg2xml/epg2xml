@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from typing import List
 from urllib.parse import quote
 
-from epg2xml.providers import EPGProgram, EPGProvider
+from epg2xml.providers import EPGProgram, EPGProvider, no_endtime
 from epg2xml.utils import ParserBeautifulSoup as BeautifulSoup
 
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
@@ -22,7 +22,6 @@ class DAUM(EPGProvider):
     """
 
     referer = None
-    no_endtime = True
     title_regex = r"^(?P<title>.*?)\s?([\<\(]?(?P<part>\d{1})부[\>\)]?)?\s?(<(?P<subname1>.*)>)?\s?((?P<epnum>\d+)회)?\s?(<(?P<subname2>.*)>)?$"
 
     def get_svc_channels(self) -> List[dict]:
@@ -50,6 +49,7 @@ class DAUM(EPGProvider):
                 )
         return svc_channels
 
+    @no_endtime
     def get_programs(self) -> None:
         url = "https://search.daum.net/search?DA=B3T&w=tot&rtmaxcoll=B3T&q={}"
         for idx, _ch in enumerate(self.req_channels):

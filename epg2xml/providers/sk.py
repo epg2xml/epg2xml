@@ -34,7 +34,6 @@ class SK(EPGProvider):
 
     referer = "https://cyber.skbroadband.com/"
     title_regex = r"^(.*?)(\(([\d,]+)회\))?(<(.*)>)?(\((재)\))?$"
-    no_endtime = False
 
     def get_svc_channels(self) -> List[dict]:
         svc_channels = []

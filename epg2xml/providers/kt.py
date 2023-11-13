@@ -6,7 +6,7 @@ from urllib.parse import unquote
 
 from bs4 import SoupStrainer
 
-from epg2xml.providers import EPGProgram, EPGProvider
+from epg2xml.providers import EPGProgram, EPGProvider, no_endtime
 from epg2xml.utils import ParserBeautifulSoup as BeautifulSoup
 
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
@@ -46,7 +46,6 @@ class KT(EPGProvider):
     """
 
     referer = "https://tv.kt.com/"
-    no_endtime = True
 
     def get_svc_channels(self) -> List[dict]:
         svc_channels = []
@@ -68,6 +67,7 @@ class KT(EPGProvider):
                 )
         return svc_channels
 
+    @no_endtime
     def get_programs(self) -> None:
         url = "https://tv.kt.com/tv/channel/pSchedule.asp"
         params = {

@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta
 from typing import List
 from xml.sax.saxutils import unescape
 
-from epg2xml.providers import EPGProgram, EPGProvider
+from epg2xml.providers import EPGProgram, EPGProvider, no_endtime
 from epg2xml.utils import ParserBeautifulSoup as BeautifulSoup
 
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
@@ -29,7 +29,6 @@ class NAVER(EPGProvider):
     """
 
     referer = "https://m.search.naver.com/search.naver?where=m&query=%ED%8E%B8%EC%84%B1%ED%91%9C"
-    no_endtime = True
 
     def get_svc_channels(self) -> List[dict]:
         svc_channels = []
@@ -62,6 +61,7 @@ class NAVER(EPGProvider):
                     pass
         return svc_channels
 
+    @no_endtime
     def get_programs(self) -> None:
         url = "https://m.search.naver.com/p/csearch/content/nqapirender.nhn"
         params = {"key": "SingleChannelDailySchedule", "where": "m", "pkid": "66", "u1": "SVCID", "u2": "EPGDATE"}

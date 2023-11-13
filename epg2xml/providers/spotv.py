@@ -18,7 +18,6 @@ class SPOTV(EPGProvider):
 
     referer = "https://www.spotvnow.co.kr/channel"
     title_regex = r"\s?(?:\[(.*?)\])?\s?(.*?)\s?(?:\((.*)\))?\s?(?:<([\d,]+)회>)?\s?$"
-    no_endtime = False
 
     def get_svc_channels(self) -> List[dict]:
         url = "https://www.spotvnow.co.kr/api/v3/channel"

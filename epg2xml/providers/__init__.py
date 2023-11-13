@@ -5,6 +5,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field, fields
 from datetime import datetime, timedelta
+from functools import wraps
 from importlib import import_module
 from typing import List, Union
 
@@ -20,7 +21,6 @@ class EPGProvider:
 
     referer: str = None
     title_regex: Union[str, re.Pattern] = None
-    no_endtime: bool = False
     was_channel_updated: bool = False
 
     def __init__(self, cfg: dict):
@@ -111,8 +111,6 @@ class EPGProvider:
 
     def write_programs(self) -> None:
         for ch in self.req_channels:
-            if self.no_endtime:
-                ch.set_etime()
             for prog in ch.programs:
                 prog.to_xml(self.cfg)
             ch.programs.clear()  # for memory efficiency
@@ -142,6 +140,7 @@ class EPGChannel:
         return f"{self.name} <{self.id}>"
 
     def set_etime(self) -> None:
+        """Completes missing program endtimes based on the successive relationship between programs."""
         for ind, prog in enumerate(self.programs):
             if prog.etime:
                 continue
@@ -326,6 +325,16 @@ class EPGProgram:
 
         # dumps
         print(_p.tostring(level=1))
+
+
+def no_endtime(func):
+    @wraps(func)
+    def wrapped(self: EPGProvider, *args, **kwargs):
+        func(self, *args, **kwargs)
+        for ch in self.req_channels:
+            ch.set_etime()
+
+    return wrapped
 
 
 def load_providers(cfgs: dict) -> List[EPGProvider]:
