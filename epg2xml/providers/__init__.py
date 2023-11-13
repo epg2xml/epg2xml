@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field, fields
 from datetime import datetime, timedelta
 from importlib import import_module
-from typing import List
+from typing import List, Union
 
 from requests import Session
 
@@ -17,12 +17,12 @@ log = logging.getLogger("PROV")
 class EPGProvider:
     """Base class for EPG Providers"""
 
-    referer = None
-    title_regex = ""
-    no_endtime = False
-    was_channel_updated = False
+    referer: str = None
+    title_regex: Union[str, re.Pattern] = None
+    no_endtime: bool = False
+    was_channel_updated: bool = False
 
-    def __init__(self, cfg):
+    def __init__(self, cfg: dict):
         self.provider_name = self.__class__.__name__
         self.cfg = cfg
         self.sess = Session()
@@ -33,7 +33,7 @@ class EPGProvider:
         self.svc_channels: List[dict] = []
         self.req_channels: List[EPGChannel] = []
 
-    def request(self, url, method="GET", **kwargs):
+    def request(self, url: str, method: str = "GET", **kwargs):
         return request_data(url=url, method=method, session=self.sess, **kwargs)
 
     def load_svc_channels(self, channeljson: dict = None) -> None:
@@ -129,14 +129,14 @@ class EPGChannel:
     __slots__ = ["id", "src", "svcid", "name", "icon", "no", "programs"]
 
     def __init__(self, channelinfo):
-        self.id = channelinfo["Id"]
-        self.src = channelinfo["Source"]
-        self.svcid = channelinfo["ServiceId"]
-        self.name = channelinfo["Name"]
-        self.icon = channelinfo.get("Icon_url", None)
-        self.no = channelinfo.get("No", None)
+        self.id: str = channelinfo["Id"]
+        self.src: str = channelinfo["Source"]
+        self.svcid: str = channelinfo["ServiceId"]
+        self.name: str = channelinfo["Name"]
+        self.icon: str = channelinfo.get("Icon_url", None)
+        self.no: str = channelinfo.get("No", None)
         # placeholder
-        self.programs: list = []
+        self.programs: List[EPGProgram] = []
         """
         개별 EPGProgram이 소속 channelid를 가지고 있어서 굳이 EPGChannel의 하위 리스트로 관리해야할
         이유는 없지만, endtime이 없는 EPG 항목을 위해 한 번에 써야할 필요가 있는 Provider가 있기에
@@ -146,7 +146,7 @@ class EPGChannel:
     def __str__(self):
         return f"{self.name} <{self.id}>"
 
-    def to_xml(self, conf, no_endtime=False):
+    def to_xml(self, conf: dict, no_endtime: bool = False) -> None:
         if no_endtime:
             for ind, x in enumerate(self.programs):
                 if not self.programs[ind].etime:
