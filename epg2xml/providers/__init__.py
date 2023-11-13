@@ -16,154 +16,6 @@ from epg2xml.utils import Element, PrefixLogger, dump_json, request_data, ua
 log = logging.getLogger("PROV")
 
 
-class EPGProvider:
-    """Base class for EPG Providers"""
-
-    referer: str = None
-    title_regex: Union[str, re.Pattern] = None
-    was_channel_updated: bool = False
-
-    def __init__(self, cfg: dict):
-        self.provider_name = self.__class__.__name__
-        self.cfg = cfg
-        self.sess = Session()
-        self.sess.headers.update({"User-Agent": ua, "Referer": self.referer})
-        if self.title_regex:
-            self.title_regex = re.compile(self.title_regex)
-        # placeholders
-        self.svc_channels: List[dict] = []
-        self.req_channels: List[EPGChannel] = []
-
-    def request(self, url: str, method: str = "GET", **kwargs):
-        return request_data(url=url, method=method, session=self.sess, **kwargs)
-
-    def load_svc_channels(self, channeljson: dict = None) -> None:
-        plog = PrefixLogger(log, f"[{self.provider_name:5s}]")
-
-        # check if update required
-        try:
-            channelinfo = channeljson[self.provider_name.upper()]
-            total = channelinfo["TOTAL"]
-            channels = channelinfo["CHANNELS"]
-            assert total == len(channels), "TOTAL != len(CHANNELS)"
-            updated_at = datetime.fromisoformat(channelinfo["UPDATED"])
-            if (datetime.now() - updated_at).total_seconds() <= 3600 * 24 * 4:
-                self.svc_channels = channels
-                plog.info("%03d service channels loaded from cache", len(channels))
-                return
-            plog.debug("Updating service channels as outdated...")
-        except Exception as e:
-            plog.debug("Updating service channels as cache broken: %s", e)
-
-        try:
-            channels = self.get_svc_channels()
-        except Exception:
-            plog.exception("Exception while retrieving service channels:")
-        else:
-            self.svc_channels = channels
-            self.was_channel_updated = True
-            plog.info("%03d service channels successfully fetched from server", len(channels))
-
-    def get_svc_channels(self) -> List[dict]:
-        raise NotImplementedError("method 'get_svc_channels' must be implemented")
-
-    def load_req_channels(self) -> None:
-        """from MY_CHANNELS to req_channels"""
-        plog = PrefixLogger(log, f"[{self.provider_name:5s}]")
-        my_channels = self.cfg["MY_CHANNELS"]
-        if my_channels == "*":
-            plog.debug("Overriding all MY_CHANNELS by service channels...")
-            my_channels = self.svc_channels
-        if not my_channels:
-            return
-        req_channels = []
-        svc_channels = {x["ServiceId"]: x for x in self.svc_channels}
-        for my_no, my_ch in enumerate(my_channels):
-            if "ServiceId" not in my_ch:
-                plog.warning("'ServiceId' Not Found: %s", my_ch)
-                continue
-            req_ch = svc_channels.pop(my_ch["ServiceId"], None)
-            if req_ch is None:
-                plog.warning("'ServiceId' Not in Service: %s", my_ch)
-                continue
-            for _k, _v in my_ch.items():
-                if _v:
-                    req_ch[_k] = _v
-            req_ch["Source"] = self.provider_name
-            req_ch.setdefault("No", str(my_no))
-            if "Id" not in req_ch:
-                try:
-                    req_ch["Id"] = eval(f"f'{self.cfg['ID_FORMAT']}'", None, req_ch)
-                except Exception:
-                    req_ch["Id"] = f'{req_ch["ServiceId"]}.{req_ch["Source"].lower()}'
-            if not self.cfg["ADD_CHANNEL_ICON"]:
-                req_ch.pop("Icon_url", None)
-            req_channels.append(EPGChannel(req_ch))
-        plog.info("요청 %3d - 불가 %3d = 최종 %3d", len(my_channels), len(my_channels) - len(req_channels), len(req_channels))
-        self.req_channels = req_channels
-
-    def write_channels(self) -> None:
-        for ch in self.req_channels:
-            ch.to_xml()
-
-    def get_programs(self) -> None:
-        raise NotImplementedError("method 'get_programs' must be implemented")
-
-    def write_programs(self) -> None:
-        for ch in self.req_channels:
-            for prog in ch.programs:
-                prog.to_xml(self.cfg)
-            ch.programs.clear()  # for memory efficiency
-
-
-class EPGChannel:
-    """For individual channel entities"""
-
-    __slots__ = ["id", "src", "svcid", "name", "icon", "no", "programs"]
-
-    def __init__(self, channelinfo):
-        self.id: str = channelinfo["Id"]
-        self.src: str = channelinfo["Source"]
-        self.svcid: str = channelinfo["ServiceId"]
-        self.name: str = channelinfo["Name"]
-        self.icon: str = channelinfo.get("Icon_url", None)
-        self.no: str = channelinfo.get("No", None)
-        # placeholder
-        self.programs: List[EPGProgram] = []
-        """
-        개별 EPGProgram이 소속 channelid를 가지고 있어서 굳이 EPGChannel의 하위 리스트로 관리해야할
-        이유는 없지만, endtime이 없는 EPG 항목을 위해 한 번에 써야할 필요가 있는 Provider가 있기에
-        (kt, lg, skb, naver, daum) 채널 단위로 관리하는 편이 유리하다.
-        """
-
-    def __str__(self):
-        return f"{self.name} <{self.id}>"
-
-    def set_etime(self) -> None:
-        """Completes missing program endtimes based on the successive relationship between programs."""
-        for ind, prog in enumerate(self.programs):
-            if prog.etime:
-                continue
-            try:
-                prog.etime = self.programs[ind + 1].stime
-            except IndexError:
-                prog.etime = prog.stime + timedelta(days=1)
-                prog.etime.replace(hour=0, minute=0, second=0)
-
-    def to_xml(self) -> None:
-        chel = Element("channel", id=self.id)
-        # TODO: something better for display-name?
-        chel.append(Element("display-name", self.name))
-        chel.append(Element("display-name", self.src))
-        if self.no:
-            chel.append(Element("display-name", f"{self.no}"))
-            chel.append(Element("display-name", f"{self.no} {self.name}"))
-            chel.append(Element("display-name", f"{self.no} {self.src}"))
-        if self.icon:
-            chel.append(Element("icon", src=self.icon))
-        print(chel.tostring(level=1))
-
-
 PTN_TITLE = re.compile(r"(.*) \(?(\d+부)\)?")
 PTN_SPACES = re.compile(r" {2,}")
 CAT_KO2EN = {
@@ -325,6 +177,154 @@ class EPGProgram:
 
         # dumps
         print(_p.tostring(level=1))
+
+
+class EPGChannel:
+    """For individual channel entities"""
+
+    __slots__ = ["id", "src", "svcid", "name", "icon", "no", "programs"]
+
+    def __init__(self, channelinfo):
+        self.id: str = channelinfo["Id"]
+        self.src: str = channelinfo["Source"]
+        self.svcid: str = channelinfo["ServiceId"]
+        self.name: str = channelinfo["Name"]
+        self.icon: str = channelinfo.get("Icon_url", None)
+        self.no: str = channelinfo.get("No", None)
+        # placeholder
+        self.programs: List[EPGProgram] = []
+        """
+        개별 EPGProgram이 소속 channelid를 가지고 있어서 굳이 EPGChannel의 하위 리스트로 관리해야할
+        이유는 없지만, endtime이 없는 EPG 항목을 위해 한 번에 써야할 필요가 있는 Provider가 있기에
+        (kt, lg, skb, naver, daum) 채널 단위로 관리하는 편이 유리하다.
+        """
+
+    def __str__(self):
+        return f"{self.name} <{self.id}>"
+
+    def set_etime(self) -> None:
+        """Completes missing program endtimes based on the successive relationship between programs."""
+        for ind, prog in enumerate(self.programs):
+            if prog.etime:
+                continue
+            try:
+                prog.etime = self.programs[ind + 1].stime
+            except IndexError:
+                prog.etime = prog.stime + timedelta(days=1)
+                prog.etime.replace(hour=0, minute=0, second=0)
+
+    def to_xml(self) -> None:
+        chel = Element("channel", id=self.id)
+        # TODO: something better for display-name?
+        chel.append(Element("display-name", self.name))
+        chel.append(Element("display-name", self.src))
+        if self.no:
+            chel.append(Element("display-name", f"{self.no}"))
+            chel.append(Element("display-name", f"{self.no} {self.name}"))
+            chel.append(Element("display-name", f"{self.no} {self.src}"))
+        if self.icon:
+            chel.append(Element("icon", src=self.icon))
+        print(chel.tostring(level=1))
+
+
+class EPGProvider:
+    """Base class for EPG Providers"""
+
+    referer: str = None
+    title_regex: Union[str, re.Pattern] = None
+    was_channel_updated: bool = False
+
+    def __init__(self, cfg: dict):
+        self.provider_name = self.__class__.__name__
+        self.cfg = cfg
+        self.sess = Session()
+        self.sess.headers.update({"User-Agent": ua, "Referer": self.referer})
+        if self.title_regex:
+            self.title_regex = re.compile(self.title_regex)
+        # placeholders
+        self.svc_channels: List[dict] = []
+        self.req_channels: List[EPGChannel] = []
+
+    def request(self, url: str, method: str = "GET", **kwargs):
+        return request_data(url=url, method=method, session=self.sess, **kwargs)
+
+    def load_svc_channels(self, channeljson: dict = None) -> None:
+        plog = PrefixLogger(log, f"[{self.provider_name:5s}]")
+
+        # check if update required
+        try:
+            channelinfo = channeljson[self.provider_name.upper()]
+            total = channelinfo["TOTAL"]
+            channels = channelinfo["CHANNELS"]
+            assert total == len(channels), "TOTAL != len(CHANNELS)"
+            updated_at = datetime.fromisoformat(channelinfo["UPDATED"])
+            if (datetime.now() - updated_at).total_seconds() <= 3600 * 24 * 4:
+                self.svc_channels = channels
+                plog.info("%03d service channels loaded from cache", len(channels))
+                return
+            plog.debug("Updating service channels as outdated...")
+        except Exception as e:
+            plog.debug("Updating service channels as cache broken: %s", e)
+
+        try:
+            channels = self.get_svc_channels()
+        except Exception:
+            plog.exception("Exception while retrieving service channels:")
+        else:
+            self.svc_channels = channels
+            self.was_channel_updated = True
+            plog.info("%03d service channels successfully fetched from server", len(channels))
+
+    def get_svc_channels(self) -> List[dict]:
+        raise NotImplementedError("method 'get_svc_channels' must be implemented")
+
+    def load_req_channels(self) -> None:
+        """from MY_CHANNELS to req_channels"""
+        plog = PrefixLogger(log, f"[{self.provider_name:5s}]")
+        my_channels = self.cfg["MY_CHANNELS"]
+        if my_channels == "*":
+            plog.debug("Overriding all MY_CHANNELS by service channels...")
+            my_channels = self.svc_channels
+        if not my_channels:
+            return
+        req_channels = []
+        svc_channels = {x["ServiceId"]: x for x in self.svc_channels}
+        for my_no, my_ch in enumerate(my_channels):
+            if "ServiceId" not in my_ch:
+                plog.warning("'ServiceId' Not Found: %s", my_ch)
+                continue
+            req_ch = svc_channels.pop(my_ch["ServiceId"], None)
+            if req_ch is None:
+                plog.warning("'ServiceId' Not in Service: %s", my_ch)
+                continue
+            for _k, _v in my_ch.items():
+                if _v:
+                    req_ch[_k] = _v
+            req_ch["Source"] = self.provider_name
+            req_ch.setdefault("No", str(my_no))
+            if "Id" not in req_ch:
+                try:
+                    req_ch["Id"] = eval(f"f'{self.cfg['ID_FORMAT']}'", None, req_ch)
+                except Exception:
+                    req_ch["Id"] = f'{req_ch["ServiceId"]}.{req_ch["Source"].lower()}'
+            if not self.cfg["ADD_CHANNEL_ICON"]:
+                req_ch.pop("Icon_url", None)
+            req_channels.append(EPGChannel(req_ch))
+        plog.info("요청 %3d - 불가 %3d = 최종 %3d", len(my_channels), len(my_channels) - len(req_channels), len(req_channels))
+        self.req_channels = req_channels
+
+    def write_channels(self) -> None:
+        for ch in self.req_channels:
+            ch.to_xml()
+
+    def get_programs(self) -> None:
+        raise NotImplementedError("method 'get_programs' must be implemented")
+
+    def write_programs(self) -> None:
+        for ch in self.req_channels:
+            for prog in ch.programs:
+                prog.to_xml(self.cfg)
+            ch.programs.clear()  # for memory efficiency
 
 
 def no_endtime(func):
