@@ -104,24 +104,18 @@ class EPGProvider:
 
     def write_channels(self) -> None:
         for ch in self.req_channels:
-            chel = Element("channel", id=ch.id)
-            # TODO: something better for display-name?
-            chel.append(Element("display-name", ch.name))
-            chel.append(Element("display-name", ch.src))
-            if ch.no:
-                chel.append(Element("display-name", f"{ch.no}"))
-                chel.append(Element("display-name", f"{ch.no} {ch.name}"))
-                chel.append(Element("display-name", f"{ch.no} {ch.src}"))
-            if ch.icon:
-                chel.append(Element("icon", src=ch.icon))
-            print(chel.tostring(level=1))
+            ch.to_xml()
 
     def get_programs(self) -> None:
         raise NotImplementedError("method 'get_programs' must be implemented")
 
     def write_programs(self) -> None:
         for ch in self.req_channels:
-            ch.to_xml(self.cfg, no_endtime=self.no_endtime)
+            if self.no_endtime:
+                ch.set_etime()
+            for prog in ch.programs:
+                prog.to_xml(self.cfg)
+            ch.programs.clear()  # for memory efficiency
 
 
 class EPGChannel:
@@ -147,19 +141,28 @@ class EPGChannel:
     def __str__(self):
         return f"{self.name} <{self.id}>"
 
-    def to_xml(self, conf: dict, no_endtime: bool = False) -> None:
-        if no_endtime:
-            for ind, x in enumerate(self.programs):
-                if not self.programs[ind].etime:
-                    try:
-                        self.programs[ind].etime = self.programs[ind + 1].stime
-                    except IndexError:
-                        self.programs[ind].etime = self.programs[ind].stime + timedelta(days=1)
-                        self.programs[ind].etime.replace(hour=0, minute=0, second=0)
-        for x in self.programs:
-            x.to_xml(conf)
-        # for memory efficiency
-        self.programs.clear()
+    def set_etime(self) -> None:
+        for ind, prog in enumerate(self.programs):
+            if prog.etime:
+                continue
+            try:
+                prog.etime = self.programs[ind + 1].stime
+            except IndexError:
+                prog.etime = prog.stime + timedelta(days=1)
+                prog.etime.replace(hour=0, minute=0, second=0)
+
+    def to_xml(self) -> None:
+        chel = Element("channel", id=self.id)
+        # TODO: something better for display-name?
+        chel.append(Element("display-name", self.name))
+        chel.append(Element("display-name", self.src))
+        if self.no:
+            chel.append(Element("display-name", f"{self.no}"))
+            chel.append(Element("display-name", f"{self.no} {self.name}"))
+            chel.append(Element("display-name", f"{self.no} {self.src}"))
+        if self.icon:
+            chel.append(Element("icon", src=self.icon))
+        print(chel.tostring(level=1))
 
 
 PTN_TITLE = re.compile(r"(.*) \(?(\d+부)\)?")

@@ -47,6 +47,15 @@ def main():
             for p in providers:
                 p.load_req_channels()
 
+            log.debug("Getting EPG...")
+            if conf.settings["parallel"]:
+                with ThreadPoolExecutor() as exe:
+                    for p in providers:
+                        exe.submit(p.get_programs)
+            else:
+                for p in providers:
+                    p.get_programs()
+
             log.info("Writing xmltv.dtd header...")
             print('<?xml version="1.0" encoding="UTF-8"?>')
             print('<!DOCTYPE tv SYSTEM "xmltv.dtd">\n')
@@ -56,15 +65,6 @@ def main():
             log.debug("Writing channels...")
             for p in providers:
                 p.write_channels()
-
-            log.debug("Getting EPG...")
-            if conf.settings["parallel"]:
-                with ThreadPoolExecutor() as exe:
-                    for p in providers:
-                        exe.submit(p.get_programs)
-            else:
-                for p in providers:
-                    p.get_programs()
 
             log.debug("Writing programs...")
             for p in providers:
