@@ -4,7 +4,7 @@ from typing import List
 from xml.sax.saxutils import unescape
 
 from epg2xml.providers import EPGProgram, EPGProvider
-from epg2xml.providers import ParserBeautifulSoup as BeautifulSoup
+from epg2xml.utils import ParserBeautifulSoup as BeautifulSoup
 
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 today = date.today()

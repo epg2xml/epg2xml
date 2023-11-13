@@ -4,7 +4,7 @@ from typing import List
 from urllib.parse import quote
 
 from epg2xml.providers import EPGProgram, EPGProvider
-from epg2xml.providers import ParserBeautifulSoup as BeautifulSoup
+from epg2xml.utils import ParserBeautifulSoup as BeautifulSoup
 
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 
@@ -21,7 +21,7 @@ class DAUM(EPGProvider):
     - 프로그램 시작 시각만 제공
     """
 
-    referer = ""
+    referer = None
     no_endtime = True
     title_regex = r"^(?P<title>.*?)\s?([\<\(]?(?P<part>\d{1})부[\>\)]?)?\s?(<(?P<subname1>.*)>)?\s?((?P<epnum>\d+)회)?\s?(<(?P<subname2>.*)>)?$"
 
