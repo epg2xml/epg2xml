@@ -1,6 +1,7 @@
 import logging
 import socket
 import sys
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack
 
@@ -46,6 +47,10 @@ def main():
             log.debug("Loading requested channels...")
             for p in providers:
                 p.load_req_channels()
+
+            log.debug("Checking uniqueness of channelid...")
+            cids = [c.id for p in providers for c in p.req_channels]
+            assert len(cids) == len(set(cids)), f"채널ID 중복: { {k:v for k,v in Counter(cids).items() if v > 1} }"
 
             log.debug("Getting EPG...")
             if conf.settings["parallel"]:

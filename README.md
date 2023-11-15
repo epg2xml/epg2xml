@@ -159,7 +159,7 @@ pip install "epg2xml[lxml] @ git+https://github.com/epg2xml/epg2xml.git@{tag_bra
   },
   "TVING": {
     "MY_CHANNELS": []
-  }
+  },
   "SPOTV": {
     "MY_CHANNELS": []
   }
@@ -178,7 +178,7 @@ pip install "epg2xml[lxml] @ git+https://github.com/epg2xml/epg2xml.git@{tag_bra
 `MY_CHANNELS`는 채널 파일 `Channel.json`을 참고하여 작성한다.
 
 - `ServiceId`: 필수. 각 제공자 안에서 고유한 값이며, 이 값으로 서버에서 조회가 가능하다.
-- `Id`: 개별 채널 사용자 값 > `ID_FORMAT` 형식 > 기본값 순으로 적용되며, 다음은 약간의 예외가 있다.
+- `Id`: 개별 채널 사용자 값 > `ID_FORMAT` 형식 > 기본값 순으로 적용되며, 다음은 약간의 예외가 있다. 요청 채널 중 중복된 값이 있으면 안된다.
 - `Name`, `No`, `Category`, `Icon_url`: 사용자가 지정하지 않으면 채널 파일에 존재하는 값을 적용한다.
 
 ## 도움말 및 옵션
