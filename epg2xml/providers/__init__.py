@@ -238,6 +238,8 @@ class EPGProvider:
         self.cfg = cfg
         self.sess = Session()
         self.sess.headers.update({"User-Agent": ua, "Referer": self.referer})
+        if cfg["HTTP_PROXY"]:
+            self.sess.proxies.update({"http": cfg["HTTP_PROXY"], "https": cfg["HTTP_PROXY"]})
         if self.title_regex:
             self.title_regex = re.compile(self.title_regex)
         # placeholders

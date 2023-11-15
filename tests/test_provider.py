@@ -19,6 +19,7 @@ cfg = {
     "ADD_XMLTV_NS": False,
     "GET_MORE_DETAILS": False,
     "ADD_CHANNEL_ICON": True,
+    "HTTP_PROXY": None,
     "MY_CHANNELS": "*",
 }
 
