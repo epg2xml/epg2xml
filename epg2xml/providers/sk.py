@@ -34,7 +34,6 @@ class SK(EPGProvider):
 
     referer = "https://cyber.skbroadband.com/"
     title_regex = r"^(.*?)(\(([\d,]+)회\))?(<(.*)>)?(\((재)\))?$"
-    no_endtime = False
 
     def get_svc_channels(self) -> List[dict]:
         svc_channels = []
@@ -55,7 +54,7 @@ class SK(EPGProvider):
                 )
         return svc_channels
 
-    def get_programs(self, lazy_write: bool = False) -> None:
+    def get_programs(self) -> None:
         max_ndays = 3
         if int(self.cfg["FETCH_LIMIT"]) > max_ndays:
             log.warning(
@@ -90,8 +89,6 @@ class SK(EPGProvider):
                     log.exception("프로그램 파싱 중 예외: %s, %s", _ch, day)
                 else:
                     _ch.programs.extend(_epgs)
-            if not lazy_write:
-                _ch.to_xml(self.cfg, no_endtime=self.no_endtime)
 
     def __epgs_of_day(self, channelid: str, data: list, day: datetime) -> List[EPGProgram]:
         _epgs = []

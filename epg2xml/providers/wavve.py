@@ -21,7 +21,6 @@ class WAVVE(EPGProvider):
 
     referer = "https://www.wavve.com/"
     title_regex = r"^(.*?)(?:\s*[\(<]?([\d]+)회[\)>]?)?(?:\([월화수목금토일]?\))?(\([선별전주\(\)재방]*?재[\d방]?\))?\s*(?:\[(.+)\])?$"
-    no_endtime = False
 
     base_url = "https://apis.wavve.com"
     base_params = {
@@ -121,7 +120,7 @@ class WAVVE(EPGProvider):
         _epg.crew += [{"name": x["text"], "title": "writer"} for x in writers["list"]]
         return _epg
 
-    def get_programs(self, lazy_write: bool = False) -> None:
+    def get_programs(self) -> None:
         # parameters for requests
         params = {
             "enddatetime": (today + timedelta(days=int(self.cfg["FETCH_LIMIT"]) - 1)).strftime("%Y-%m-%d 24:00"),
@@ -141,8 +140,6 @@ class WAVVE(EPGProvider):
                     log.exception("프로그램 파싱 중 예외: %s", _ch)
                 else:
                     _ch.programs.append(_epg)
-            if not lazy_write:
-                _ch.to_xml(self.cfg, no_endtime=self.no_endtime)
 
     @lru_cache
     def get_program_details(self, programid: str) -> dict:

@@ -18,7 +18,6 @@ class SPOTV(EPGProvider):
 
     referer = "https://www.spotvnow.co.kr/channel"
     title_regex = r"\s?(?:\[(.*?)\])?\s?(.*?)\s?(?:\((.*)\))?\s?(?:<([\d,]+)회>)?\s?$"
-    no_endtime = False
 
     def get_svc_channels(self) -> List[dict]:
         url = "https://www.spotvnow.co.kr/api/v3/channel"
@@ -38,7 +37,7 @@ class SPOTV(EPGProvider):
             return datetime.strptime(dt.replace("24:00", "00:00"), "%Y-%m-%d %H:%M") + timedelta(days=1)
         return datetime.strptime(dt, "%Y-%m-%d %H:%M")
 
-    def get_programs(self, lazy_write: bool = False) -> None:
+    def get_programs(self) -> None:
         max_ndays = 5
         if int(self.cfg["FETCH_LIMIT"]) > max_ndays:
             log.warning(
@@ -73,8 +72,6 @@ class SPOTV(EPGProvider):
                 log.exception("프로그램 파싱 중 예외: %s", _ch)
             else:
                 _ch.programs.extend(_epgs)
-            if not lazy_write:
-                _ch.to_xml(self.cfg, no_endtime=self.no_endtime)
 
     def __epgs_of_channel(self, channelid: str, data: dict, svcid: str) -> List[EPGProgram]:
         programs = [x for x in data if x["channelId"] == svcid]

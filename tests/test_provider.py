@@ -68,7 +68,7 @@ if len(sys.argv) > 2:
     provider.req_channels = rch
 
 stime = timer()
-provider.get_programs(lazy_write=True)
+provider.get_programs()
 etime_prog = timer() - stime
 num_rch = len(provider.req_channels)
 

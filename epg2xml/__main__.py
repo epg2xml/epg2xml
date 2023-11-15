@@ -1,7 +1,7 @@
 import logging
 import socket
 import sys
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack
 
 from epg2xml import __title__, __version__
@@ -47,6 +47,15 @@ def main():
             for p in providers:
                 p.load_req_channels()
 
+            log.debug("Getting EPG...")
+            if conf.settings["parallel"]:
+                with ThreadPoolExecutor() as exe:
+                    for p in providers:
+                        exe.submit(p.get_programs)
+            else:
+                for p in providers:
+                    p.get_programs()
+
             log.info("Writing xmltv.dtd header...")
             print('<?xml version="1.0" encoding="UTF-8"?>')
             print('<!DOCTYPE tv SYSTEM "xmltv.dtd">\n')
@@ -57,17 +66,9 @@ def main():
             for p in providers:
                 p.write_channels()
 
-            log.debug("Getting EPG...")
-            if conf.settings["parallel"]:
-                with ThreadPoolExecutor() as exe:
-                    f2p = {exe.submit(p.get_programs, lazy_write=True): p for p in providers}
-                    for future in as_completed(f2p):
-                        p = f2p[future]
-                        p.write_programs()
-            else:
-                for p in providers:
-                    if p.req_channels:
-                        p.get_programs()
+            log.debug("Writing programs...")
+            for p in providers:
+                p.write_programs()
 
             log.info("Done")
     elif conf.args["cmd"] == "update_channels":

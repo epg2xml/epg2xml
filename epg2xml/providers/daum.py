@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from typing import List
 from urllib.parse import quote
 
-from epg2xml.providers import EPGProgram, EPGProvider
+from epg2xml.providers import EPGProgram, EPGProvider, no_endtime
 from epg2xml.utils import ParserBeautifulSoup as BeautifulSoup
 
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
@@ -22,7 +22,6 @@ class DAUM(EPGProvider):
     """
 
     referer = None
-    no_endtime = True
     title_regex = r"^(?P<title>.*?)\s?([\<\(]?(?P<part>\d{1})부[\>\)]?)?\s?(<(?P<subname1>.*)>)?\s?((?P<epnum>\d+)회)?\s?(<(?P<subname2>.*)>)?$"
 
     def get_svc_channels(self) -> List[dict]:
@@ -50,7 +49,8 @@ class DAUM(EPGProvider):
                 )
         return svc_channels
 
-    def get_programs(self, lazy_write: bool = False) -> None:
+    @no_endtime
+    def get_programs(self) -> None:
         url = "https://search.daum.net/search?DA=B3T&w=tot&rtmaxcoll=B3T&q={}"
         for idx, _ch in enumerate(self.req_channels):
             log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)
@@ -64,8 +64,6 @@ class DAUM(EPGProvider):
                 log.exception("프로그램 파싱 중 예외: %s", _ch)
             else:
                 _ch.programs.extend(_epgs)
-            if not lazy_write:
-                _ch.to_xml(self.cfg, no_endtime=self.no_endtime)
 
     def __epgs_of_days(self, channelid: str, data: str) -> List[EPGProgram]:
         soup = BeautifulSoup(data)
