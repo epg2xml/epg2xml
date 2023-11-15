@@ -32,13 +32,13 @@ class SK(EPGProvider):
     - 최대 3일치를 한 번에
     """
 
-    referer = "https://cyber.skbroadband.com/"
+    referer = "https://www.bworld.co.kr/"
     title_regex = r"^(.*?)(\(([\d,]+)회\))?(<(.*)>)?(\((재)\))?$"
 
     def get_svc_channels(self) -> List[dict]:
         svc_channels = []
-        url = "https://www.skbroadband.com/content/realtime/realtime_list.ajax"
-        params = {"package_name": "PM50305785"}
+        url = "https://www.bworld.co.kr/content/realtime/realtime_list.ajax"
+        params = {"pack": "PM50305785"}
         c_name = ""
         for x in self.request(url, params=params):
             if x["depth"] == "1":
@@ -48,7 +48,7 @@ class SK(EPGProvider):
                     {
                         "Name": unescape(x["m_name"]),
                         "No": str(x["ch_no"]),
-                        "ServiceId": x["c_menu"],
+                        "ServiceId": x["id_svc"],
                         "Category": c_name,
                     }
                 )
@@ -69,7 +69,7 @@ class SK(EPGProvider):
                 self.provider_name,
                 max_ndays,
             )
-        url = "https://cyber.skbroadband.com/core-prod/product/btv-channel/week-frmt-list"
+        url = "https://www.bworld.co.kr/myb/core-prod/product/btv-channel/week-frmt-list"
         params = {"idSvc": "SVCID", "stdDt": "EPGDATE", "gubun": "week"}
 
         for idx, _ch in enumerate(self.req_channels):
