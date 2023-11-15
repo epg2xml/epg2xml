@@ -210,8 +210,7 @@ class EPGChannel:
             try:
                 prog.etime = self.programs[ind + 1].stime
             except IndexError:
-                prog.etime = prog.stime + timedelta(days=1)
-                prog.etime.replace(hour=0, minute=0, second=0)
+                prog.etime = (prog.stime + timedelta(days=1)).replace(hour=0, minute=0, second=0)
 
     def to_xml(self) -> None:
         chel = Element("channel", id=self.id)
