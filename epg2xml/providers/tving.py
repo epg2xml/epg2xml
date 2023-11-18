@@ -6,7 +6,6 @@ from typing import List
 import requests
 
 from epg2xml.providers import EPGProgram, EPGProvider
-from epg2xml.utils import request_data
 
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 today = date.today()
@@ -34,9 +33,10 @@ class TVING(EPGProvider):
     """
 
     referer = "https://www.tving.com/schedule/main.do"
+    tps = 3.0
 
     url = "https://api.tving.com/v2/media/schedules"
-    params = {
+    base_params = {
         "pageNo": "1",
         "pageSize": "20",  # maximum 20
         "order": "chno",
@@ -55,13 +55,19 @@ class TVING(EPGProvider):
         "apiKey": "1e7952d0917d6aab1f0293a063697610",
     }
 
-    def request(self, url: str, method: str = "GET", **kwargs) -> List[dict]:
-        kwargs.setdefault("params", {})
+    def __params(self, **params) -> dict:
+        """returns url parameters for api requests with base ones"""
+        p = self.base_params.copy()
+        p.update(params)
+        return p
+
+    def __get(self, url: str, **kwargs) -> List[dict]:
+        params = self.__params(**kwargs.pop("params", {}))
         _page = 1
         _results = []
         while True:
-            kwargs["params"]["pageNo"] = str(_page)
-            _data = request_data(url=url, method=method, session=self.sess, **kwargs)
+            params["pageNo"] = str(_page)
+            _data = self.request(url=url, params=params, **kwargs)
             if _data["header"]["status"] != 200:
                 raise requests.exceptions.RequestException
             _results.extend(_data["body"]["result"])
@@ -84,14 +90,12 @@ class TVING(EPGProvider):
                     pass
             return ""
 
-        self.params.update(
-            {
-                "broadDate": today.strftime("%Y%m%d"),
-                "broadcastDate": today.strftime("%Y%m%d"),
-                "startBroadTime": datetime.now().strftime("%H0000"),
-                "endBroadTime": (datetime.now() + timedelta(hours=3)).strftime("%H0000"),
-            }
-        )
+        params = {
+            "broadDate": today.strftime("%Y%m%d"),
+            "broadcastDate": today.strftime("%Y%m%d"),
+            "startBroadTime": datetime.now().strftime("%H0000"),
+            "endBroadTime": (datetime.now() + timedelta(hours=3)).strftime("%H0000"),
+        }
         return [
             {
                 "Name": x["channel_name"]["ko"],
@@ -99,7 +103,7 @@ class TVING(EPGProvider):
                 "ServiceId": x["channel_code"],
                 "Category": x["schedules"][0]["channel"]["category_name"]["ko"],
             }
-            for x in self.request(self.url, params=self.params)
+            for x in self.__get(self.url, params=params)
             if x["schedules"] is not None
         ]
 
@@ -112,32 +116,30 @@ class TVING(EPGProvider):
                 group = tuple(islice(it, n))
 
         for gid, chgroup in enumerate(grouper(self.req_channels, 20)):
-            channeldict = {}
-            self.params.update({"channelCode": ",".join([x.svcid.strip() for x in chgroup])})
+            schdict = {}
+            params = {"channelCode": ",".join([x.svcid.strip() for x in chgroup])}
             for nd in range(int(self.cfg["FETCH_LIMIT"])):
                 day = today + timedelta(days=nd)
-                self.params.update({"broadDate": day.strftime("%Y%m%d"), "broadcastDate": day.strftime("%Y%m%d")})
+                params.update({"broadDate": day.strftime("%Y%m%d"), "broadcastDate": day.strftime("%Y%m%d")})
                 for t in range(8):
-                    self.params.update({"startBroadTime": f"{t*3:02d}0000", "endBroadTime": f"{t*3+3:02d}0000"})
-                    for ch in self.request(self.url, params=self.params):
-                        try:
-                            if ch["schedules"]:
-                                channeldict[ch["channel_code"]]["schedules"] += ch["schedules"]
-                        except KeyError:
-                            channeldict[ch["channel_code"]] = ch
+                    params.update({"startBroadTime": f"{t*3:02d}0000", "endBroadTime": f"{t*3+3:02d}0000"})
+                    for ch in self.__get(self.url, params=params):
+                        chcode = ch["channel_code"]
+                        schdict.setdefault(chcode, [])
+                        schdict[chcode] += ch.get("schedules") or []
 
             for idx, _ch in enumerate(chgroup):
                 log.info("%03d/%03d %s", gid * 20 + idx + 1, len(self.req_channels), _ch)
                 try:
-                    _epgs = self.__epgs_of_channel(_ch.id, channeldict[_ch.svcid])
+                    _epgs = self.__epgs_of_channel(_ch.id, schdict[_ch.svcid])
                 except Exception:
                     log.exception("프로그램 파싱 중 예외: %s", _ch)
                 else:
                     _ch.programs.extend(_epgs)
 
-    def __epgs_of_channel(self, channelid: str, data: dict) -> List[EPGProgram]:
+    def __epgs_of_channel(self, channelid: str, schedules: List[dict]) -> List[EPGProgram]:
         _epgs = []
-        for sch in data["schedules"]:
+        for sch in schedules:
             _epg = EPGProgram(channelid)
             # 공통
             _epg.stime = datetime.strptime(str(sch["broadcast_start_time"]), "%Y%m%d%H%M%S")
