@@ -2,16 +2,14 @@ import json
 import logging
 import re
 import sys
+import threading
 import time
 import xml.etree.ElementTree as ET
+from functools import wraps
+from math import floor
+from typing import Callable
 
-import requests
 from bs4 import BeautifulSoup, FeatureNotFound
-
-ua = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.90 Safari/537.36"
-)
-req_sleep = 1
 
 log = logging.getLogger("UTILS")
 
@@ -23,23 +21,6 @@ def dump_json(file_path, data) -> int:
         txt = re.sub(r",\n\s{8}\"", ', "', txt)
         txt = re.sub(r"\s{6}{\s+(.*)\s+}", r"      { \g<1> }", txt)
         return f.write(txt)
-
-
-def request_data(url, method="GET", session=None, **kwargs):
-    ret = ""
-    with session or requests.Session() as sess:
-        try:
-            r = sess.request(method=method, url=url, **kwargs)
-            try:
-                ret = r.json()
-            except (json.decoder.JSONDecodeError, ValueError):
-                ret = r.text
-        except requests.exceptions.HTTPError as e:
-            log.error("요청 중 에러: %s", e)
-        except Exception:
-            log.exception("요청 중 예외:")
-    time.sleep(req_sleep)
-    return ret
 
 
 # https://stackoverflow.com/a/22273639
@@ -150,3 +131,66 @@ class ParserBeautifulSoup(BeautifulSoup):
                 pass
 
         raise FeatureNotFound
+
+
+class RateLimiter:
+    """original implementation by tomasbasham/ratelimit"""
+
+    try:
+        now: Callable = time.monotonic  # Use monotonic time if available
+    except AttributeError:
+        now: Callable = time.time  # otherwise fall back to the system clock
+
+    def __init__(self, calls: int = 15, period: float = 900.0, tps: float = None):
+        if tps is not None:
+            if tps <= 0.0:
+                raise ValueError("tps must be positive")
+            calls, period = 1, 1 / tps
+        self.max_calls = max(1, min(sys.maxsize, floor(calls)))
+        self.period = period
+
+        # Initialise the decorator state.
+        self.last_reset = self.now()
+        self.num_calls = 0
+
+        # Add thread safety.
+        self.lock = threading.RLock()
+
+    def __call__(self, func: Callable) -> Callable:
+        """
+        Return a wrapped function that prevents further function invocations if
+        previously called within a specified period of time.
+        """
+
+        @wraps(func)
+        def wrapper(*args, **kargs):
+            """
+            Extend the behaviour of the decorated function, forwarding function
+            invocations previously called no sooner than a specified period of
+            time. The decorator will raise an exception if the function cannot
+            be called so the caller may implement a retry strategy such as an
+            exponential backoff.
+            """
+            with self.lock:
+                period_remaining = self.__period_remaining()
+
+                # If the time window has elapsed then reset.
+                if period_remaining <= 0:
+                    self.num_calls = 0
+                    self.last_reset = self.now()
+
+                # Increase the number of attempts to call the function.
+                self.num_calls += 1
+
+                # If the number of attempts to call the function exceeds the maximum
+                if self.num_calls > self.max_calls:
+                    self.last_reset = self.now() + period_remaining  # for future call
+                    time.sleep(period_remaining)
+                    return func(*args, **kargs)
+            return func(*args, **kargs)
+
+        return wrapper
+
+    def __period_remaining(self) -> float:
+        elapsed = self.now() - self.last_reset
+        return self.period - elapsed

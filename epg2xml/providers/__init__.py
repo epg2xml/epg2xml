@@ -9,9 +9,9 @@ from functools import wraps
 from importlib import import_module
 from typing import List, Union
 
-from requests import Session
+import requests
 
-from epg2xml.utils import Element, PrefixLogger, dump_json, request_data, ua
+from epg2xml.utils import Element, PrefixLogger, RateLimiter, dump_json
 
 log = logging.getLogger("PROV")
 
@@ -226,28 +226,44 @@ class EPGChannel:
         print(chel.tostring(level=1))
 
 
+UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
+
+
 class EPGProvider:
     """Base class for EPG Providers"""
 
     referer: str = None
     title_regex: Union[str, re.Pattern] = None
+    tps: float = 1.0
     was_channel_updated: bool = False
 
     def __init__(self, cfg: dict):
         self.provider_name = self.__class__.__name__
         self.cfg = cfg
-        self.sess = Session()
-        self.sess.headers.update({"User-Agent": ua, "Referer": self.referer})
+        self.sess = requests.Session()
+        self.sess.headers.update({"User-Agent": UA, "Referer": self.referer})
         if cfg["HTTP_PROXY"]:
             self.sess.proxies.update({"http": cfg["HTTP_PROXY"], "https": cfg["HTTP_PROXY"]})
         if self.title_regex:
             self.title_regex = re.compile(self.title_regex)
+        self.request = RateLimiter(tps=self.tps)(self.__request)
         # placeholders
         self.svc_channels: List[dict] = []
         self.req_channels: List[EPGChannel] = []
 
-    def request(self, url: str, method: str = "GET", **kwargs):
-        return request_data(url=url, method=method, session=self.sess, **kwargs)
+    def __request(self, url: str, method: str = "GET", **kwargs) -> str:
+        ret = ""
+        try:
+            r = self.sess.request(method=method, url=url, **kwargs)
+            try:
+                ret = r.json()
+            except (json.decoder.JSONDecodeError, ValueError):
+                ret = r.text
+        except requests.exceptions.HTTPError as e:
+            log.error("요청 중 에러: %s", e)
+        except Exception:
+            log.exception("요청 중 예외:")
+        return ret
 
     def load_svc_channels(self, channeljson: dict = None) -> None:
         plog = PrefixLogger(log, f"[{self.provider_name:5s}]")
