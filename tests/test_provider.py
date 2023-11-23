@@ -7,7 +7,7 @@ from random import shuffle
 from timeit import default_timer as timer
 
 from epg2xml import __title__, __version__
-from epg2xml.providers import load_providers
+from epg2xml.providers import EPGHandler
 
 cfg = {
     "ENABLED": True,
@@ -42,7 +42,7 @@ rootLogger.addHandler(consolehandler)
 log = rootLogger.getChild("TEST")
 
 provider_name = sys.argv[1]
-provider = load_providers({provider_name.upper(): cfg})[0]
+provider = EPGHandler({provider_name.upper(): cfg}).providers[0]
 
 if provider_name.lower() == "daum":
     cfg["ID_FORMAT"] = "{No}.{Source.lower()}"

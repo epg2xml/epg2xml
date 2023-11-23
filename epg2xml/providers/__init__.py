@@ -2,6 +2,7 @@ import json
 import logging
 import re
 import sys
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field, fields
 from datetime import datetime, timedelta
@@ -11,6 +12,7 @@ from typing import List, Union
 
 import requests
 
+from epg2xml import __title__, __version__
 from epg2xml.utils import Element, PrefixLogger, RateLimiter, dump_json
 
 log = logging.getLogger("PROV")
@@ -354,41 +356,78 @@ def no_endtime(func):
     return wrapped
 
 
-def load_providers(cfgs: dict) -> List[EPGProvider]:
-    providers = []
-    for name, cfg in cfgs.items():
-        if not cfg["ENABLED"]:
-            continue
+class EPGHandler:
+    """for handling EPGProviders"""
+
+    def __init__(self, cfgs: dict):
+        self.providers: List[EPGProvider] = self.load_providers(cfgs)
+
+    def load_providers(self, cfgs: dict) -> List[EPGProvider]:
+        providers = []
+        for name, cfg in cfgs.items():
+            if not cfg["ENABLED"]:
+                continue
+            try:
+                m = import_module(f"epg2xml.providers.{name.lower()}")
+                providers.append(getattr(m, name.upper())(cfg))
+            except ModuleNotFoundError:
+                log.error("No such provider found: '%s'", name)
+                sys.exit(1)
+        return providers
+
+    def load_channels(self, channelfile: str, parallel: bool = False) -> None:
         try:
-            m = import_module(f"epg2xml.providers.{name.lower()}")
-            providers.append(getattr(m, name.upper())(cfg))
-        except ModuleNotFoundError:
-            log.error("No such provider found: '%s'", name)
-            sys.exit(1)
-    return providers
+            log.debug("Trying to load cached channels from json")
+            with open(channelfile, "r", encoding="utf-8") as fp:
+                channeljson = json.load(fp)
+        except (json.decoder.JSONDecodeError, ValueError, FileNotFoundError) as e:
+            log.debug("Failed to load cached channels from json: %s", e)
+            channeljson = {}
+        if parallel:
+            with ThreadPoolExecutor() as exe:
+                for p in self.providers:
+                    exe.submit(p.load_svc_channels, channeljson=channeljson)
+        else:
+            for p in self.providers:
+                p.load_svc_channels(channeljson=channeljson)
+        if any(p.was_channel_updated for p in self.providers):
+            for p in self.providers:
+                channeljson[p.provider_name.upper()] = {
+                    "UPDATED": datetime.now().isoformat(),
+                    "TOTAL": len(p.svc_channels),
+                    "CHANNELS": p.svc_channels,
+                }
+            dump_json(channelfile, channeljson)
+            log.info("Channel file was upgraded. You may check the changes here: %s", channelfile)
 
+    def load_req_channels(self):
+        for p in self.providers:
+            p.load_req_channels()
 
-def load_channels(providers: List[EPGProvider], channelfile: str, parallel: bool = False) -> None:
-    try:
-        log.debug("Trying to load cached channels from json")
-        with open(channelfile, "r", encoding="utf-8") as fp:
-            channeljson = json.load(fp)
-    except (json.decoder.JSONDecodeError, ValueError, FileNotFoundError) as e:
-        log.debug("Failed to load cached channels from json: %s", e)
-        channeljson = {}
-    if parallel:
-        with ThreadPoolExecutor() as exe:
-            for p in providers:
-                exe.submit(p.load_svc_channels, channeljson=channeljson)
-    else:
-        for p in providers:
-            p.load_svc_channels(channeljson=channeljson)
-    if any(p.was_channel_updated for p in providers):
-        for p in providers:
-            channeljson[p.provider_name.upper()] = {
-                "UPDATED": datetime.now().isoformat(),
-                "TOTAL": len(p.svc_channels),
-                "CHANNELS": p.svc_channels,
-            }
-        dump_json(channelfile, channeljson)
-        log.info("Channel file was upgraded. You may check the changes here: %s", channelfile)
+        log.debug("Checking uniqueness of channelid...")
+        cids = [c.id for p in self.providers for c in p.req_channels]
+        assert len(cids) == len(set(cids)), f"채널ID 중복: { {k:v for k,v in Counter(cids).items() if v > 1} }"
+
+    def get_programs(self, parallel: bool = False):
+        if parallel:
+            with ThreadPoolExecutor() as exe:
+                for p in self.providers:
+                    exe.submit(p.get_programs)
+        else:
+            for p in self.providers:
+                p.get_programs()
+
+    def to_xml(self):
+        print('<?xml version="1.0" encoding="UTF-8"?>')
+        print('<!DOCTYPE tv SYSTEM "xmltv.dtd">\n')
+        print(f'<tv generator-info-name="{__title__} v{__version__}">')
+
+        log.debug("Writing channels...")
+        for p in self.providers:
+            p.write_channels()
+
+        log.debug("Writing programs...")
+        for p in self.providers:
+            p.write_programs()
+
+        print("</tv>")
