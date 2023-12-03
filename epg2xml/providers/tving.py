@@ -126,7 +126,14 @@ class TVING(EPGProvider):
                     for ch in self.__get(self.url, params=params):
                         chcode = ch["channel_code"]
                         schdict.setdefault(chcode, [])
-                        schdict[chcode] += ch.get("schedules") or []
+                        toappend = ch.get("schedules") or []
+                        try:
+                            # 3시간 단위로 요청된 스케줄 앞 뒤로 중복이 있을 수 있다.
+                            if schdict[chcode][-1] == toappend[0]:
+                                toappend = toappend[1:]
+                        except Exception:
+                            pass
+                        schdict[chcode] += toappend
 
             for idx, _ch in enumerate(chgroup):
                 log.info("%03d/%03d %s", gid * 20 + idx + 1, len(self.req_channels), _ch)
