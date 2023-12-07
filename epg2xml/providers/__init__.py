@@ -61,21 +61,21 @@ class EPGProgram:
     title_sub: str = None
     part_num: str = None
     ep_num: str = None
-    categories: List[str] = field(default_factory=list)
+    categories: List[str] = None
     rebroadcast: bool = False
     rating: int = 0
     # not usually given by default
     desc: str = None
     poster_url: str = None
-    cast: List[dict] = field(default_factory=list)  # 출연진
-    crew: List[dict] = field(default_factory=list)  # 제작진
-    extras: List[str] = field(default_factory=list)
-    keywords: List[str] = field(default_factory=list)
+    cast: List[dict] = None  # 출연진
+    crew: List[dict] = None  # 제작진
+    extras: List[str] = None
+    keywords: List[str] = None
 
     def sanitize(self) -> None:
         for f in fields(self):
             attr = getattr(self, f.name)
-            if f.type == List[str]:
+            if f.type == List[str] and attr is not None:
                 setattr(self, f.name, [x.strip() for x in filter(bool, attr) if x.strip()])
             elif f.type == str:
                 setattr(self, f.name, (attr or "").strip())
@@ -88,10 +88,10 @@ class EPGProgram:
         etime = self.etime.strftime("%Y%m%d%H%M%S +0900")
         title = self.title
         title_sub = self.title_sub
-        cast = self.cast
-        crew = self.crew
-        categories = self.categories
-        keywords = self.keywords
+        cast = self.cast or []
+        crew = self.crew or []
+        categories = self.categories or []
+        keywords = self.keywords or []
         episode = self.ep_num
         rebroadcast = "재" if self.rebroadcast else ""
         rating = "전체 관람가" if self.rating == 0 else f"{self.rating}세 이상 관람가"
