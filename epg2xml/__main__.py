@@ -28,7 +28,7 @@ def main():
     log.debug("Loading providers...")
     h = EPGHandler(conf.configs)
 
-    if conf.args["cmd"] == "run":
+    if conf.args["cmd"] in ["run", "fromdb"]:
         with ExitStack() as stack:
             # redirecting stdout to...
             if conf.settings["xmlfile"]:
@@ -38,14 +38,21 @@ def main():
                 sock.connect(conf.settings["xmlsock"])
                 sys.stdout = stack.enter_context(sock.makefile("w"))
 
-            log.debug("Loading service channels...")
-            h.load_channels(conf.settings["channelfile"], conf.settings["parallel"])
+            if conf.args["cmd"] == "fromdb":
+                log.debug("Importing from dbfile...")
+                h.from_db(conf.settings["dbfile"])
+            else:
+                log.debug("Loading service channels...")
+                h.load_channels(conf.settings["channelfile"], conf.settings["parallel"])
 
-            log.debug("Loading requested channels...")
-            h.load_req_channels()
+                log.debug("Loading requested channels...")
+                h.load_req_channels()
 
-            log.debug("Getting EPG...")
-            h.get_programs(conf.settings["parallel"])
+                log.debug("Getting EPG...")
+                h.get_programs(conf.settings["parallel"])
+
+                log.debug("Exporting to dbfile...")
+                h.to_db(conf.settings["dbfile"])
 
             log.info("Writing xmltv.dtd header...")
             h.to_xml()

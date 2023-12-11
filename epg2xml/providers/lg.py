@@ -100,7 +100,7 @@ class LG(EPGProvider):
             _epg.desc = p["brdPgmDscr"]
             _epg.stime = datetime.strptime(p["brdCntrTvChnlBrdDt"] + p["epgStrtTme"], "%Y%m%d%H:%M:%S")
             _epg.rating = G_CODE.get(p["brdWtchAgeGrdCd"], 0)
-            _epg.extras.append(p["brdPgmRsolNm"])  # 화질
+            _epg.extras = [p["brdPgmRsolNm"]]  # 화질
             if p["subtBrdYn"] == "Y":
                 _epg.extras.append("자막")
             if p["explBrdYn"] == "Y":
@@ -113,6 +113,7 @@ class LG(EPGProvider):
                 _epg.title_sub = (matches.group(2) or "").strip()
                 _epg.ep_num = matches.group(3) or ""
                 _epg.rebroadcast = bool(matches.group(4))
-            _epg.categories = [P_CATE[p["urcBrdCntrTvSchdGnreCd"]]]
+            if P_CATE[p["urcBrdCntrTvSchdGnreCd"]]:
+                _epg.categories = [P_CATE[p["urcBrdCntrTvSchdGnreCd"]]]
             _epgs.append(_epg)
         return _epgs
