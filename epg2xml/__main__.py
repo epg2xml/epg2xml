@@ -28,17 +28,17 @@ def main():
     log.debug("Loading providers...")
     h = EPGHandler(conf.configs)
 
-    if conf.args["cmd"] in ["run", "fromdb"]:
+    if (cmd := conf.args["cmd"]) in ["run", "fromdb"]:
         with ExitStack() as stack:
             # redirecting stdout to...
-            if conf.settings["xmlfile"]:
-                sys.stdout = stack.enter_context(open(conf.settings["xmlfile"], "w", encoding="utf-8"))
-            elif conf.settings["xmlsock"]:
+            if xmlfile := conf.settings["xmlfile"]:
+                sys.stdout = stack.enter_context(open(xmlfile, "w", encoding="utf-8"))
+            elif xmlsock := conf.settings["xmlsock"]:
                 sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-                sock.connect(conf.settings["xmlsock"])
+                sock.connect(xmlsock)
                 sys.stdout = stack.enter_context(sock.makefile("w"))
 
-            if conf.args["cmd"] == "fromdb":
+            if cmd == "fromdb":
                 log.debug("Importing from dbfile...")
                 h.from_db(conf.settings["dbfile"])
             else:
@@ -58,10 +58,10 @@ def main():
             h.to_xml()
 
             log.info("Done")
-    elif conf.args["cmd"] == "update_channels":
+    elif cmd == "update_channels":
         h.load_channels(conf.settings["channelfile"], conf.settings["parallel"])
     else:
-        raise NotImplementedError(f"Unknown command: {conf.args['cmd']}")
+        raise NotImplementedError(f"Unknown command: {cmd}")
 
 
 if __name__ == "__main__":

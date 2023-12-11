@@ -104,8 +104,7 @@ class EPGProgram:
         _p = Element("programme", start=stime, stop=etime, channel=self.channelid)
 
         # title, sub-title
-        matches = PTN_TITLE.match(title)
-        if matches:
+        if matches := PTN_TITLE.match(title):
             title = matches.group(1).strip()
             title_sub = (matches.group(2) + " " + title_sub).strip()
         title = [
@@ -146,8 +145,7 @@ class EPGProgram:
         # categories
         for cat_ko in categories:
             _p.append(Element("category", cat_ko, lang="ko"))
-            cat_en = CAT_KO2EN.get(cat_ko)
-            if cat_en:
+            if cat_en := CAT_KO2EN.get(cat_ko):
                 _p.append(Element("category", cat_en, lang="en"))
 
         # keywords
@@ -248,8 +246,8 @@ class EPGProvider:
         self.cfg = cfg
         self.sess = requests.Session()
         self.sess.headers.update({"User-Agent": UA, "Referer": self.referer})
-        if cfg["HTTP_PROXY"]:
-            self.sess.proxies.update({"http": cfg["HTTP_PROXY"], "https": cfg["HTTP_PROXY"]})
+        if http_proxy := cfg["HTTP_PROXY"]:
+            self.sess.proxies.update({"http": http_proxy, "https": http_proxy})
         if self.title_regex:
             self.title_regex = re.compile(self.title_regex)
         self.request = RateLimiter(tps=self.tps)(self.__request)
