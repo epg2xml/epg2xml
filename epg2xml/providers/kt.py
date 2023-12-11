@@ -91,11 +91,11 @@ class KT(EPGProvider):
 
     def __epgs_of_day(self, channelid: str, data: str, day: datetime) -> List[EPGProgram]:
         _epgs = []
-        soup = BeautifulSoup(data, parse_only=SoupStrainer("tbody"))
+        soup = BeautifulSoup(unquote(data), parse_only=SoupStrainer("tbody"))
         for row in soup.find_all("tr"):
             cell = row.find_all("td")
             hour = cell[0].text.strip()
-            for minute, program, category in zip(cell[1].find_all("p"), cell[2].find_all("p"), cell[3].find_all("p")):
+            for minute, program, category in zip(*[c.find_all("p") for c in cell[1:]]):
                 _epg = EPGProgram(channelid)
                 _epg.stime = datetime.strptime(f"{day} {hour}:{minute.text.strip()}", "%Y-%m-%d %H:%M")
                 _epg.title = program.text.replace("방송중 ", "").strip()
