@@ -296,8 +296,8 @@ class Config:
         parser.add_argument(
             "cmd",
             metavar="command",
-            choices=("run", "update_channels"),
-            help=('"run": XML 형식으로 출력\n' '"update_channels": 채널 정보 업데이트'),
+            choices=("run", "fromdb", "update_channels"),
+            help=('"run": XML 형식으로 출력\n' '"fromdb": dbfile로부터 불러오기\n' '"update_channels": 채널 정보 업데이트'),
         )
 
         # Display version info
@@ -367,7 +367,7 @@ class Config:
             self.base_settings["dbfile"]["argv"],
             nargs="?",
             const=None,
-            help="write output to db if specified",
+            help="export/import data to/from db",
         )
 
         # Print help by default if no arguments

@@ -6,7 +6,7 @@ import sys
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
-from dataclasses import dataclass, fields, astuple
+from dataclasses import astuple, dataclass, fields
 from datetime import datetime, timedelta
 from functools import wraps
 from importlib import import_module
@@ -453,6 +453,15 @@ class EPGHandler:
             db.insert_channels(self.all_channels)
             db.insert_programs(self.all_programs)
 
+    def from_db(self, dbfile: PathLike) -> None:
+        with SQLite(dbfile, "r") as db:
+            for p in self.providers:
+                for ch in db.queryall("SELECT * FROM epgchannel WHERE Source = ?", (p.provider_name,)):
+                    chn = EPGChannel(dict(ch))
+                    for prog in db.queryall("SELECT * FROM epgprogram WHERE channelid = ?", (chn.id,)):
+                        chn.programs.append(EPGProgram(**dict(prog)))
+                    p.req_channels.append(chn)
+
 
 sqlite3.register_adapter(bool, int)
 sqlite3.register_converter("BOOLEAN", lambda v: bool(int(v)))
@@ -510,3 +519,7 @@ class SQLite:
         with closing(self.conn.cursor()) as c:
             c.executemany(sql, map(astuple, programs))
         self.conn.commit()
+
+    def queryall(self, *args, **kwargs) -> List[sqlite3.Row]:
+        with closing(self.conn.cursor()) as c:
+            return c.execute(*args, **kwargs).fetchall()
