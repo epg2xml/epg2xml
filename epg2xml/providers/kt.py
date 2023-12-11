@@ -47,6 +47,7 @@ class KT(EPGProvider):
     """
 
     referer = "https://tv.kt.com/"
+    title_regex = r"^(?P<title>.*?)\s?([\<\(]?(?P<part>\d+)부[\>\)]?)?$"
 
     def get_svc_channels(self) -> List[dict]:
         svc_channels = []
@@ -100,6 +101,11 @@ class KT(EPGProvider):
                 _epg = EPGProgram(channelid)
                 _epg.stime = datetime.strptime(f"{day} {hour}:{minute.text.strip()}", "%Y-%m-%d %H:%M")
                 _epg.title = program.text.replace("방송중 ", "").strip()
+                if m := self.title_regex.match(_epg.title):
+                    _epg.title = m.group("title")
+                    if part_num := m.group("part"):
+                        _epg.part_num = part_num
+                        _epg.title += f" ({_epg.part_num}부)"
                 _epg.categories = [category.text.strip()]
                 for image in program.find_all("img", alt=True):
                     if "시청 가능" not in (alt := image["alt"]):
