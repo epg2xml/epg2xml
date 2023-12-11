@@ -186,15 +186,16 @@ class EPGProgram:
 class EPGChannel:
     """For individual channel entities"""
 
-    __slots__ = ["id", "src", "svcid", "name", "icon", "no", "programs"]
+    __slots__ = ["id", "src", "svcid", "name", "icon", "no", "category", "programs"]
 
     def __init__(self, channelinfo):
         self.id: str = channelinfo["Id"]
         self.src: str = channelinfo["Source"]
         self.svcid: str = channelinfo["ServiceId"]
         self.name: str = channelinfo["Name"]
-        self.icon: str = channelinfo.get("Icon_url", None)
-        self.no: str = channelinfo.get("No", None)
+        self.icon: str = channelinfo.get("Icon_url")
+        self.no: str = channelinfo.get("No")
+        self.category: str = channelinfo.get("Category")
         # placeholder
         self.programs: List[EPGProgram] = []
         """
@@ -493,7 +494,7 @@ class SQLite:
             return
         with closing(self.conn.cursor()) as c:
             # create table - epgchannel
-            c.execute("CREATE TABLE IF NOT EXISTS epgchannel (Id, Source, ServiceId, Name, Icon_url, No)")
+            c.execute("CREATE TABLE IF NOT EXISTS epgchannel (Id, Source, ServiceId, Name, Icon_url, No, Category)")
             # create table - epgprogram
             cols = [f"{f.name} {SQLITE_DTYPES.get(f.type, 'TEXT')}" for f in fields(EPGProgram)]
             c.execute(f"CREATE TABLE IF NOT EXISTS epgprogram ({', '.join(cols)})")
@@ -504,9 +505,9 @@ class SQLite:
 
     def insert_channels(self, channels: List[EPGChannel]) -> None:
         def _astuple(ch: EPGChannel) -> Tuple:
-            return (ch.id, ch.src, ch.svcid, ch.name, ch.icon, ch.no)
+            return (ch.id, ch.src, ch.svcid, ch.name, ch.icon, ch.no, ch.category)
 
-        sql = "INSERT INTO epgchannel VALUES (?,?,?,?,?,?)"
+        sql = "INSERT INTO epgchannel VALUES (?,?,?,?,?,?,?)"
         with closing(self.conn.cursor()) as c:
             c.executemany(sql, map(_astuple, channels))
         self.conn.commit()
