@@ -90,9 +90,11 @@ class NAVER(EPGProvider):
             _epg = EPGProgram(channelid)
             _epg.title = unescape(cell[4].text.strip())
             _epg.stime = datetime.strptime(f"{str(day)} {cell[1].text.strip()}", "%Y-%m-%d %H:%M")
-            for span in cell[3].findAll("span", {"class": "state_ico"}):
+            for span in cell[3].findAll("span"):
                 span_txt = span.text.strip()
-                if "re" in span["class"]:
+                if "ico_age" in span["class"]:
+                    _epg.rating = int(span_txt.rstrip("세"))
+                elif "re" in span["class"]:
                     _epg.rebroadcast = True
                 else:
                     _epg.extras = (_epg.extras or []) + [span_txt]
