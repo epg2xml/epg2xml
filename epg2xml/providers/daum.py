@@ -98,13 +98,12 @@ class DAUM(EPGProvider):
                         else:
                             # ico_live ico_hd ico_subtitle ico_hand ico_uhd ico_talk ico_st
                             _epg.extras = (_epg.extras or []) + [span.text.strip()]
-                    match = self.title_regex.search(_epg.title)
-                    _epg.title = match.group("title") or None
-                    _epg.part_num = match.group("part") or None
-                    _epg.ep_num = match.group("epnum") or ""
-                    _epg.title_sub = match.group("subname1") or ""
-                    _epg.title_sub = match.group("subname2") or _epg.title_sub
-                    if _epg.part_num:
-                        _epg.title += f" {_epg.part_num}부"
+                    if m := self.title_regex.search(_epg.title):
+                        _epg.title = m.group("title")
+                        _epg.part_num = m.group("part")
+                        _epg.ep_num = m.group("epnum")
+                        _epg.title_sub = m.group("subname2") or m.group("subname1")
+                        if _epg.part_num:
+                            _epg.title += f" {_epg.part_num}부"
                     _epgs.append(_epg)
         return _epgs

@@ -97,17 +97,16 @@ class SK(EPGProvider):
                 continue
             _epg = EPGProgram(channelid)
             _epg.title = info["nmTitle"]
-            matches = self.title_regex.match(_epg.title)
-            if matches:
-                _epg.title = matches.group(1) or ""
-                _epg.title_sub = matches.group(5) or ""
-                _epg.rebroadcast = bool(matches.group(7))
-                _epg.ep_num = matches.group(3) or ""
+            if m := self.title_regex.match(_epg.title):
+                _epg.title = m.group(1)
+                _epg.title_sub = m.group(5)
+                _epg.rebroadcast = bool(m.group(7))
+                _epg.ep_num = m.group(3)
             _epg.rating = int(info.get("cdRating") or "0")
             _epg.stime = datetime.strptime(info["dtEventStart"], "%Y%m%d%H%M%S")
             _epg.etime = datetime.strptime(info["dtEventEnd"], "%Y%m%d%H%M%S")
             if info["cdGenre"] and (info["cdGenre"] in GENRE_CODE):
                 _epg.categories = [GENRE_CODE[info["cdGenre"]]]
-            _epg.desc = info["nmSynop"]  # 값이 없음
+            _epg.desc = info["nmSynop"] or None  # 값이 없음
             _epgs.append(_epg)
         return _epgs
