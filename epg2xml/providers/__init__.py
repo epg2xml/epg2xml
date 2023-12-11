@@ -1,14 +1,18 @@
 import json
 import logging
 import re
+import sqlite3
 import sys
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field, fields
+from contextlib import closing
+from dataclasses import dataclass, fields, astuple
 from datetime import datetime, timedelta
 from functools import wraps
 from importlib import import_module
-from typing import List, Union
+from itertools import chain
+from os import PathLike
+from typing import Iterator, List, Literal, Tuple, Union
 
 import requests
 
@@ -431,3 +435,78 @@ class EPGHandler:
             p.write_programs()
 
         print("</tv>")
+
+    @property
+    def all_channels(self) -> Iterator:
+        """shortcut to access all channels in providers"""
+        return chain.from_iterable(p.req_channels for p in self.providers)
+
+    @property
+    def all_programs(self) -> Iterator:
+        """shortcut to access all programs in providers"""
+        return chain.from_iterable(ch.programs for ch in self.all_channels)
+
+    def to_db(self, dbfile: PathLike) -> None:
+        if dbfile is None:
+            return
+        with SQLite(dbfile, "w") as db:
+            db.insert_channels(self.all_channels)
+            db.insert_programs(self.all_programs)
+
+
+sqlite3.register_adapter(bool, int)
+sqlite3.register_converter("BOOLEAN", lambda v: bool(int(v)))
+sqlite3.register_adapter(list, lambda v: json.dumps(v, ensure_ascii=False))
+sqlite3.register_converter("JSON", json.loads)
+
+SQLITE_DTYPES = {
+    bool: "BOOLEAN",
+    datetime: "TIMESTAMP",
+    int: "INTEGER",
+    List[dict]: "JSON",
+    List[str]: "JSON",
+}
+
+
+class SQLite:
+    def __init__(self, dbfile: PathLike, mode: Literal["r", "w", "a"] = "r", **kwargs):
+        kwargs.setdefault("detect_types", sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
+        self.conn = sqlite3.connect(dbfile, **kwargs)
+        self.conn.row_factory = sqlite3.Row
+        self.__db_init(mode=mode)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.conn.close()
+
+    def __db_init(self, mode: Literal["r", "w", "a"]) -> None:
+        if mode == "r":
+            return
+        with closing(self.conn.cursor()) as c:
+            # create table - epgchannel
+            c.execute("CREATE TABLE IF NOT EXISTS epgchannel (Id, Source, ServiceId, Name, Icon_url, No)")
+            # create table - epgprogram
+            cols = [f"{f.name} {SQLITE_DTYPES.get(f.type, 'TEXT')}" for f in fields(EPGProgram)]
+            c.execute(f"CREATE TABLE IF NOT EXISTS epgprogram ({', '.join(cols)})")
+            if mode == "w":
+                c.execute("DELETE FROM epgchannel")
+                c.execute("DELETE FROM epgprogram")
+        self.conn.commit()
+
+    def insert_channels(self, channels: List[EPGChannel]) -> None:
+        def _astuple(ch: EPGChannel) -> Tuple:
+            return (ch.id, ch.src, ch.svcid, ch.name, ch.icon, ch.no)
+
+        sql = "INSERT INTO epgchannel VALUES (?,?,?,?,?,?)"
+        with closing(self.conn.cursor()) as c:
+            c.executemany(sql, map(_astuple, channels))
+        self.conn.commit()
+
+    def insert_programs(self, programs: List[EPGProgram]) -> None:
+        cols = [f.name for f in fields(EPGProgram)]
+        sql = f"INSERT INTO epgprogram({','.join(cols)}) VALUES ({','.join('?'*len(cols))})"
+        with closing(self.conn.cursor()) as c:
+            c.executemany(sql, map(astuple, programs))
+        self.conn.commit()

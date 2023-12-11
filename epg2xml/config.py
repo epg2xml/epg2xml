@@ -129,6 +129,11 @@ class Config:
             "env": "EPG2XML_PARALLEL",
             "default": False,
         },
+        "dbfile": {
+            "argv": "--dbfile",
+            "env": "EPG2XML_DBFILE",
+            "default": None,
+        },
     }
 
     def __init__(self):
@@ -262,7 +267,7 @@ class Config:
                 logger.exception("Exception raised on setting value: %r", name)
 
         # checking existance of important files' dir
-        for argname in ["config", "logfile", "channelfile"]:
+        for argname in ["config", "logfile", "channelfile", "dbfile"]:
             filepath = setts[argname]
             if filepath is not None and not Path(filepath).parent.exists():
                 logger.error(FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), filepath))
@@ -355,6 +360,14 @@ class Config:
             self.base_settings["parallel"]["argv"],
             action="store_true",
             help="run in parallel (experimental)",
+        )
+
+        # DB file
+        parser.add_argument(
+            self.base_settings["dbfile"]["argv"],
+            nargs="?",
+            const=None,
+            help="write output to db if specified",
         )
 
         # Print help by default if no arguments

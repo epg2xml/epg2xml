@@ -47,6 +47,9 @@ def main():
             log.debug("Getting EPG...")
             h.get_programs(conf.settings["parallel"])
 
+            log.debug("Exporting to dbfile...")
+            h.to_db(conf.settings["dbfile"])
+
             log.info("Writing xmltv.dtd header...")
             h.to_xml()
 
