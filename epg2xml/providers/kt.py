@@ -33,6 +33,7 @@ CH_CATE = [
     {"id": "507", "name": "유료"},
     {"id": "508", "name": "오디오"},
 ]
+PTN_RATING = re.compile(r"([\d,]+)")
 
 
 class KT(EPGProvider):
@@ -101,7 +102,9 @@ class KT(EPGProvider):
                 _epg.title = program.text.replace("방송중 ", "").strip()
                 _epg.categories = [category.text.strip()]
                 for image in program.find_all("img", alt=True):
-                    grade = re.match(r"([\d,]+)", image["alt"])
+                    if "시청 가능" not in (alt := image["alt"]):
+                        continue
+                    grade = PTN_RATING.match(alt)
                     _epg.rating = int(grade.group(1)) if grade else 0
                 _epgs.append(_epg)
         return _epgs
