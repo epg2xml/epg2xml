@@ -33,6 +33,7 @@ CH_CATE = [
     {"id": "507", "name": "유료"},
     {"id": "508", "name": "오디오"},
 ]
+PTN_RATING = re.compile(r"([\d,]+)")
 
 
 class KT(EPGProvider):
@@ -46,6 +47,7 @@ class KT(EPGProvider):
     """
 
     referer = "https://tv.kt.com/"
+    title_regex = r"^(?P<title>.*?)\s?([\<\(]?(?P<part>\d+)부[\>\)]?)?$"
 
     def get_svc_channels(self) -> List[dict]:
         svc_channels = []
@@ -91,17 +93,24 @@ class KT(EPGProvider):
 
     def __epgs_of_day(self, channelid: str, data: str, day: datetime) -> List[EPGProgram]:
         _epgs = []
-        soup = BeautifulSoup(data, parse_only=SoupStrainer("tbody"))
+        soup = BeautifulSoup(unquote(data), parse_only=SoupStrainer("tbody"))
         for row in soup.find_all("tr"):
             cell = row.find_all("td")
             hour = cell[0].text.strip()
-            for minute, program, category in zip(cell[1].find_all("p"), cell[2].find_all("p"), cell[3].find_all("p")):
+            for minute, program, category in zip(*[c.find_all("p") for c in cell[1:]]):
                 _epg = EPGProgram(channelid)
                 _epg.stime = datetime.strptime(f"{day} {hour}:{minute.text.strip()}", "%Y-%m-%d %H:%M")
                 _epg.title = program.text.replace("방송중 ", "").strip()
+                if m := self.title_regex.match(_epg.title):
+                    _epg.title = m.group("title")
+                    if part_num := m.group("part"):
+                        _epg.part_num = part_num
+                        _epg.title += f" ({_epg.part_num}부)"
                 _epg.categories = [category.text.strip()]
                 for image in program.find_all("img", alt=True):
-                    grade = re.match(r"([\d,]+)", image["alt"])
+                    if "시청 가능" not in (alt := image["alt"]):
+                        continue
+                    grade = PTN_RATING.match(alt)
                     _epg.rating = int(grade.group(1)) if grade else 0
                 _epgs.append(_epg)
         return _epgs

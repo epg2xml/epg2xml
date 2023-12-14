@@ -107,12 +107,11 @@ class LG(EPGProvider):
                 _epg.extras.append("화면해설")
             if p["silaBrdYn"] == "Y":
                 _epg.extras.append("수화")
-            matches = self.title_regex.match(_epg.title)
-            if matches:
-                _epg.title = (matches.group(1) or "").strip()
-                _epg.title_sub = (matches.group(2) or "").strip()
-                _epg.ep_num = matches.group(3) or ""
-                _epg.rebroadcast = bool(matches.group(4))
+            if m := self.title_regex.match(_epg.title):
+                _epg.title = m.group(1)
+                _epg.title_sub = m.group(2)
+                _epg.ep_num = m.group(3)
+                _epg.rebroadcast = bool(m.group(4))
             if P_CATE[p["urcBrdCntrTvSchdGnreCd"]]:
                 _epg.categories = [P_CATE[p["urcBrdCntrTvSchdGnreCd"]]]
             _epgs.append(_epg)

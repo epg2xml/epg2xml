@@ -17,7 +17,7 @@ class SPOTV(EPGProvider):
     """
 
     referer = "https://www.spotvnow.co.kr/channel"
-    title_regex = r"\s?(?:\[(.*?)\])?\s?(.*?)\s?(?:\((.*)\))?\s?(?:<([\d,]+)회>)?\s?$"
+    title_regex = r"\s?(?:\[(.*?)\])?\s?(.*?)\s?(?:[\(<](.*)[\)>])?\s?(?:-(\d+))?\s?(?:<?([\d,]+)회>?)?\s?$"
 
     def get_svc_channels(self) -> List[dict]:
         url = "https://www.spotvnow.co.kr/api/v3/channel"
@@ -62,10 +62,17 @@ class SPOTV(EPGProvider):
                 log.exception("데이터 가져오는 중 에러:")
                 continue
 
+        # 날짜의 경계에서 발생할 수 있는 중복 제거
+        _data = []
+        for _d in data:
+            _d.pop("date", None)
+            if _d not in _data:
+                _data.append(_d)
+
         for idx, _ch in enumerate(self.req_channels):
             log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)
             try:
-                _epgs = self.__epgs_of_channel(_ch.id, data, _ch.svcid)
+                _epgs = self.__epgs_of_channel(_ch.id, _data, _ch.svcid)
             except AssertionError as e:
                 log.warning("%s: %s", e, _ch)
             except Exception:
@@ -87,13 +94,19 @@ class SPOTV(EPGProvider):
             if _epg.stime == _epg.etime:
                 continue
 
-            matches = self.title_regex.match(_epg.title)
-            if matches:
-                _epg.title = (matches.group(2) or "").strip()
-                _epg.title_sub = (matches.group(1) or "").strip()
-                if matches.group(3):
-                    _epg.title_sub += " " + matches.group(3).strip()
-                _epg.ep_num = matches.group(4) or ""
+            if m := self.title_regex.match(_epg.title):
+                _epg.title = m.group(2)
+                subs = []
+                if prefix := m.group(1):
+                    subs.append(prefix)
+                if sub := m.group(3):
+                    subs += [sub.replace(")(", ", ").replace(") (", ", ")]
+                title_sub = ", ".join(subs)
+                if num := m.group(4):
+                    title_sub += f"-{num}"
+                if title_sub:
+                    _epg.title_sub = title_sub
+                _epg.ep_num = m.group(5)
             if p["type"] == 300:
                 # 100: live, 200: 본방송
                 _epg.rebroadcast = True

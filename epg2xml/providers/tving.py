@@ -158,12 +158,11 @@ class TVING(EPGProvider):
 
             _epg.rating = G_CODE[sch[get_from].get("grade_code", "CPTG0100")]
             _epg.title = sch[get_from]["name"]["ko"]
-            _epg.title_sub = sch[get_from]["name"].get("en", "")
-            _epg.categories = [sch[get_from]["category1_name"].get("ko", "")]
-            try:
-                _epg.categories += [sch[get_from]["category2_name"]["ko"]]
-            except KeyError:
-                pass
+            _epg.title_sub = sch[get_from]["name"].get("en")
+            if cate1 := sch[get_from]["category1_name"].get("ko"):
+                _epg.categories = [cate1]
+            if cate2 := sch[get_from]["category2_name"].get("ko"):
+                _epg.categories = (_epg.categories or []) + [cate2]
             _epg.cast = [{"name": x, "title": "actor"} for x in sch[get_from]["actor"]]
             _epg.crew = [{"name": x, "title": "director"} for x in sch[get_from]["director"]]
 

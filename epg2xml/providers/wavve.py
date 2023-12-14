@@ -83,13 +83,12 @@ class WAVVE(EPGProvider):
         _epg.etime = datetime.strptime(data["endtime"], "%Y-%m-%d %H:%M")
         # 채널이름은 그대로 들어오고 프로그램 제목은 escape되어 들어옴
         _epg.title = unescape(data["title"])
-        matches = self.title_regex.match(_epg.title)
-        if matches:
-            _epg.title = (matches.group(1) or "").strip()
-            _epg.title_sub = (matches.group(4) or "").strip()
-            episode = (matches.group(2) or "").replace("회", "").strip()
-            _epg.ep_num = "" if episode == "0" else episode
-            _epg.rebroadcast = bool(matches.group(3))
+        if m := self.title_regex.match(_epg.title):
+            _epg.title = m.group(1)
+            _epg.title_sub = m.group(4)
+            episode = (m.group(2) or "").replace("회", "").strip()
+            _epg.ep_num = None if episode == "0" else episode
+            _epg.rebroadcast = bool(m.group(3))
         _epg.rating = 0 if data["targetage"] == "n" else int(data["targetage"])
 
         # 추가 정보 가져오기
