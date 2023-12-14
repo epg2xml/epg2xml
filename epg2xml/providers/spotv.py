@@ -17,7 +17,7 @@ class SPOTV(EPGProvider):
     """
 
     referer = "https://www.spotvnow.co.kr/channel"
-    title_regex = r"\s?(?:\[(.*?)\])?\s?(.*?)\s?(?:\((.*)\))?\s?(?:<([\d,]+)회>)?\s?$"
+    title_regex = r"\s?(?:\[(.*?)\])?\s?(.*?)\s?(?:[\(<](.*)[\)>])?\s?(?:-(\d+))?\s?(?:<?([\d,]+)회>?)?\s?$"
 
     def get_svc_channels(self) -> List[dict]:
         url = "https://www.spotvnow.co.kr/api/v3/channel"
@@ -94,13 +94,19 @@ class SPOTV(EPGProvider):
             if _epg.stime == _epg.etime:
                 continue
 
-            matches = self.title_regex.match(_epg.title)
-            if matches:
-                _epg.title = (matches.group(2) or "").strip()
-                _epg.title_sub = (matches.group(1) or "").strip()
-                if matches.group(3):
-                    _epg.title_sub += " " + matches.group(3).strip()
-                _epg.ep_num = matches.group(4) or ""
+            if m := self.title_regex.match(_epg.title):
+                _epg.title = m.group(2)
+                subs = []
+                if prefix := m.group(1):
+                    subs.append(prefix)
+                if sub := m.group(3):
+                    subs += [sub.replace(")(", ", ").replace(") (", ", ")]
+                title_sub = ", ".join(subs)
+                if num := m.group(4):
+                    title_sub += f"-{num}"
+                if title_sub:
+                    _epg.title_sub = title_sub
+                _epg.ep_num = m.group(5)
             if p["type"] == 300:
                 # 100: live, 200: 본방송
                 _epg.rebroadcast = True
