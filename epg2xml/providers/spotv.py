@@ -62,10 +62,17 @@ class SPOTV(EPGProvider):
                 log.exception("데이터 가져오는 중 에러:")
                 continue
 
+        # 날짜의 경계에서 발생할 수 있는 중복 제거
+        _data = []
+        for _d in data:
+            _d.pop("date", None)
+            if _d not in _data:
+                _data.append(_d)
+
         for idx, _ch in enumerate(self.req_channels):
             log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)
             try:
-                _epgs = self.__epgs_of_channel(_ch.id, data, _ch.svcid)
+                _epgs = self.__epgs_of_channel(_ch.id, _data, _ch.svcid)
             except AssertionError as e:
                 log.warning("%s: %s", e, _ch)
             except Exception:
