@@ -8,10 +8,10 @@ on:
   workflow_dispatch:
 
 env:
-  PY_VER: 3.10
+  PY_VER: '3.10'
 
 jobs:
-  test:
+  base:
     runs-on: ubuntu-22.04
     steps:
     - name: Set up Python ${{ env.PY_VER }}
@@ -35,7 +35,7 @@ jobs:
           jq -c '.'$p'.CHANNELS[]' Channel.json | shuf -n10 | jq --slurpfile n /dev/stdin \
             '.'$p'.MY_CHANNELS = $n' epg2xml.json | sponge epg2xml.json
         done
-    - name: Test
+    - name: Run
       run: |
         epg2xml run \
           --xmlfile=xmltv.xml \
