@@ -22,9 +22,10 @@ jobs:
       uses: actions/checkout@v4
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
         pip install .[lxml]
-        sudo apt-get install -y xmltv-util moreutils
+        sudo apt-get install -y --no-install-recommends \
+          xmltv-util \
+          moreutils
     - name: Set up epg2xml.json
       run: |
         rm -f epg2xml.json && epg2xml run
@@ -43,7 +44,7 @@ jobs:
         sed -i 's@</tv>@@g' xmltv.xml
         tv_validate_file xmltv.xml
     - name: Diff
-      if: github.ref == 'refs/heads/main' && github.event_name == 'pull_request'
+      if: github.event.pull_request.base.ref == 'main'
       run: |
         pip install --upgrade "epg2xml[lxml] @ git+https://github.com/epg2xml/epg2xml.git@main"
         epg2xml run \
