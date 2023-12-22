@@ -29,7 +29,7 @@ jobs:
       run: |
         rm -f epg2xml.json && epg2xml run
         jq --arg U "${{ secrets.HTTP_PROXY }}" \
-          '.WAVVE = {"HTTP_PROXY": $U}' epg2xml.json | sponge epg2xml.json
+          '.WAVVE += {"HTTP_PROXY": $U}' epg2xml.json | sponge epg2xml.json
         epg2xml update_channels
         for p in KT LG SK DAUM NAVER TVING WAVVE SPOTV; do
           jq -c '.'$p'.CHANNELS[]' Channel.json | shuf -n10 | jq --slurpfile n /dev/stdin \
