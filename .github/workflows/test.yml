@@ -41,7 +41,6 @@ jobs:
         epg2xml run \
           --xmlfile=xmltv.xml \
           --loglevel=DEBUG
-        sed -i 's@</tv>@@g' xmltv.xml
         tv_validate_file xmltv.xml
     - name: Diff
       if: github.event.pull_request.base.ref == 'main'
