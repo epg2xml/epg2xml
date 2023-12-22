@@ -337,7 +337,8 @@ class EPGProvider:
 
     def write_channels(self) -> None:
         for ch in self.req_channels:
-            ch.to_xml()
+            if ch.programs:
+                ch.to_xml()
 
     def get_programs(self) -> None:
         raise NotImplementedError("method 'get_programs' must be implemented")
