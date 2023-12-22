@@ -58,12 +58,10 @@ jobs:
           --xmlfile=xmltv-main.xml \
           --loglevel=DEBUG \
           --parallel
-        if diff xmltv.xml xmltv-main.xml; then
-          rm xmltv-main.xml
-          exit 0
+        if ! diff -I '^<tv generator-info-name*' xmltv.xml xmltv-main.xml; then
+          tv_validate_file xmltv-main.xml
+          exit 1
         fi
-        tv_validate_file xmltv-main.xml
-        exit 1
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       if: always()
