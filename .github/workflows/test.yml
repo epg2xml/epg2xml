@@ -28,10 +28,17 @@ jobs:
           moreutils
     - name: Set up epg2xml.json
       run: |
+        # 기본 설정파일 생성
         rm -f epg2xml.json && epg2xml run
+        # 예외 적용 - WAVVE HTTP_PROXY
         jq --arg U "${{ secrets.HTTP_PROXY }}" \
           '.WAVVE += {"HTTP_PROXY": $U}' epg2xml.json | sponge epg2xml.json
+        # 예외 적용 - DAUM ID_FORMAT
+        jq --arg ID "{No}.{Source.lower()}" \
+          '.DAUM += {"ID_FORMAT": $ID}' epg2xml.json | sponge epg2xml.json
+        # 채널 업데이트
         epg2xml update_channels
+        # 최대 10개의 채널을 무작위 추출
         for p in KT LG SK DAUM NAVER TVING WAVVE SPOTV; do
           jq -c '.'$p'.CHANNELS[]' Channel.json | shuf -n10 | jq --slurpfile n /dev/stdin \
             '.'$p'.MY_CHANNELS = $n' epg2xml.json | sponge epg2xml.json
