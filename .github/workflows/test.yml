@@ -1,4 +1,4 @@
-name: test providers
+name: test
 
 on:
   push:
@@ -7,34 +7,53 @@ on:
   pull_request:
   workflow_dispatch:
 
+env:
+  PY_VER: 3.10
+
 jobs:
   test:
     runs-on: ubuntu-22.04
-    strategy:
-      fail-fast: false
-      matrix:
-        provider: [kt, lg, sk, daum, naver, tving, spotv]
-        python-version: ['3.8', '3.12']
     steps:
-    - name: Set up Python ${{ matrix.python-version }}
+    - name: Set up Python ${{ env.PY_VER }}
       uses: actions/setup-python@v5
       with:
-        python-version: ${{ matrix.python-version }}
-    - name: Display Python version
-      run: python -c "import sys; print(sys.version)"
+        python-version: ${{ env.PY_VER }}
     - name: Checkout
       uses: actions/checkout@v4
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install .[lxml]
-        sudo apt-get install -y xmltv-util
-    - name: Test ${{ matrix.provider }}
+        sudo apt-get install -y xmltv-util moreutils
+    - name: Set up epg2xml.json
       run: |
-        python -m tests.test_provider ${{ matrix.provider }} 0.1 --shuffle
+        rm -f epg2xml.json && epg2xml run
+        jq --arg U "${{ secrets.HTTP_PROXY }}" \
+          '.WAVVE = {"HTTP_PROXY": $U}' epg2xml.json | sponge epg2xml.json
+        epg2xml update_channels
+        for p in KT LG SK DAUM NAVER TVING WAVVE SPOTV; do
+          jq -c '.'$p'.CHANNELS[]' Channel.json | shuf -n10 | jq --slurpfile n /dev/stdin \
+            '.'$p'.MY_CHANNELS = $n' epg2xml.json | sponge epg2xml.json
+        done
+    - name: Test
+      run: |
+        epg2xml run \
+          --xmlfile=xmltv.xml \
+          --loglevel=DEBUG
+    - name: Diff
+      if: github.ref == 'refs/heads/main' && github.event_name == 'pull_request'
+      run: |
+        pip install --upgrade "epg2xml[lxml] @ git+https://github.com/epg2xml/epg2xml.git@main"
+        epg2xml run \
+          --xmlfile=xmltv-main.xml \
+          --loglevel=DEBUG \
+          --parallel
+        if diff -I '^<tv generator-info-name*' xmltv.xml xmltv-main.xml; then
+          rm xmltv-main.xml
+        fi
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: xmltv-${{ matrix.provider }}-py${{ matrix.python-version }}
-        path: xmltv_${{ matrix.provider }}.xml
+        name: xmltv
+        path: xmltv*.xml
