@@ -1,4 +1,4 @@
-name: test providers
+name: test
 
 on:
   push:
@@ -7,34 +7,62 @@ on:
   pull_request:
   workflow_dispatch:
 
+env:
+  PY_VER: '3.10'
+  EPG2XML_LOGLEVEL: DEBUG
+
 jobs:
-  test:
+  base:
     runs-on: ubuntu-22.04
-    strategy:
-      fail-fast: false
-      matrix:
-        provider: [kt, lg, sk, daum, naver, tving, spotv]
-        python-version: ['3.8', '3.12']
     steps:
-    - name: Set up Python ${{ matrix.python-version }}
+    - name: Set up Python ${{ env.PY_VER }}
       uses: actions/setup-python@v5
       with:
-        python-version: ${{ matrix.python-version }}
-    - name: Display Python version
-      run: python -c "import sys; print(sys.version)"
+        python-version: ${{ env.PY_VER }}
     - name: Checkout
       uses: actions/checkout@v4
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install .[lxml]
-        sudo apt-get install -y xmltv-util
-    - name: Test ${{ matrix.provider }}
+        sudo apt-get install -yqq --no-install-recommends \
+          xmltv-util \
+          moreutils
+    - name: Set up epg2xml.json
       run: |
-        python -m tests.test_provider ${{ matrix.provider }} 0.1 --shuffle
+        # 기본 설정파일 생성
+        rm -f epg2xml.json && epg2xml run
+        # 예외 적용 - WAVVE HTTP_PROXY
+        jq --arg U "${{ secrets.HTTP_PROXY }}" \
+          '.WAVVE += {"HTTP_PROXY": $U}' epg2xml.json | sponge epg2xml.json
+        # 예외 적용 - DAUM ID_FORMAT
+        jq --arg ID "{No}.{Source.lower()}" \
+          '.DAUM += {"ID_FORMAT": $ID}' epg2xml.json | sponge epg2xml.json
+        # 채널 업데이트
+        epg2xml update_channels
+        # 최대 10개의 채널을 무작위 추출
+        for p in KT LG SK DAUM NAVER TVING WAVVE SPOTV; do
+          jq -c '.'$p'.CHANNELS[]' Channel.json | shuf -n10 | jq --slurpfile n /dev/stdin \
+            '.'$p'.MY_CHANNELS = $n' epg2xml.json | sponge epg2xml.json
+        done
+    - name: Run
+      run: |
+        epg2xml run --xmlfile=xmltv.xml
+        tv_validate_file xmltv.xml
+    - name: Diff
+      if: github.event.pull_request.base.ref == 'main'
+      run: |
+        pip install --upgrade "epg2xml[lxml] @ git+https://github.com/epg2xml/epg2xml.git@main"
+        epg2xml run \
+          --xmlfile=xmltv-main.xml \
+          --parallel
+        if ! diff -I '^<tv generator-info-name*' xmltv.xml xmltv-main.xml; then
+          tv_validate_file xmltv-main.xml
+          exit 1
+        fi
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: xmltv-${{ matrix.provider }}-py${{ matrix.python-version }}
-        path: xmltv_${{ matrix.provider }}.xml
+        name: xmltv
+        path: xmltv*.xml

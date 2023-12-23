@@ -337,6 +337,9 @@ class EPGProvider:
 
     def write_channels(self) -> None:
         for ch in self.req_channels:
+            if not ch.programs:
+                log.warning("Skip writing as no program entries found for '%s'", ch.id)
+                continue
             ch.to_xml()
 
     def get_programs(self) -> None:

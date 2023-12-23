@@ -1,23 +1,30 @@
-name: test providers all
+name: stats
 
 on:
   workflow_dispatch:
+    inputs:
+      numChannels:
+        description: 'Number of test channels'
+        required: true
+        default: '0'
+      shuffle:
+        description: 'Shuffle test channels'
+        required: true
+        default: 'false'
 
 jobs:
-  test:
+  stats:
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
-        provider: [kt, lg, sk, daum, naver, tving, spotv]
+        provider: [kt, lg, sk, daum, naver, tving, wavve, spotv]
         python-version: ['3.8', '3.12']
     steps:
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Display Python version
-      run: python -c "import sys; print(sys.version)"
     - name: Checkout
       uses: actions/checkout@v4
     - name: Install dependencies
@@ -27,7 +34,13 @@ jobs:
         sudo apt-get install -y xmltv-util
     - name: Test ${{ matrix.provider }}
       run: |
-        python -m tests.test_provider ${{ matrix.provider }}
+        if [ "${{ matrix.provider }}" = "wavve" ]; then
+          export HTTP_PROXY="${{ secrets.HTTP_PROXY }}"
+        fi
+        python -m tests.test_provider \
+          ${{ matrix.provider }} \
+          ${{ github.event.inputs.numChannels }} \
+          ${{ github.event.inputs.shuffle }}
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       if: always()
