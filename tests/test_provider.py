@@ -1,13 +1,14 @@
 import logging
+import os
 import subprocess
 import sys
 from contextlib import redirect_stdout
+from importlib import import_module
 from pathlib import Path
 from random import shuffle
 from timeit import default_timer as timer
 
 from epg2xml import __title__, __version__
-from epg2xml.providers import EPGHandler
 
 cfg = {
     "ENABLED": True,
@@ -19,7 +20,7 @@ cfg = {
     "ADD_XMLTV_NS": False,
     "GET_MORE_DETAILS": False,
     "ADD_CHANNEL_ICON": True,
-    "HTTP_PROXY": None,
+    "HTTP_PROXY": os.environ.get("HTTP_PROXY"),
     "MY_CHANNELS": "*",
 }
 
@@ -41,8 +42,10 @@ rootLogger.addHandler(consolehandler)
 # logger
 log = rootLogger.getChild("TEST")
 
+# provider
 provider_name = sys.argv[1]
-provider = EPGHandler({provider_name.upper(): cfg}).providers[0]
+module = import_module(f"epg2xml.providers.{provider_name.lower()}")
+provider = getattr(module, provider_name.upper())(cfg)
 
 if provider_name.lower() == "daum":
     cfg["ID_FORMAT"] = "{No}.{Source.lower()}"
@@ -53,20 +56,18 @@ etime_ch = timer() - stime
 
 provider.load_req_channels()
 
-if len(sys.argv) > 2:
-    rch = provider.req_channels
-    if len(sys.argv) > 3 and sys.argv[3] == "--shuffle":
-        log.info("Shuffling requested channels...")
-        shuffle(rch)
-    if sys.argv[2].isdecimal():
-        log.info(f"Using {sys.argv[2]} of them...")
-        num_rch = int(sys.argv[2])
-    else:
-        per_rch = float(sys.argv[2]) * 100
-        log.info(f"Using {per_rch:3.1f}% of them...")
-        num_rch = int(len(rch) * float(sys.argv[2]))
+rch = provider.req_channels
+if sys.argv[3] == "true":
+    log.info("Shuffling requested channels...")
+    shuffle(rch)
+if sys.argv[2].isdecimal() and (num_rch := int(sys.argv[2])) > 0:
+    log.info("Using %d of them...", num_rch)
+    rch = rch[: max(1, num_rch)]
+elif (per_rch := float(sys.argv[2]) * 100) > 0.0:
+    log.info("Using %3.1f%% of them...", per_rch)
+    num_rch = int(len(rch) * per_rch / 100)
     rch = rch[: max(10, num_rch)]
-    provider.req_channels = rch
+provider.req_channels = rch
 
 stime = timer()
 provider.get_programs()

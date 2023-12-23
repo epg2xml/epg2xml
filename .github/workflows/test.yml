@@ -9,6 +9,7 @@ on:
 
 env:
   PY_VER: '3.10'
+  EPG2XML_LOGLEVEL: DEBUG
 
 jobs:
   base:
@@ -46,9 +47,7 @@ jobs:
         done
     - name: Run
       run: |
-        epg2xml run \
-          --xmlfile=xmltv.xml \
-          --loglevel=DEBUG
+        epg2xml run --xmlfile=xmltv.xml
         tv_validate_file xmltv.xml
     - name: Diff
       if: github.event.pull_request.base.ref == 'main'
@@ -56,7 +55,6 @@ jobs:
         pip install --upgrade "epg2xml[lxml] @ git+https://github.com/epg2xml/epg2xml.git@main"
         epg2xml run \
           --xmlfile=xmltv-main.xml \
-          --loglevel=DEBUG \
           --parallel
         if ! diff -I '^<tv generator-info-name*' xmltv.xml xmltv-main.xml; then
           tv_validate_file xmltv-main.xml
