@@ -1,4 +1,4 @@
-name: providers
+name: stats
 
 on:
   workflow_dispatch:
