@@ -51,8 +51,9 @@ def main():
                 log.debug("Getting EPG...")
                 h.get_programs(conf.settings["parallel"])
 
-                log.debug("Exporting to dbfile...")
-                h.to_db(conf.settings["dbfile"])
+                if (dbfile := conf.settings["dbfile"]) is not None:
+                    log.debug("Exporting to dbfile...")
+                    h.to_db(dbfile)
 
             log.info("Writing xmltv.dtd header...")
             h.to_xml()

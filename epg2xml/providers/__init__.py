@@ -449,8 +449,6 @@ class EPGHandler:
         return chain.from_iterable(ch.programs for ch in self.all_channels)
 
     def to_db(self, dbfile: PathLike) -> None:
-        if dbfile is None:
-            return
         with SQLite(dbfile, "w") as db:
             db.insert_channels(self.all_channels)
             db.insert_programs(self.all_programs)
