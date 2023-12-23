@@ -10,6 +10,7 @@ from epg2xml.providers import EPGProgram, EPGProvider
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 today = date.today()
 
+PRIORITY_IMG_CODE = ["CAIC2300", "CAIC1600", "CAIC0100", "CAIC0400"]
 G_CODE = {
     "CPTG0100": 0,
     "CPTG0200": 7,
@@ -78,17 +79,16 @@ class TVING(EPGProvider):
         return _results
 
     def get_svc_channels(self) -> List[dict]:
-        def get_imgurl(_item):
-            priority_img_code = ["CAIC1600", "CAIC0100", "CAIC0400"]
-            for _code in priority_img_code:
+        def get_imgurl(_item: dict):
+            for _code in PRIORITY_IMG_CODE:
                 try:
                     img_list = [x for x in _item["image"] if x["code"] == _code]
                     if not img_list:
                         continue
-                    return img_list[0].get("url") or img_list[0]["url2"]
+                    return "https://image.tving.com" + (img_list[0].get("url") or img_list[0]["url2"])
                 except Exception:
                     pass
-            return ""
+            return None
 
         params = {
             "broadDate": today.strftime("%Y%m%d"),
