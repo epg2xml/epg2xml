@@ -273,6 +273,11 @@ class Config:
                 logger.error(FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), filepath))
                 sys.exit(1)
 
+        # handling of boolean args
+        for argname in ["parallel"]:
+            if isinstance(setts[argname], str):
+                setts[argname] = setts[argname].lower() in ("y", "yes", "t", "true", "on", "1")
+
         # logging to file
         if setts["logfile"] is not None:
             fileHandler = RotatingFileHandler(setts["logfile"], maxBytes=2 * 1024**2, backupCount=5, encoding="utf-8")
