@@ -364,7 +364,7 @@ class Config:
         parser.add_argument(
             self.base_settings["parallel"]["argv"],
             action="store_true",
-            help="run in parallel (experimental)",
+            help="run in parallel",
         )
 
         # DB file
