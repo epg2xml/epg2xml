@@ -19,7 +19,7 @@
 pip와 git이 설치되어 있다면 아래와 같이 간단히 설치할 수 있다.
 
 ```bash
-python -m pip install git+https://github.com/epg2xml/epg2xml.git@{tag_branch_hash}
+pip install git+https://github.com/epg2xml/epg2xml.git@{tag_branch_hash}
 ```
 
 `@{tag_branch_hash}`를 지정할 수 있으며 입력하지 않을 경우 `main` 브랜치에서 설치한다. [참고](https://pip.pypa.io/en/latest/topics/vcs-support/). 선택사항인 `lxml`과 함께 설치하려면 다음과 같이 입력한다.
@@ -32,7 +32,7 @@ pip install "epg2xml[lxml] @ git+https://github.com/epg2xml/epg2xml.git@{tag_bra
 
 ### 실행
 
-1. PIP를 이용해서 설치했을 경우 epg2xml을 입력하여 실행 가능하다.
+1. pip를 이용해서 설치했을 경우 epg2xml을 입력하여 실행 가능하다.
 
     ```bash
     epg2xml -v
@@ -94,13 +94,11 @@ pip install "epg2xml[lxml] @ git+https://github.com/epg2xml/epg2xml.git@{tag_bra
     python -m epg2xml run --xmlfile=xmltv.xml
     ```
 
-## 채널 파일(Channel.json)에 대하여
+## 채널 파일(Channel.json)
 
 `Channel.json` 파일은 서버로부터 서비스 가능한 채널 정보를 받아 저장해두고 사용자가 참고할 수 있도록 하는 캐시이자 레퍼런스 파일이다. 삭제하면 다시 생성하며, 업데이트 된지 오래되어 만료된 채널 목록은 실행할때마다 확인하여 자동 업데이트 된다.
 
 다시 말해, 이 파일은 사용자가 직접 뭔가를 쓰거나 수정하는 대상이 아닌 **읽기 전용**이므로 염두에 둔다.
-
-### 형식
 
 기본 골격은 다음과 같다.
 
@@ -189,16 +187,17 @@ pip install "epg2xml[lxml] @ git+https://github.com/epg2xml/epg2xml.git@{tag_bra
 usage: epg2xml [-h] [-v] [--config [CONFIG]] [--logfile [LOGFILE]]
                [--loglevel {DEBUG,INFO,WARNING,ERROR}]
                [--channelfile [CHANNELFILE]] [--xmlfile [XMLFILE]]
-               [--xmlsock [XMLSOCK]] [--parallel]
+               [--xmlsock [XMLSOCK]] [--parallel] [--dbfile [DBFILE]]
                command
 
 웹 상의 소스를 취합하여 EPG를 만드는 프로그램
 
 positional arguments:
   command               "run": XML 형식으로 출력
+                        "fromdb": dbfile로부터 불러오기
                         "update_channels": 채널 정보 업데이트
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   -v, --version         show program's version number and exit
   --config [CONFIG]     config file path (default: epg2xml.json)
@@ -209,7 +208,13 @@ optional arguments:
                         channel file path (default: Channel.json)
   --xmlfile [XMLFILE]   write output to file if specified
   --xmlsock [XMLSOCK]   send output to unix socket if specified
-  --parallel            run in parallel (experimental)
+  --parallel            run in parallel
+  --dbfile [DBFILE]     export/import data to/from db
 
 Online help: <https://github.com/epg2xml/epg2xml>
 ```
+
+## 더 읽어보기
+
+- [위키](https://github.com/epg2xml/epg2xml/wiki)
+- [xmltv.dtd](https://github.com/XMLTV/xmltv/blob/master/xmltv.dtd)
