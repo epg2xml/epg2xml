@@ -490,6 +490,8 @@ class SQLite:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.mode == "w":
+            self.conn.commit()
         self.conn.close()
 
     def __db_init(self) -> None:
@@ -500,20 +502,17 @@ class SQLite:
                 CREATE TABLE IF NOT EXISTS epgprogram ({', '.join(cols)});
                 DELETE FROM epgchannel; DELETE FROM epgprogram;"""
             )
-        self.conn.commit()
 
     def insert_channels(self, channels: List[EPGChannel]) -> None:
         sql = "INSERT INTO epgchannel VALUES (?,?,?,?,?,?,?)"
         with closing(self.conn.cursor()) as c:
             c.executemany(sql, ((ch.id, ch.src, ch.svcid, ch.name, ch.icon, ch.no, ch.category) for ch in channels))
-        self.conn.commit()
 
     def insert_programs(self, programs: List[EPGProgram]) -> None:
         cols = [f.name for f in fields(EPGProgram)]
         sql = f"INSERT INTO epgprogram({','.join(cols)}) VALUES ({','.join('?'*len(cols))})"
         with closing(self.conn.cursor()) as c:
             c.executemany(sql, (tuple(getattr(p, col) for col in cols) for p in programs))
-        self.conn.commit()
 
     def queryall(self, *args, **kwargs) -> List[sqlite3.Row]:
         with closing(self.conn.cursor()) as c:
