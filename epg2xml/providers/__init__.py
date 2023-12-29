@@ -6,7 +6,7 @@ import sys
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
-from dataclasses import astuple, dataclass, fields
+from dataclasses import dataclass, fields
 from datetime import datetime, timedelta
 from functools import wraps
 from importlib import import_module
@@ -505,19 +505,16 @@ class SQLite:
         self.conn.commit()
 
     def insert_channels(self, channels: List[EPGChannel]) -> None:
-        def _astuple(ch: EPGChannel) -> Tuple:
-            return (ch.id, ch.src, ch.svcid, ch.name, ch.icon, ch.no, ch.category)
-
         sql = "INSERT INTO epgchannel VALUES (?,?,?,?,?,?,?)"
         with closing(self.conn.cursor()) as c:
-            c.executemany(sql, map(_astuple, channels))
+            c.executemany(sql, ((ch.id, ch.src, ch.svcid, ch.name, ch.icon, ch.no, ch.category) for ch in channels))
         self.conn.commit()
 
     def insert_programs(self, programs: List[EPGProgram]) -> None:
         cols = [f.name for f in fields(EPGProgram)]
         sql = f"INSERT INTO epgprogram({','.join(cols)}) VALUES ({','.join('?'*len(cols))})"
         with closing(self.conn.cursor()) as c:
-            c.executemany(sql, map(astuple, programs))
+            c.executemany(sql, (tuple(getattr(p, col) for col in cols) for p in programs))
         self.conn.commit()
 
     def queryall(self, *args, **kwargs) -> List[sqlite3.Row]:
