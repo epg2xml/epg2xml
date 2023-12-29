@@ -482,7 +482,9 @@ class SQLite:
         kwargs.setdefault("detect_types", sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
         self.conn = sqlite3.connect(dbfile, **kwargs)
         self.conn.row_factory = sqlite3.Row
-        self.__db_init(mode=mode)
+        self.mode = mode
+        if mode == "w":
+            self.__db_init()
 
     def __enter__(self):
         return self
@@ -490,18 +492,14 @@ class SQLite:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.conn.close()
 
-    def __db_init(self, mode: Literal["r", "w", "a"]) -> None:
-        if mode == "r":
-            return
+    def __db_init(self) -> None:
         with closing(self.conn.cursor()) as c:
-            # create table - epgchannel
-            c.execute("CREATE TABLE IF NOT EXISTS epgchannel (Id, Source, ServiceId, Name, Icon_url, No, Category)")
-            # create table - epgprogram
             cols = [f"{f.name} {SQLITE_DTYPES.get(f.type, 'TEXT')}" for f in fields(EPGProgram)]
-            c.execute(f"CREATE TABLE IF NOT EXISTS epgprogram ({', '.join(cols)})")
-            if mode == "w":
-                c.execute("DELETE FROM epgchannel")
-                c.execute("DELETE FROM epgprogram")
+            c.executescript(
+                f"""CREATE TABLE IF NOT EXISTS epgchannel (Id, Source, ServiceId, Name, Icon_url, No, Category);
+                CREATE TABLE IF NOT EXISTS epgprogram ({', '.join(cols)});
+                DELETE FROM epgchannel; DELETE FROM epgprogram;"""
+            )
         self.conn.commit()
 
     def insert_channels(self, channels: List[EPGChannel]) -> None:
