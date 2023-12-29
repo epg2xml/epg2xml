@@ -6,13 +6,13 @@ import sys
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
-from dataclasses import dataclass, fields
+from dataclasses import InitVar, dataclass, fields
 from datetime import datetime, timedelta
 from functools import wraps
 from importlib import import_module
 from itertools import chain
 from os import PathLike
-from typing import Iterator, List, Literal, Tuple, Union
+from typing import ClassVar, Iterator, List, Literal, Tuple, Union
 
 import requests
 
@@ -183,26 +183,35 @@ class EPGProgram:
         print(_p.tostring(level=1))
 
 
+@dataclass
 class EPGChannel:
-    """For individual channel entities"""
+    """For individual channel entities
 
-    __slots__ = ["id", "src", "svcid", "name", "icon", "no", "category", "programs"]
+    개별 EPGProgram이 소속 channelid를 가지고 있어서 굳이 EPGChannel의 하위 리스트로 관리해야 할
+    이유는 없지만, endtime이 없는 프로그램의 처리나 제공자마다 다른 설정을 적용하기 위해서
+    채널 단위로 관리하는 편이 유리하다.
+    """
 
-    def __init__(self, channelinfo):
-        self.id: str = channelinfo["Id"]
-        self.src: str = channelinfo["Source"]
-        self.svcid: str = channelinfo["ServiceId"]
-        self.name: str = channelinfo["Name"]
-        self.icon: str = channelinfo.get("Icon_url")
-        self.no: str = channelinfo.get("No")
-        self.category: str = channelinfo.get("Category")
-        # placeholder
-        self.programs: List[EPGProgram] = []
-        """
-        개별 EPGProgram이 소속 channelid를 가지고 있어서 굳이 EPGChannel의 하위 리스트로 관리해야할
-        이유는 없지만, endtime이 없는 EPG 항목을 위해 한 번에 써야할 필요가 있는 Provider가 있기에
-        (kt, lg, skb, naver, daum) 채널 단위로 관리하는 편이 유리하다.
-        """
+    id: str
+    src: str
+    svcid: str
+    name: str
+    icon: str = None
+    no: str = None
+    category: str = None
+    programs: InitVar[List[EPGProgram]] = None
+    columns: ClassVar[tuple] = ("Id", "Source", "ServiceId", "Name", "Icon_url", "No", "Category")
+
+    def __post_init__(self, programs: List[EPGProgram]) -> None:
+        self.programs = programs or []
+
+    @classmethod
+    def fromdict(cls, **kwargs):
+        this = cls(kwargs["Id"], kwargs["Source"], kwargs["ServiceId"], kwargs["Name"])
+        this.icon = kwargs.get("Icon_url")
+        this.no = kwargs.get("No")
+        this.category = kwargs.get("Category")
+        return this
 
     def __str__(self):
         return f"{self.name} <{self.id}>"
@@ -331,7 +340,7 @@ class EPGProvider:
                     req_ch["Id"] = f'{req_ch["ServiceId"]}.{req_ch["Source"].lower()}'
             if not self.cfg["ADD_CHANNEL_ICON"]:
                 req_ch.pop("Icon_url", None)
-            req_channels.append(EPGChannel(req_ch))
+            req_channels.append(EPGChannel.fromdict(**req_ch))
         plog.info("요청 %3d - 불가 %3d = 최종 %3d", len(my_channels), len(my_channels) - len(req_channels), len(req_channels))
         self.req_channels = req_channels
 
@@ -456,11 +465,9 @@ class EPGHandler:
     def from_db(self, dbfile: PathLike) -> None:
         with SQLite(dbfile, "r") as db:
             for p in self.providers:
-                for ch in db.queryall("SELECT * FROM epgchannel WHERE Source = ?", (p.provider_name,)):
-                    chn = EPGChannel(dict(ch))
-                    for prog in db.queryall("SELECT * FROM epgprogram WHERE channelid = ?", (chn.id,)):
-                        chn.programs.append(EPGProgram(**dict(prog)))
-                    p.req_channels.append(chn)
+                for ch in db.select_channels(p.provider_name):
+                    ch.programs = db.select_programs(ch.id)
+                    p.req_channels.append(ch)
 
 
 sqlite3.register_adapter(bool, int)
@@ -481,7 +488,6 @@ class SQLite:
     def __init__(self, dbfile: PathLike, mode: Literal["r", "w", "a"] = "r", **kwargs):
         kwargs.setdefault("detect_types", sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
         self.conn = sqlite3.connect(dbfile, **kwargs)
-        self.conn.row_factory = sqlite3.Row
         self.mode = mode
         if mode == "w":
             self.__db_init()
@@ -490,7 +496,7 @@ class SQLite:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if self.mode == "w":
+        if exc_type is None and self.mode == "w":
             self.conn.commit()
         self.conn.close()
 
@@ -498,22 +504,31 @@ class SQLite:
         with closing(self.conn.cursor()) as c:
             cols = [f"{f.name} {SQLITE_DTYPES.get(f.type, 'TEXT')}" for f in fields(EPGProgram)]
             c.executescript(
-                f"""CREATE TABLE IF NOT EXISTS epgchannel (Id, Source, ServiceId, Name, Icon_url, No, Category);
+                f"""CREATE TABLE IF NOT EXISTS epgchannel ({', '.join(EPGChannel.columns)});
                 CREATE TABLE IF NOT EXISTS epgprogram ({', '.join(cols)});
                 DELETE FROM epgchannel; DELETE FROM epgprogram;"""
             )
 
     def insert_channels(self, channels: List[EPGChannel]) -> None:
-        sql = "INSERT INTO epgchannel VALUES (?,?,?,?,?,?,?)"
+        cols = [f.name for f in fields(EPGChannel)]
+        sql = f"INSERT INTO epgchannel VALUES ({','.join('?'*len(cols))})"
         with closing(self.conn.cursor()) as c:
-            c.executemany(sql, ((ch.id, ch.src, ch.svcid, ch.name, ch.icon, ch.no, ch.category) for ch in channels))
+            c.executemany(sql, (tuple(getattr(h, col) for col in cols) for h in channels))
 
     def insert_programs(self, programs: List[EPGProgram]) -> None:
         cols = [f.name for f in fields(EPGProgram)]
-        sql = f"INSERT INTO epgprogram({','.join(cols)}) VALUES ({','.join('?'*len(cols))})"
+        sql = f"INSERT INTO epgprogram VALUES ({','.join('?'*len(cols))})"
         with closing(self.conn.cursor()) as c:
             c.executemany(sql, (tuple(getattr(p, col) for col in cols) for p in programs))
 
-    def queryall(self, *args, **kwargs) -> List[sqlite3.Row]:
+    def __fetchall(self, *args, **kwargs) -> List[tuple]:
         with closing(self.conn.cursor()) as c:
             return c.execute(*args, **kwargs).fetchall()
+
+    def select_channels(self, source: str) -> List[EPGChannel]:
+        sql = "SELECT * FROM epgchannel WHERE Source = ?"
+        return [EPGChannel(*x) for x in self.__fetchall(sql, (source,))]
+
+    def select_programs(self, channelid: str) -> List[EPGProgram]:
+        sql = "SELECT * FROM epgprogram WHERE channelid = ?"
+        return [EPGProgram(*x) for x in self.__fetchall(sql, (channelid,))]
