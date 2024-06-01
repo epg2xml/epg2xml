@@ -45,8 +45,10 @@ class LG(EPGProvider):
         svc_channels = []
         url = "https://www.lguplus.com/uhdc/fo/prdv/chnlgid/v1/tv-schedule-list"
         data = self.request(url)
-        cate = {x["urcBrdCntrTvChnlGnreCd"]: x["urcBrdCntrTvChnlGnreNm"] for x in data["brdGnreDtoList"]}
-        for ch in self.request(url)["brdCntrTvChnlIDtoList"]:
+        cate = {"09": "성인"}  # default category
+        _cate = {x["urcBrdCntrTvChnlGnreCd"]: x["urcBrdCntrTvChnlGnreNm"] for x in data["brdGnreDtoList"]}
+        cate.update(_cate)
+        for ch in data["brdCntrTvChnlIDtoList"]:
             svc_channels.append(
                 {
                     "Name": ch["urcBrdCntrTvChnlDscr"],
