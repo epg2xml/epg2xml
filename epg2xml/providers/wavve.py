@@ -127,6 +127,8 @@ class WAVVE(EPGProvider):
         for nd in range(int(self.cfg["FETCH_LIMIT"])):
             day = (today + timedelta(days=nd)).strftime("%Y-%m-%d")
             for t in range(8):
+                if nd == 0 and (t + 1) * 3 < datetime.now().hour:
+                    continue
                 params.update({"startdatetime": f"{day} {t*3:02d}:00", "enddatetime": f"{day} {t*3+3:02d}:00"})
                 for ch in self.__get("/live/epgs", params=params)["list"]:
                     cid = ch["channelid"]

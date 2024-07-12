@@ -122,6 +122,8 @@ class TVING(EPGProvider):
                 day = today + timedelta(days=nd)
                 params.update({"broadDate": day.strftime("%Y%m%d"), "broadcastDate": day.strftime("%Y%m%d")})
                 for t in range(8):
+                    if nd == 0 and (t + 1) * 3 < datetime.now().hour:
+                        continue
                     params.update({"startBroadTime": f"{t*3:02d}0000", "endBroadTime": f"{t*3+3:02d}0000"})
                     for ch in self.__get(self.url, params=params):
                         chcode = ch["channel_code"]
