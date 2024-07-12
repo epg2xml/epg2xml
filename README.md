@@ -172,7 +172,7 @@ pip install "epg2xml[lxml] @ git+https://github.com/epg2xml/epg2xml.git@{tag_bra
 - `ID_FORMAT`: 기존의 `Id` 값은 이제 강제사항이 아니며 사용자가 개별 채널마다 직접 지정하거나 f-string 포맷으로 일괄 적용할 수 있다.
 - `GET_MORE_DETAILS`: 추가 정보를 가져오는 로직을 실행하느냐 여부이며 현재는 WAVVE만 지원한다.
 - `ADD_CHANNEL_ICON`: 기본 제공되는 `Icon_url`을 포함하고 싶지 않다면 `false`를 입력한다. 기본값 `true`.
-- `HTTP_PROXY`: 필요할 경우 프록시 URL을 입력한다. 예) http://id:pw@netloc:port 기본값 `null`.
+- `HTTP_PROXY`: 필요할 경우 프록시 URL을 입력한다. 예) <http://id:pw@netloc:port> 기본값 `null`.
 - 나머지는 기존의 옵션에서 이름만 변경되었다.
 
 `MY_CHANNELS`는 채널 파일 `Channel.json`을 참고하여 작성한다.
