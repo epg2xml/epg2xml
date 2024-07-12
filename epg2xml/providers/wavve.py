@@ -21,6 +21,7 @@ class WAVVE(EPGProvider):
 
     referer = "https://www.wavve.com/"
     title_regex = r"^(.*?)(?:\s*[\(<]?([\d]+)회[\)>]?)?(?:\([월화수목금토일]?\))?(\([선별전주\(\)재방]*?재[\d방]?\))?\s*(?:\[(.+)\])?$"
+    tps = 3.0
 
     base_url = "https://apis.wavve.com"
     base_params = {
