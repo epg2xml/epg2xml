@@ -99,7 +99,7 @@ class LG(EPGProvider):
         for p in data:
             _epg = EPGProgram(channelid)
             _epg.title = p["brdPgmTitNm"]
-            _epg.desc = p["brdPgmDscr"]
+            _epg.desc = p.get("brdPgmDscr")  # 프로그램 상세 설명이 없는 채널도 있음
             _epg.stime = datetime.strptime(p["brdCntrTvChnlBrdDt"] + p["epgStrtTme"], "%Y%m%d%H:%M:%S")
             _epg.rating = G_CODE.get(p["brdWtchAgeGrdCd"], 0)
             _epg.extras = [p["brdPgmRsolNm"]]  # 화질
