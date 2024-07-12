@@ -121,18 +121,27 @@ class WAVVE(EPGProvider):
 
     def get_programs(self) -> None:
         # parameters for requests
-        params = {
-            "enddatetime": (today + timedelta(days=int(self.cfg["FETCH_LIMIT"]) - 1)).strftime("%Y-%m-%d 24:00"),
-            "genre": "all",
-            "limit": 500,
-            "offset": 0,
-            "startdatetime": today.strftime("%Y-%m-%d 00:00"),
-        }
-        channeldict = {x["channelid"]: x for x in self.__get("/live/epgs", params=params)["list"]}
+        channeldict = {}
+        params = {"genre": "all", "limit": 500, "offset": 0}
+        for nd in range(int(self.cfg["FETCH_LIMIT"])):
+            day = (today + timedelta(days=nd)).strftime("%Y-%m-%d")
+            for t in range(8):
+                params.update({"startdatetime": f"{day} {t*3:02d}:00", "enddatetime": f"{day} {t*3+3:02d}:00"})
+                for ch in self.__get("/live/epgs", params=params)["list"]:
+                    cid = ch["channelid"]
+                    channeldict.setdefault(cid, [])
+                    toappend = ch.get("list") or []
+                    try:
+                        # 3시간 단위로 요청된 스케줄 앞 뒤로 중복이 있을 수 있다.
+                        if channeldict[cid][-1] == toappend[0]:
+                            toappend = toappend[1:]
+                    except Exception:
+                        pass
+                    channeldict[cid] += toappend
 
         for idx, _ch in enumerate(self.req_channels):
             log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)
-            for program in channeldict[_ch.svcid]["list"]:
+            for program in channeldict[_ch.svcid]:
                 try:
                     _epg = self.__epg_of_program(_ch.id, program)
                 except Exception:
