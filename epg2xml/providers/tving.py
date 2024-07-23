@@ -161,12 +161,14 @@ class TVING(EPGProvider):
             _epg.rating = G_CODE[sch[get_from].get("grade_code", "CPTG0100")]
             _epg.title = sch[get_from]["name"]["ko"]
             _epg.title_sub = sch[get_from]["name"].get("en")
-            if cate1 := sch[get_from]["category1_name"].get("ko"):
-                _epg.categories = [cate1]
-            if cate2 := sch[get_from]["category2_name"].get("ko"):
-                _epg.categories = (_epg.categories or []) + [cate2]
-            _epg.cast = [{"name": x, "title": "actor"} for x in sch[get_from]["actor"]]
-            _epg.crew = [{"name": x, "title": "director"} for x in sch[get_from]["director"]]
+            if cate1 := sch[get_from]["category1_name"]:
+                _epg.categories = [cate1.get("ko")]
+            if cate2 := sch[get_from]["category2_name"]:
+                _epg.categories = (_epg.categories or []) + [cate2.get("ko")]
+            if actors := sch[get_from]["actor"]:
+                _epg.cast = [{"name": x, "title": "actor"} for x in actors]
+            if directors := sch[get_from]["director"]:
+                _epg.crew = [{"name": x, "title": "director"} for x in directors]
 
             poster = [x["url"] for x in sch[get_from]["image"] if x["code"] == img_code]
             if poster:
@@ -174,9 +176,9 @@ class TVING(EPGProvider):
                 # _prog.poster_url += '/dims/resize/236'
 
             _epg.desc = sch[get_from]["story" if sch["movie"] else "synopsis"]["ko"]
-            if sch["episode"]:
-                episode = sch["episode"]["frequency"]
-                _epg.ep_num = "" if episode == 0 else str(episode)
-                _epg.desc = sch["episode"]["synopsis"]["ko"]
+            if episode := sch["episode"]:
+                frequency = episode["frequency"]
+                _epg.ep_num = "" if frequency == 0 else str(frequency)
+                _epg.desc = (episode["synopsis"] or {}).get("ko")
             _epgs.append(_epg)
         return _epgs
