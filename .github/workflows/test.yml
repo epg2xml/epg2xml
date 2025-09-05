@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
     - name: Set up Python ${{ env.PY_VER }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ env.PY_VER }}
     - name: Checkout
