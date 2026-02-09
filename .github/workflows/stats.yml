@@ -34,9 +34,7 @@ jobs:
         sudo apt-get install -y xmltv-util
     - name: Test ${{ matrix.provider }}
       run: |
-        if [ "${{ matrix.provider }}" = "wavve" ]; then
-          export HTTP_PROXY="${{ secrets.HTTP_PROXY }}"
-        fi
+        export HTTP_PROXY="${{ secrets.HTTP_PROXY }}"
         python -m tests.test_provider \
           ${{ matrix.provider }} \
           ${{ github.event.inputs.numChannels }} \

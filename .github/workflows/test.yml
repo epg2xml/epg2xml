@@ -32,9 +32,9 @@ jobs:
       run: |
         # 기본 설정파일 생성
         rm -f epg2xml.json && epg2xml run
-        # 예외 적용 - WAVVE HTTP_PROXY
+        # HTTP_PROXY 적용
         jq --arg U "${{ secrets.HTTP_PROXY }}" \
-          '.WAVVE += {"HTTP_PROXY": $U}' epg2xml.json | sponge epg2xml.json
+          '.GLOBAL += {"HTTP_PROXY": $U}' epg2xml.json | sponge epg2xml.json
         # 예외 적용 - DAUM ID_FORMAT
         jq --arg ID "{No}.{Source.lower()}" \
           '.DAUM += {"ID_FORMAT": $ID}' epg2xml.json | sponge epg2xml.json
