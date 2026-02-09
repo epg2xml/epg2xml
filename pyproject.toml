@@ -14,7 +14,7 @@ version_scheme = "release-branch-semver"
 name = "epg2xml"
 description = "웹 상의 소스를 취합하여 EPG를 만드는 프로그램"
 readme = "README.md"
-requires-python = ">=3.8, <3.13"
+requires-python = ">=3.8, <3.15"
 license = {file = "LICENSE"}
 authors = [
     {name = "epg2xml", email = "epg3xml@gmail.com"}
@@ -34,6 +34,8 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Internet :: WWW/HTTP",
     "Topic :: Software Development :: Libraries",
 ]

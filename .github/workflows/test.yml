@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 env:
-  PY_VER: '3.10'
+  PY_VER: '3.12'
   EPG2XML_LOGLEVEL: DEBUG
 
 jobs:
