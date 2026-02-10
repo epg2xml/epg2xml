@@ -15,6 +15,7 @@ from epg2xml.utils import dump_json
 # suppress modules logging
 logging.getLogger("requests").setLevel(logging.ERROR)
 logging.getLogger("urllib3.connectionpool").setLevel(logging.ERROR)
+logging.getLogger("curl_cffi").setLevel(logging.ERROR)
 
 logger = logging.getLogger("CONFIG")
 
@@ -302,7 +303,9 @@ class Config:
             "cmd",
             metavar="command",
             choices=("run", "fromdb", "update_channels"),
-            help=('"run": XML 형식으로 출력\n' '"fromdb": dbfile로부터 불러오기\n' '"update_channels": 채널 정보 업데이트'),
+            help=(
+                '"run": XML 형식으로 출력\n' '"fromdb": dbfile로부터 불러오기\n' '"update_channels": 채널 정보 업데이트'
+            ),
         )
 
         # Display version info

@@ -33,6 +33,7 @@ rootLogger.setLevel(logging.DEBUG)
 # suppress modules logging
 logging.getLogger("requests").setLevel(logging.ERROR)
 logging.getLogger("urllib3.connectionpool").setLevel(logging.ERROR)
+logging.getLogger("curl_cffi").setLevel(logging.ERROR)
 
 # logging to console, stderr by default
 consolehandler = logging.StreamHandler()
