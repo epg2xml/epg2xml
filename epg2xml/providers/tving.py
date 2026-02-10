@@ -3,7 +3,10 @@ from datetime import date, datetime, timedelta
 from itertools import islice
 from typing import List
 
-import requests
+try:
+    from curl_cffi import requests
+except ImportError:
+    import requests
 
 from epg2xml.providers import EPGProgram, EPGProvider
 

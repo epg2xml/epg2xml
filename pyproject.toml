@@ -43,8 +43,15 @@ dependencies = [
     "requests",
     "beautifulsoup4>=4.8",
 ]
-optional-dependencies = {lxml = ["lxml"]}
 dynamic = ["version"]
+
+[project.optional-dependencies]
+lxml = ["lxml"]
+curl = ["curl_cffi"]
+all = [
+    "epg2xml[lxml]",
+    "epg2xml[curl]",
+]
 
 [project.urls]
 "Code" = "https://github.com/epg2xml/epg2xml"

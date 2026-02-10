@@ -14,7 +14,10 @@ from itertools import chain
 from os import PathLike
 from typing import ClassVar, Iterator, List, Literal, Tuple, Union
 
-import requests
+try:
+    from curl_cffi import requests
+except ImportError:
+    import requests
 
 from epg2xml import __title__, __version__
 from epg2xml.utils import Element, PrefixLogger, RateLimiter, dump_json
@@ -254,8 +257,13 @@ class EPGProvider:
     def __init__(self, cfg: dict):
         self.provider_name = self.__class__.__name__
         self.cfg = cfg
-        self.sess = requests.Session()
-        self.sess.headers.update({"User-Agent": UA, "Referer": self.referer})
+        # session
+        sess_kwargs = {"headers": {"Referer": self.referer}}
+        if "cffi" in requests.__name__:
+            sess_kwargs["impersonate"] = "chrome"
+        else:
+            sess_kwargs["headers"]["User-Agent"] = UA
+        self.sess = requests.Session(**sess_kwargs)
         if http_proxy := cfg["HTTP_PROXY"]:
             self.sess.proxies.update({"http": http_proxy, "https": http_proxy})
         if self.title_regex:
@@ -341,7 +349,9 @@ class EPGProvider:
             if not self.cfg["ADD_CHANNEL_ICON"]:
                 req_ch.pop("Icon_url", None)
             req_channels.append(EPGChannel.fromdict(**req_ch))
-        plog.info("요청 %3d - 불가 %3d = 최종 %3d", len(my_channels), len(my_channels) - len(req_channels), len(req_channels))
+        plog.info(
+            "요청 %3d - 불가 %3d = 최종 %3d", len(my_channels), len(my_channels) - len(req_channels), len(req_channels)
+        )
         self.req_channels = req_channels
 
     def write_channels(self) -> None:

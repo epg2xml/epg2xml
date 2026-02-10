@@ -24,7 +24,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install .[lxml]
+        pip install .[all]
         sudo apt-get install -yqq --no-install-recommends \
           xmltv-util \
           moreutils
@@ -52,7 +52,7 @@ jobs:
     - name: Diff
       if: github.event.pull_request.base.ref == 'main'
       run: |
-        pip install --upgrade "epg2xml[lxml] @ git+https://github.com/epg2xml/epg2xml.git@main"
+        pip install --upgrade "epg2xml[all] @ git+https://github.com/epg2xml/epg2xml.git@main"
         epg2xml run \
           --xmlfile=xmltv-main.xml \
           --parallel
