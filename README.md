@@ -9,6 +9,7 @@
 1. Python 3.8 이상
 2. Python Package `requests`, `beautifulsoup4`
 3. Python Package `lxml` (선택 사항으로 속도 향상을 기대할 수 있다.)
+4. Python Package `curl_cffi` (선택 사항으로 차단을 우회를 기대할 수 있다.)
 
 플랫폼마다 파이썬 버전, 패키지 설치 가능 여부와 방법이 다르므로 검색을 통해 해결한다. 유명한 패키지들이라 어렵지 않을 것이다.
 
@@ -28,7 +29,7 @@ pip install git+https://github.com/epg2xml/epg2xml.git@{tag_branch_hash}
 pip install "epg2xml[lxml] @ git+https://github.com/epg2xml/epg2xml.git@{tag_branch_hash}"
 ```
 
-그 외의 설치 방법은 [위키](https://github.com/epg2xml/epg2xml/wiki/%EC%84%A4%EC%B9%98)를 참고.
+`curl_cffi`와 함께 설치하려면 `[lxml]` 대신 `[curl]` 모든 것을 포함하려면 `[all]`을 입력한다. 그 외의 설치 방법은 [위키](https://github.com/epg2xml/epg2xml/wiki/%EC%84%A4%EC%B9%98)를 참고.
 
 ### 실행
 
