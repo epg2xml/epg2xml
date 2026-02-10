@@ -243,7 +243,8 @@ class EPGChannel:
         print(chel.tostring(level=1))
 
 
-UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
+# user-agent - curl -L microlink.io/user-agents.json | jq -r .user[0]
+UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
 
 
 class EPGProvider:
