@@ -69,7 +69,7 @@ class KBS(EPGProvider):
 
         groups = {}
         for idx, ch in enumerate(self.req_channels):
-            endpoint, local_station_code, channel_code = None, "00", ch.svcid  # default
+            local_station_code, channel_code = "00", ch.svcid
             if ch.svcid.startswith(("cctv", "nvod")):
                 endpoint = self.myk_schedule_url
             else:
