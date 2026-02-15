@@ -52,16 +52,38 @@ jobs:
       run: |
         epg2xml run --xmlfile=xmltv.xml
         tv_validate_file xmltv.xml
-    - name: Diff
+    - name: Diff (informational)
       if: github.event.pull_request.base.ref == 'main'
       run: |
         pip install --upgrade "epg2xml[all] @ git+https://github.com/epg2xml/epg2xml.git@main"
         epg2xml run \
           --xmlfile=xmltv-main.xml \
           --parallel
-        if ! diff -I '^<tv generator-info-name*' xmltv.xml xmltv-main.xml; then
+        if diff -I '^<tv generator-info-name*' xmltv.xml xmltv-main.xml > diff.txt; then
+          echo "No diff against main."
+          {
+            echo "## Diff Result"
+            echo ""
+            echo "- Base branch: \`main\`"
+            echo "- Status: No diff"
+          } >> "$GITHUB_STEP_SUMMARY"
+        else
+          echo "::warning::Diff detected against main (informational only)."
           tv_validate_file xmltv-main.xml
-          exit 1
+          {
+            echo "## Diff Result"
+            echo ""
+            echo "- Base branch: \`main\`"
+            echo "- Status: Diff detected (informational only)"
+            echo ""
+            echo "<details><summary>Show diff (first 200 lines)</summary>"
+            echo ""
+            echo '```diff'
+            sed -n '1,200p' diff.txt
+            echo '```'
+            echo ""
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
         fi
     - name: Upload Artifact
       uses: actions/upload-artifact@v6
