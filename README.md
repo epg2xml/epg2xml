@@ -170,7 +170,7 @@ pip install "epg2xml[lxml] @ git+https://github.com/epg2xml/epg2xml.git@{tag_bra
 
 - `ENABLED`: `true` or `false` 각 제공자를 끄거나 켤 수 있다. 끄면 채널 업데이트도 하지 않는다.
 - `FETCH_LIMIT`: 가져올 기간. 기본값 2는 오늘, 내일해서 2일을 의미한다. 각 제공자마다 제한값이 존재한다. 따옴표 없는 숫자로 입력한다.
-- `ID_FORMAT`: 기존의 `Id` 값은 이제 강제사항이 아니며 사용자가 개별 채널마다 직접 지정하거나 f-string 포맷으로 일괄 적용할 수 있다.
+- `ID_FORMAT`: 기존의 `Id` 값은 이제 강제사항이 아니며 사용자가 개별 채널마다 직접 지정하거나 f-string 포맷으로 일괄 적용할 수 있다. 보안상 임의 코드 실행은 불가하며, 문자열 메서드(`lower`, `replace`, `strip` 등)만 지원한다.
 - `GET_MORE_DETAILS`: 추가 정보를 가져오는 로직을 실행하느냐 여부이며 현재는 WAVVE만 지원한다.
 - `ADD_CHANNEL_ICON`: 기본 제공되는 `Icon_url`을 포함하고 싶지 않다면 `false`를 입력한다. 기본값 `true`.
 - `HTTP_PROXY`: 필요할 경우 프록시 URL을 입력한다. 예) <http://id:pw@netloc:port> 기본값 `null`.

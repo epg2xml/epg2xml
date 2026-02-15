@@ -20,6 +20,7 @@ except ImportError:
     import requests
 
 from epg2xml import __title__, __version__
+from epg2xml.id_format import render_id_format
 from epg2xml.utils import Element, PrefixLogger, RateLimiter, dump_json
 
 log = logging.getLogger("PROV")
@@ -344,8 +345,9 @@ class EPGProvider:
             req_ch.setdefault("No", str(my_no))
             if "Id" not in req_ch:
                 try:
-                    req_ch["Id"] = eval(f"f'{self.cfg['ID_FORMAT']}'", None, req_ch)
-                except Exception:
+                    req_ch["Id"] = render_id_format(self.cfg["ID_FORMAT"], req_ch)
+                except (KeyError, TypeError, ValueError, SyntaxError) as e:
+                    plog.warning("Invalid ID_FORMAT '%s': %s", self.cfg["ID_FORMAT"], e)
                     req_ch["Id"] = f'{req_ch["ServiceId"]}.{req_ch["Source"].lower()}'
             if not self.cfg["ADD_CHANNEL_ICON"]:
                 req_ch.pop("Icon_url", None)
