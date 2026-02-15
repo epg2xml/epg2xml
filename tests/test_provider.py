@@ -48,7 +48,7 @@ provider_name = sys.argv[1]
 module = import_module(f"epg2xml.providers.{provider_name.lower()}")
 provider = getattr(module, provider_name.upper())(cfg)
 
-if provider_name.lower() == "daum":
+if provider_name.lower() in ["daum", "kbs"]:
     cfg["ID_FORMAT"] = "{No}.{Source.lower()}"
 
 stime = timer()

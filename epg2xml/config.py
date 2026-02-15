@@ -92,6 +92,9 @@ class Config:
         "SPOTV": {
             "MY_CHANNELS": [],
         },
+        "KBS": {
+            "MY_CHANNELS": [],
+        },
     }
 
     base_settings = {

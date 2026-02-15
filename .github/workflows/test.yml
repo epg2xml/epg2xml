@@ -38,10 +38,13 @@ jobs:
         # 예외 적용 - DAUM ID_FORMAT
         jq --arg ID "{No}.{Source.lower()}" \
           '.DAUM += {"ID_FORMAT": $ID}' epg2xml.json | sponge epg2xml.json
+        # 예외 적용 - KBS ID_FORMAT
+        jq --arg ID "{No}.{Source.lower()}" \
+          '.KBS += {"ID_FORMAT": $ID}' epg2xml.json | sponge epg2xml.json
         # 채널 업데이트
         epg2xml update_channels
         # 최대 10개의 채널을 무작위 추출
-        for p in KT LG SK DAUM NAVER TVING WAVVE SPOTV; do
+        for p in KT LG SK DAUM NAVER TVING WAVVE SPOTV KBS; do
           jq -c '.'$p'.CHANNELS[]' Channel.json | shuf -n10 | jq --slurpfile n /dev/stdin \
             '.'$p'.MY_CHANNELS = $n' epg2xml.json | sponge epg2xml.json
         done
