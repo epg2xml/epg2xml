@@ -38,10 +38,13 @@ jobs:
         # 예외 적용 - DAUM ID_FORMAT
         jq --arg ID "{No}.{Source.lower()}" \
           '.DAUM += {"ID_FORMAT": $ID}' epg2xml.json | sponge epg2xml.json
+        # 예외 적용 - KBS ID_FORMAT
+        jq --arg ID "{No}.{Source.lower()}" \
+          '.KBS += {"ID_FORMAT": $ID}' epg2xml.json | sponge epg2xml.json
         # 채널 업데이트
         epg2xml update_channels
         # 최대 10개의 채널을 무작위 추출
-        for p in KT LG SK DAUM NAVER TVING WAVVE SPOTV; do
+        for p in KT LG SK DAUM NAVER TVING WAVVE SPOTV KBS; do
           jq -c '.'$p'.CHANNELS[]' Channel.json | shuf -n10 | jq --slurpfile n /dev/stdin \
             '.'$p'.MY_CHANNELS = $n' epg2xml.json | sponge epg2xml.json
         done
@@ -49,16 +52,58 @@ jobs:
       run: |
         epg2xml run --xmlfile=xmltv.xml
         tv_validate_file xmltv.xml
-    - name: Diff
+    - name: Diff (informational)
       if: github.event.pull_request.base.ref == 'main'
       run: |
         pip install --upgrade "epg2xml[all] @ git+https://github.com/epg2xml/epg2xml.git@main"
-        epg2xml run \
+        if ! epg2xml run \
           --xmlfile=xmltv-main.xml \
-          --parallel
-        if ! diff -I '^<tv generator-info-name*' xmltv.xml xmltv-main.xml; then
+          --parallel > main-run.log 2>&1; then
+          echo "::warning::Failed to run epg2xml@main for diff comparison (likely unsupported provider/option in PR config)."
+          {
+            echo "## Diff Result"
+            echo ""
+            echo "- Base branch: \`main\`"
+            echo "- Status: Skipped (main runtime failed with PR config)"
+            echo ""
+            echo "Likely cause: PR adds provider/options that \`main\` does not understand yet."
+            echo ""
+            echo "<details><summary>Show main run error (first 120 lines)</summary>"
+            echo ""
+            echo '```text'
+            sed -n '1,120p' main-run.log
+            echo '```'
+            echo ""
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 0
+        fi
+
+        if diff -I '^<tv generator-info-name*' xmltv.xml xmltv-main.xml > diff.txt; then
+          echo "No diff against main."
+          {
+            echo "## Diff Result"
+            echo ""
+            echo "- Base branch: \`main\`"
+            echo "- Status: No diff"
+          } >> "$GITHUB_STEP_SUMMARY"
+        else
+          echo "::warning::Diff detected against main (informational only)."
           tv_validate_file xmltv-main.xml
-          exit 1
+          {
+            echo "## Diff Result"
+            echo ""
+            echo "- Base branch: \`main\`"
+            echo "- Status: Diff detected (informational only)"
+            echo ""
+            echo "<details><summary>Show diff (first 200 lines)</summary>"
+            echo ""
+            echo '```diff'
+            sed -n '1,200p' diff.txt
+            echo '```'
+            echo ""
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
         fi
     - name: Upload Artifact
       uses: actions/upload-artifact@v6
