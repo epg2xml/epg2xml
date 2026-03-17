@@ -95,6 +95,9 @@ class Config:
         "KBS": {
             "MY_CHANNELS": [],
         },
+        "MBC": {
+            "MY_CHANNELS": [],
+        },
     }
 
     base_settings = {
