@@ -40,7 +40,7 @@ jobs:
           ${{ github.event.inputs.numChannels }} \
           ${{ github.event.inputs.shuffle }}
     - name: Upload Artifact
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       if: always()
       with:
         name: xmltv-${{ matrix.provider }}-py${{ matrix.python-version }}
