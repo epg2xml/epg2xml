@@ -47,7 +47,7 @@ jobs:
         # 채널 업데이트
         epg2xml update_channels
         # 최대 10개의 채널을 무작위 추출
-        for p in KT LG SK DAUM NAVER TVING WAVVE SPOTV KBS MBC; do
+        for p in KT LG SK DAUM NAVER TVING WAVVE SPOTV KBS MBC SBS; do
           jq -c '.'$p'.CHANNELS[]' Channel.json | shuf -n10 | jq --slurpfile n /dev/stdin \
             '.'$p'.MY_CHANNELS = $n' epg2xml.json | sponge epg2xml.json
         done
