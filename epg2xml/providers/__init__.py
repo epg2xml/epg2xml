@@ -58,6 +58,10 @@ TAG_CREDITS = (
 )
 
 
+class DuplicateChannelIdError(ValueError):
+    """Raised when requested channels resolve to duplicate XML channel IDs."""
+
+
 @dataclass
 class EPGProgram:
     """For individual program entities"""
@@ -434,7 +438,8 @@ class EPGHandler:
 
         log.debug("Checking uniqueness of channelid...")
         cids = [c.id for p in self.providers for c in p.req_channels]
-        assert len(cids) == len(set(cids)), f"채널ID 중복: { {k:v for k,v in Counter(cids).items() if v > 1} }"
+        if len(cids) != len(set(cids)):
+            raise DuplicateChannelIdError(f"채널ID 중복: { {k:v for k,v in Counter(cids).items() if v > 1} }")
 
     def get_programs(self, parallel: bool = False):
         if parallel:
