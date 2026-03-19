@@ -21,7 +21,7 @@ bs4.BeautifulSoup = DummyBeautifulSoup
 bs4.FeatureNotFound = DummyFeatureNotFound
 sys.modules.setdefault("bs4", bs4)
 
-from epg2xml.providers import EPGProvider
+from epg2xml.providers import EPGHandler, EPGProvider
 
 
 CFG = {
@@ -53,6 +53,22 @@ class FAKE(EPGProvider):
         raise NotImplementedError
 
 
+class FakeHandlerProvider:
+    def __init__(self, error=None):
+        self.error = error
+        self.was_channel_updated = False
+        self.provider_name = "FAKE"
+        self.svc_channels = []
+
+    def load_svc_channels(self, channeljson=None):
+        if self.error is not None:
+            raise self.error
+
+    def get_programs(self):
+        if self.error is not None:
+            raise self.error
+
+
 class DummySession:
     def __init__(self, **kwargs):
         self.kwargs = kwargs
@@ -73,6 +89,11 @@ class DummyResponse:
 
 
 class TestProvider(unittest.TestCase):
+    def make_handler(self, *providers):
+        handler = EPGHandler.__new__(EPGHandler)
+        handler.providers = list(providers)
+        return handler
+
     def test_load_svc_channels_uses_recent_cache(self):
         with patch("epg2xml.providers.requests.Session", DummySession):
             provider = FAKE(dict(CFG))
@@ -136,6 +157,18 @@ class TestProvider(unittest.TestCase):
         self.assertEqual(response, {"ok": True})
         self.assertEqual(provider.sess.calls[0]["timeout"], provider.timeout)
         self.assertEqual(provider.sess.calls[0]["url"], "https://example.com")
+
+    def test_load_channels_parallel_propagates_worker_exceptions(self):
+        handler = self.make_handler(FakeHandlerProvider(RuntimeError("boom")))
+
+        with self.assertRaises(RuntimeError):
+            handler.load_channels("unused.json", parallel=True)
+
+    def test_get_programs_parallel_propagates_worker_exceptions(self):
+        handler = self.make_handler(FakeHandlerProvider(RuntimeError("boom")))
+
+        with self.assertRaises(RuntimeError):
+            handler.get_programs(parallel=True)
 
 
 if __name__ == "__main__":

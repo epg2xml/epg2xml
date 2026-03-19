@@ -4,7 +4,7 @@ import re
 import sqlite3
 import sys
 from collections import Counter
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import closing
 from dataclasses import InitVar, dataclass, fields
 from datetime import datetime, timedelta
@@ -419,8 +419,9 @@ class EPGHandler:
             channeljson = {}
         if parallel:
             with ThreadPoolExecutor() as exe:
-                for p in self.providers:
-                    exe.submit(p.load_svc_channels, channeljson=channeljson)
+                futures = {exe.submit(p.load_svc_channels, channeljson=channeljson): p for p in self.providers}
+                for future in as_completed(futures):
+                    future.result()
         else:
             for p in self.providers:
                 p.load_svc_channels(channeljson=channeljson)
@@ -446,8 +447,9 @@ class EPGHandler:
     def get_programs(self, parallel: bool = False):
         if parallel:
             with ThreadPoolExecutor() as exe:
-                for p in self.providers:
-                    exe.submit(p.get_programs)
+                futures = {exe.submit(p.get_programs): p for p in self.providers}
+                for future in as_completed(futures):
+                    future.result()
         else:
             for p in self.providers:
                 p.get_programs()
