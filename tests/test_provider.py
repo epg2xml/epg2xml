@@ -1,16 +1,30 @@
-import logging
-import os
-import subprocess
 import sys
-from contextlib import redirect_stdout
-from importlib import import_module
-from pathlib import Path
-from random import shuffle
-from timeit import default_timer as timer
+import types
+import unittest
+from datetime import datetime, timedelta
+from unittest.mock import patch
 
-from epg2xml import __title__, __version__
 
-cfg = {
+bs4 = types.ModuleType("bs4")
+
+
+class DummyBeautifulSoup:
+    def __init__(self, *args, **kwargs):
+        pass
+
+
+class DummyFeatureNotFound(Exception):
+    pass
+
+
+bs4.BeautifulSoup = DummyBeautifulSoup
+bs4.FeatureNotFound = DummyFeatureNotFound
+sys.modules.setdefault("bs4", bs4)
+
+from epg2xml.providers import EPGProvider
+
+
+CFG = {
     "ENABLED": True,
     "FETCH_LIMIT": 2,
     "ID_FORMAT": "{ServiceId}.{Source.lower()}",
@@ -20,87 +34,86 @@ cfg = {
     "ADD_XMLTV_NS": False,
     "GET_MORE_DETAILS": False,
     "ADD_CHANNEL_ICON": True,
-    "HTTP_PROXY": os.environ.get("HTTP_PROXY"),
-    "MY_CHANNELS": "*",
+    "HTTP_PROXY": None,
+    "MY_CHANNELS": [],
 }
 
-# logging
-log_fmt = "%(asctime)-15s %(levelname)-8s %(name)-7s %(lineno)4d: %(message)s"
-formatter = logging.Formatter(log_fmt, datefmt="%Y/%m/%d %H:%M:%S")
-rootLogger = logging.getLogger()
-rootLogger.setLevel(logging.DEBUG)
 
-# suppress modules logging
-logging.getLogger("requests").setLevel(logging.ERROR)
-logging.getLogger("urllib3.connectionpool").setLevel(logging.ERROR)
-logging.getLogger("curl_cffi").setLevel(logging.ERROR)
+class FAKE(EPGProvider):
+    def __init__(self, cfg):
+        self.fetch_count = 0
+        self.to_return = []
+        super().__init__(cfg)
 
-# logging to console, stderr by default
-consolehandler = logging.StreamHandler()
-consolehandler.setFormatter(formatter)
-rootLogger.addHandler(consolehandler)
+    def get_svc_channels(self):
+        self.fetch_count += 1
+        return list(self.to_return)
 
-# logger
-log = rootLogger.getChild("TEST")
+    def get_programs(self):
+        raise NotImplementedError
 
-# provider
-provider_name = sys.argv[1]
-module = import_module(f"epg2xml.providers.{provider_name.lower()}")
-provider = getattr(module, provider_name.upper())(cfg)
 
-if provider_name.lower() in ["daum", "kbs", "mbc"]:
-    cfg["ID_FORMAT"] = "{No}.{Source.lower()}"
+class DummySession:
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+        self.proxies = {}
 
-stime = timer()
-provider.load_svc_channels()
-etime_ch = timer() - stime
 
-provider.load_req_channels()
+class TestProvider(unittest.TestCase):
+    def test_load_svc_channels_uses_recent_cache(self):
+        with patch("epg2xml.providers.requests.Session", DummySession):
+            provider = FAKE(dict(CFG))
+        cached_channels = [{"Name": "A", "ServiceId": "1"}]
+        channeljson = {
+            "FAKE": {
+                "UPDATED": datetime.now().isoformat(),
+                "TOTAL": len(cached_channels),
+                "CHANNELS": cached_channels,
+            }
+        }
 
-rch = provider.req_channels
-if sys.argv[3] == "true":
-    log.info("Shuffling requested channels...")
-    shuffle(rch)
-if sys.argv[2].isdecimal() and (num_rch := int(sys.argv[2])) > 0:
-    log.info("Using %d of them...", num_rch)
-    rch = rch[: max(1, num_rch)]
-elif (per_rch := float(sys.argv[2]) * 100) > 0.0:
-    log.info("Using %3.1f%% of them...", per_rch)
-    num_rch = int(len(rch) * per_rch / 100)
-    rch = rch[: max(10, num_rch)]
-provider.req_channels = rch
+        provider.load_svc_channels(channeljson=channeljson)
 
-stime = timer()
-provider.get_programs()
-etime_prog = timer() - stime
-num_rch = len(provider.req_channels)
+        self.assertEqual(provider.svc_channels, cached_channels)
+        self.assertEqual(provider.fetch_count, 0)
+        self.assertFalse(provider.was_channel_updated)
 
-provider.req_channels = [x for x in provider.req_channels if x.programs]
-num_gch = len(provider.req_channels)
+    def test_load_svc_channels_fetches_when_cache_is_broken(self):
+        with patch("epg2xml.providers.requests.Session", DummySession):
+            provider = FAKE(dict(CFG))
+        provider.to_return = [{"Name": "B", "ServiceId": "2"}]
+        broken_channeljson = {
+            "FAKE": {
+                "UPDATED": datetime.now().isoformat(),
+                "TOTAL": 999,
+                "CHANNELS": [],
+            }
+        }
 
-# status
-log.info(f"To load service channels: {etime_ch:.2f}s")
-log.info(f"To get EPG: {etime_prog:.2f}s/{num_rch:d} = {etime_prog/num_rch:.2f}s")
-log.info(f"Requested: {num_rch} / Alive: {num_gch}")
+        provider.load_svc_channels(channeljson=broken_channeljson)
 
-if not provider.req_channels:
-    sys.exit(0)
+        self.assertEqual(provider.svc_channels, provider.to_return)
+        self.assertEqual(provider.fetch_count, 1)
+        self.assertTrue(provider.was_channel_updated)
 
-xmlfile = Path.cwd().joinpath(f"xmltv_{provider.provider_name.lower()}.xml")
-with open(xmlfile, "w", encoding="utf-8") as f:
-    with redirect_stdout(f):
-        print('<?xml version="1.0" encoding="UTF-8"?>')
-        print('<!DOCTYPE tv SYSTEM "xmltv.dtd">\n')
-        print(f'<tv generator-info-name="{__title__} v{__version__}">')
+    def test_load_svc_channels_fetches_when_cache_is_outdated(self):
+        with patch("epg2xml.providers.requests.Session", DummySession):
+            provider = FAKE(dict(CFG))
+        provider.to_return = [{"Name": "C", "ServiceId": "3"}]
+        stale_channeljson = {
+            "FAKE": {
+                "UPDATED": (datetime.now() - timedelta(days=5)).isoformat(),
+                "TOTAL": 1,
+                "CHANNELS": [{"Name": "OLD", "ServiceId": "0"}],
+            }
+        }
 
-        provider.write_channels()
-        provider.write_programs()
+        provider.load_svc_channels(channeljson=stale_channeljson)
 
-        print("</tv>")
+        self.assertEqual(provider.svc_channels, provider.to_return)
+        self.assertEqual(provider.fetch_count, 1)
+        self.assertTrue(provider.was_channel_updated)
 
-log.info(f"Average size: {xmlfile.stat().st_size/num_gch/1000.:.2f} kbyte/ch")
 
-try:
-    subprocess.run(["tv_validate_file", xmlfile], check=True)
-except subprocess.CalledProcessError as e:
-    sys.exit(1)
+if __name__ == "__main__":
+    unittest.main()

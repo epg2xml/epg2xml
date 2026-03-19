@@ -35,7 +35,7 @@ jobs:
     - name: Test ${{ matrix.provider }}
       run: |
         export HTTP_PROXY="${{ secrets.HTTP_PROXY }}"
-        python -m tests.test_provider \
+        python -m scripts.check_provider \
           ${{ matrix.provider }} \
           ${{ github.event.inputs.numChannels }} \
           ${{ github.event.inputs.shuffle }}
