@@ -41,19 +41,7 @@ def setup_root_logger(
     logging.getLogger().addHandler(handler)
     logging.getLogger().setLevel(level)
 
-
-class Singleton(type):
-    _instances = {}
-
-    def __call__(cls, *args, **kwargs):
-        if cls not in cls._instances:
-            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
-
-        return cls._instances[cls]
-
-
 class Config:
-    __metaclass__ = Singleton
 
     base_config = {
         "GLOBAL": {
