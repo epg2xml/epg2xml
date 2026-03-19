@@ -526,8 +526,13 @@ class SQLite:
         with closing(self.conn.cursor()) as c:
             cols = [f"{f.name} {SQLITE_DTYPES.get(f.type, 'TEXT')}" for f in fields(EPGProgram)]
             c.executescript(
-                f"""CREATE TABLE IF NOT EXISTS epgchannel ({', '.join(EPGChannel.columns)});
+                f"""CREATE TABLE IF NOT EXISTS epgchannel (
+                {', '.join(EPGChannel.columns)},
+                PRIMARY KEY (Id)
+                );
                 CREATE TABLE IF NOT EXISTS epgprogram ({', '.join(cols)});
+                CREATE INDEX IF NOT EXISTS idx_epgchannel_source ON epgchannel (Source);
+                CREATE INDEX IF NOT EXISTS idx_epgprogram_channelid_stime ON epgprogram (channelid, stime);
                 DELETE FROM epgchannel; DELETE FROM epgprogram;"""
             )
 
@@ -548,9 +553,9 @@ class SQLite:
             return c.execute(*args, **kwargs).fetchall()
 
     def select_channels(self, source: str) -> List[EPGChannel]:
-        sql = "SELECT * FROM epgchannel WHERE Source = ?"
+        sql = "SELECT * FROM epgchannel WHERE Source = ? ORDER BY No, Name, Id"
         return [EPGChannel(*x) for x in self.__fetchall(sql, (source,))]
 
     def select_programs(self, channelid: str) -> List[EPGProgram]:
-        sql = "SELECT * FROM epgprogram WHERE channelid = ?"
+        sql = "SELECT * FROM epgprogram WHERE channelid = ? ORDER BY stime, etime, title"
         return [EPGProgram(*x) for x in self.__fetchall(sql, (channelid,))]

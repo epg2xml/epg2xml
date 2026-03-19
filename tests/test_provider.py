@@ -1,7 +1,9 @@
 import sys
+import tempfile
 import types
 import unittest
 from datetime import datetime, timedelta
+from pathlib import Path
 from unittest.mock import patch
 
 
@@ -21,7 +23,7 @@ bs4.BeautifulSoup = DummyBeautifulSoup
 bs4.FeatureNotFound = DummyFeatureNotFound
 sys.modules.setdefault("bs4", bs4)
 
-from epg2xml.providers import EPGHandler, EPGProvider
+from epg2xml.providers import EPGChannel, EPGHandler, EPGProgram, EPGProvider, SQLite
 
 
 CFG = {
@@ -169,6 +171,28 @@ class TestProvider(unittest.TestCase):
 
         with self.assertRaises(RuntimeError):
             handler.get_programs(parallel=True)
+
+    def test_sqlite_round_trip_preserves_channel_and_program_order(self):
+        channel = EPGChannel("kt.id", "KT", "svc1", "Channel A")
+        channel.no = "101"
+        programs = [
+            EPGProgram("kt.id", stime=datetime(2026, 1, 1, 10, 0), etime=datetime(2026, 1, 1, 11, 0), title="B"),
+            EPGProgram("kt.id", stime=datetime(2026, 1, 1, 9, 0), etime=datetime(2026, 1, 1, 10, 0), title="A"),
+        ]
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            dbfile = Path(tmpdir) / "epg.db"
+            with SQLite(dbfile, "w") as db:
+                db.insert_channels([channel])
+                db.insert_programs(programs)
+
+            with SQLite(dbfile, "r") as db:
+                loaded_channels = db.select_channels("KT")
+                loaded_programs = db.select_programs("kt.id")
+
+        self.assertEqual(len(loaded_channels), 1)
+        self.assertEqual(loaded_channels[0].id, "kt.id")
+        self.assertEqual([program.title for program in loaded_programs], ["A", "B"])
 
 
 if __name__ == "__main__":
