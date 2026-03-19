@@ -3,6 +3,7 @@ import sys
 import tempfile
 import types
 import unittest
+import warnings
 from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
@@ -189,19 +190,22 @@ class TestProvider(unittest.TestCase):
             EPGProgram("kt.id", stime=datetime(2026, 1, 1, 9, 0), etime=datetime(2026, 1, 1, 10, 0), title="A"),
         ]
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            dbfile = Path(tmpdir) / "epg.db"
-            with SQLite(dbfile, "w") as db:
-                db.insert_channels([channel])
-                db.insert_programs(programs)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            with tempfile.TemporaryDirectory() as tmpdir:
+                dbfile = Path(tmpdir) / "epg.db"
+                with SQLite(dbfile, "w") as db:
+                    db.insert_channels([channel])
+                    db.insert_programs(programs)
 
-            with SQLite(dbfile, "r") as db:
-                loaded_channels = db.select_channels("KT")
-                loaded_programs = db.select_programs("kt.id")
+                with SQLite(dbfile, "r") as db:
+                    loaded_channels = db.select_channels("KT")
+                    loaded_programs = db.select_programs("kt.id")
 
         self.assertEqual(len(loaded_channels), 1)
         self.assertEqual(loaded_channels[0].id, "kt.id")
         self.assertEqual([program.title for program in loaded_programs], ["A", "B"])
+        self.assertFalse(any(issubclass(w.category, DeprecationWarning) for w in caught))
 
     def test_to_xml_writes_to_given_stream(self):
         handler = self.make_handler(FakeXmlProvider())

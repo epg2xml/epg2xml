@@ -499,6 +499,8 @@ class EPGHandler:
 
 sqlite3.register_adapter(bool, int)
 sqlite3.register_converter("BOOLEAN", lambda v: bool(int(v)))
+sqlite3.register_adapter(datetime, lambda v: v.isoformat())
+sqlite3.register_converter("TIMESTAMP", lambda v: datetime.fromisoformat(v.decode()))
 sqlite3.register_adapter(list, lambda v: json.dumps(v, ensure_ascii=False))
 sqlite3.register_converter("JSON", json.loads)
 
