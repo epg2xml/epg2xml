@@ -20,6 +20,18 @@ logging.getLogger("curl_cffi").setLevel(logging.ERROR)
 logger = logging.getLogger("CONFIG")
 
 
+class ConfigHelpRequested(Exception):
+    pass
+
+
+class ConfigUpgradeRequired(Exception):
+    pass
+
+
+class ConfigLoadError(Exception):
+    pass
+
+
 def setup_root_logger(
     *,
     handler: logging.Handler = None,
@@ -214,6 +226,7 @@ class Config:
         if not Path(self.settings["config"]).exists():
             logger.info("No config file found. Creating a default one...")
             self.save(self.default_config)
+            raise ConfigUpgradeRequired(self.settings["config"])
 
         try:
             with open(self.settings["config"], "r", encoding="utf-8") as fp:
@@ -222,20 +235,16 @@ class Config:
                 # Save config if upgraded
                 if upgraded:
                     self.save(cfg)
-                    sys.exit(0)
+                    raise ConfigUpgradeRequired(self.settings["config"])
 
             self.load_with_hidden(cfg)
         except (json.decoder.JSONDecodeError, ValueError):
             logger.exception("Please check your config here: %s", self.settings["config"])
-            sys.exit(1)
+            raise ConfigLoadError(self.settings["config"])
 
-    def save(self, cfg, exitOnSave=True):
+    def save(self, cfg):
         dump_json(self.settings["config"], cfg)
-        if exitOnSave:
-            logger.info("Your config was upgraded. You may check the changes here: %r", self.settings["config"])
-
-        if exitOnSave:
-            sys.exit(0)
+        logger.info("Your config was upgraded. You may check the changes here: %r", self.settings["config"])
 
     def get_settings(self):
         setts = {}
@@ -267,8 +276,7 @@ class Config:
         for argname in ["config", "logfile", "channelfile", "dbfile"]:
             filepath = setts[argname]
             if filepath is not None and not Path(filepath).parent.exists():
-                logger.error(FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), filepath))
-                sys.exit(1)
+                raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), filepath)
 
         # handling of boolean args
         for argname in ["parallel"]:
@@ -377,8 +385,7 @@ class Config:
         # Print help by default if no arguments
         if len(sys.argv) == 1:
             parser.print_help()
-
-            sys.exit(0)
+            raise ConfigHelpRequested()
 
         else:
             return vars(parser.parse_args())

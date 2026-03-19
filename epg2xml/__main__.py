@@ -3,18 +3,12 @@ import socket
 import sys
 from contextlib import ExitStack
 
-from epg2xml.config import Config
+from epg2xml.config import Config, ConfigHelpRequested, ConfigLoadError, ConfigUpgradeRequired
 from epg2xml.providers import EPGHandler
 
 ############################################################
 # INIT
 ############################################################
-
-# load initial config
-conf = Config()
-
-# load config file
-conf.load()
 
 # logger
 log = logging.getLogger("MAIN")
@@ -25,6 +19,9 @@ log = logging.getLogger("MAIN")
 
 
 def main():
+    conf = Config()
+    conf.load()
+
     log.debug("Loading providers...")
     h = EPGHandler(conf.configs)
 
@@ -68,5 +65,9 @@ def main():
 if __name__ == "__main__":
     try:
         main()
+    except (ConfigHelpRequested, ConfigUpgradeRequired):
+        sys.exit(0)
+    except (ConfigLoadError, FileNotFoundError, ImportError):
+        sys.exit(1)
     except KeyboardInterrupt:
         sys.exit(0)

@@ -403,7 +403,7 @@ class EPGHandler:
                 providers.append(getattr(m, name.upper())(cfg))
             except ModuleNotFoundError:
                 log.error("No such provider found: '%s'", name)
-                sys.exit(1)
+                raise ImportError(f"No such provider found: '{name}'") from None
         return providers
 
     def load_channels(self, channelfile: str, parallel: bool = False) -> None:
