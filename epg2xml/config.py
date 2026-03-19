@@ -4,7 +4,7 @@ import json
 import logging
 import os
 import sys
-from copy import copy
+from copy import deepcopy
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Union
@@ -145,12 +145,11 @@ class Config:
     @property
     def default_config(self):
         """reserved for adding extra fields"""
-        cfg = copy(self.base_config)
-        return cfg
+        return deepcopy(self.base_config)
 
     def __inner_upgrade(self, settings1, settings2, key=None, overwrite=False):
         sub_upgraded = False
-        merged = copy(settings2)
+        merged = deepcopy(settings2)
 
         if isinstance(settings1, dict):
             for k, v in settings1.items():
@@ -171,12 +170,12 @@ class Config:
                     )
                     sub_upgraded = did_upgrade or sub_upgraded
                 elif settings1[k] != settings2[k] and overwrite:
-                    merged = settings1
+                    merged = deepcopy(settings1)
                     sub_upgraded = True
         elif isinstance(settings1, list) and key:
             for v in settings1:
                 if v not in settings2:
-                    merged.append(v)
+                    merged.append(deepcopy(v))
                     sub_upgraded = True
                     logger.info("Added to config option %r: %s", str(key), str(v))
                     continue
@@ -201,12 +200,12 @@ class Config:
         return upgraded_configs, upgraded
 
     def load_with_hidden(self, cfg_old):
-        cfg_new = copy(cfg_old)
+        cfg_new = deepcopy(cfg_old)
         for p in cfg_new:
             # push items in GLOBAL as defaults
             for k, v in cfg_old["GLOBAL"].items():
                 if k not in cfg_new[p]:
-                    cfg_new[p][k] = v
+                    cfg_new[p][k] = deepcopy(v)
         del cfg_new["GLOBAL"]
         self.configs = cfg_new
 

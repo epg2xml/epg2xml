@@ -33,6 +33,19 @@ class TestConfig(unittest.TestCase):
 
         self.assertIsNot(first, second)
 
+    def test_default_config_is_a_deep_copy(self):
+        with patch.object(Config, "parse_args", return_value={"cmd": "run"}), patch.object(
+            Config, "get_settings", return_value={}
+        ):
+            config = Config()
+
+        default_config = config.default_config
+        default_config["KT"]["MY_CHANNELS"].append({"ServiceId": "100"})
+        default_config["GLOBAL"]["HTTP_PROXY"] = "http://proxy"
+
+        self.assertEqual(Config.base_config["KT"]["MY_CHANNELS"], [])
+        self.assertIsNone(Config.base_config["GLOBAL"]["HTTP_PROXY"])
+
 
 if __name__ == "__main__":
     unittest.main()
