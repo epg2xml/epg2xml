@@ -57,6 +57,19 @@ class DummySession:
     def __init__(self, **kwargs):
         self.kwargs = kwargs
         self.proxies = {}
+        self.calls = []
+
+    def request(self, **kwargs):
+        self.calls.append(kwargs)
+        return DummyResponse()
+
+
+class DummyResponse:
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return {"ok": True}
 
 
 class TestProvider(unittest.TestCase):
@@ -113,6 +126,16 @@ class TestProvider(unittest.TestCase):
         self.assertEqual(provider.svc_channels, provider.to_return)
         self.assertEqual(provider.fetch_count, 1)
         self.assertTrue(provider.was_channel_updated)
+
+    def test_request_uses_default_timeout_and_status_check(self):
+        with patch("epg2xml.providers.requests.Session", DummySession):
+            provider = FAKE(dict(CFG))
+
+        response = provider.request("https://example.com")
+
+        self.assertEqual(response, {"ok": True})
+        self.assertEqual(provider.sess.calls[0]["timeout"], provider.timeout)
+        self.assertEqual(provider.sess.calls[0]["url"], "https://example.com")
 
 
 if __name__ == "__main__":

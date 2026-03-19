@@ -258,6 +258,7 @@ class EPGProvider:
     referer: str = None
     title_regex: Union[str, re.Pattern] = None
     tps: float = 1.0
+    timeout: float = 10.0
     was_channel_updated: bool = False
 
     def __init__(self, cfg: dict):
@@ -282,7 +283,9 @@ class EPGProvider:
     def __request(self, url: str, method: str = "GET", **kwargs) -> str:
         ret = ""
         try:
+            kwargs.setdefault("timeout", self.timeout)
             r = self.sess.request(method=method, url=url, **kwargs)
+            r.raise_for_status()
             try:
                 ret = r.json()
             except (json.decoder.JSONDecodeError, ValueError):
