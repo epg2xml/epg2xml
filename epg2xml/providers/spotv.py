@@ -56,11 +56,11 @@ class SPOTV(EPGProvider):
         for nd in range(min(int(self.cfg["FETCH_LIMIT"]), max_ndays)):
             day = date.today() + timedelta(days=nd)
             url = "https://www.spotvnow.co.kr/api/v3/program/" + day.strftime("%Y-%m-%d")
-            try:
-                data.extend(self.request(url))
-            except Exception:
-                log.exception("데이터 가져오는 중 에러:")
+            response = self.request(url)
+            if not isinstance(response, list):
+                log.warning("예상치 못한 응답: %s", type(response).__name__)
                 continue
+            data.extend(response)
 
         # 날짜의 경계에서 발생할 수 있는 중복 제거
         _data = []
@@ -73,16 +73,17 @@ class SPOTV(EPGProvider):
             log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)
             try:
                 _epgs = self.__epgs_of_channel(_ch.id, _data, _ch.svcid)
-            except AssertionError as e:
+            except ValueError as e:
                 log.warning("%s: %s", e, _ch)
-            except Exception:
+            except (AttributeError, KeyError, TypeError):
                 log.exception("프로그램 파싱 중 예외: %s", _ch)
             else:
                 _ch.programs.extend(_epgs)
 
     def __epgs_of_channel(self, channelid: str, data: dict, svcid: str) -> List[EPGProgram]:
         programs = [x for x in data if x["channelId"] == svcid]
-        assert programs, "EPG 정보가 없거나 없는 채널입니다"
+        if not programs:
+            raise ValueError("EPG 정보가 없거나 없는 채널입니다")
 
         _epgs = []
         for p in programs:

@@ -86,7 +86,7 @@ class KT(EPGProvider):
                 data = self.request(url, method="POST", data=params)
                 try:
                     _epgs = self.__epgs_of_day(_ch.id, data, day)
-                except Exception:
+                except (AttributeError, IndexError, KeyError, TypeError, ValueError):
                     log.exception("프로그램 파싱 중 예외: %s, %s", _ch, day)
                 else:
                     _ch.programs.extend(_epgs)

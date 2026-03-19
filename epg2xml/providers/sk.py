@@ -77,15 +77,16 @@ class SK(EPGProvider):
             params.update({"idSvc": _ch.svcid, "stdDt": date.today().strftime("%Y%m%d")})
             try:
                 infolist = self.request(url, params=params)["result"]["chnlFrmtInfoList"]
-                assert isinstance(infolist, list)
-            except Exception:
+                if not isinstance(infolist, list):
+                    raise ValueError("chnlFrmtInfoList must be a list")
+            except (KeyError, TypeError, ValueError):
                 log.exception("예상치 못한 응답: %s", params)
                 continue
             for nd in range(min(int(self.cfg["FETCH_LIMIT"]), max_ndays)):
                 day = date.today() + timedelta(days=nd)
                 try:
                     _epgs = self.__epgs_of_day(_ch.id, infolist, day)
-                except Exception:
+                except (KeyError, TypeError, ValueError):
                     log.exception("프로그램 파싱 중 예외: %s, %s", _ch, day)
                 else:
                     _ch.programs.extend(_epgs)

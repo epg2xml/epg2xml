@@ -9,7 +9,7 @@ except ImportError:
         from setuptools_scm import get_version
 
         version = get_version(version_scheme="release-branch-semver")
-    except Exception:
+    except (ImportError, LookupError, OSError):
         version = "2.7.0.dev0"
 
 __version__ = version

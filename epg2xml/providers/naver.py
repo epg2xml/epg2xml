@@ -57,7 +57,7 @@ class NAVER(EPGProvider):
                             "Category": c["name"],
                         }
                     )
-                except Exception:
+                except (IndexError, KeyError, TypeError):
                     pass
         return svc_channels
 
@@ -77,7 +77,7 @@ class NAVER(EPGProvider):
                     continue
                 try:
                     _epgs = self.__epgs_of_day(_ch.id, data, day)
-                except Exception:
+                except (AttributeError, IndexError, KeyError, TypeError, ValueError):
                     log.exception("프로그램 파싱 중 예외: %s, %s", _ch, day)
                 else:
                     _ch.programs.extend(_epgs)
@@ -100,7 +100,7 @@ class NAVER(EPGProvider):
                     _epg.extras = (_epg.extras or []) + [span_txt]
             try:
                 _epg.title_sub = cell[5].text.strip()
-            except Exception:
+            except IndexError:
                 pass
             _epgs.append(_epg)
         return _epgs

@@ -273,7 +273,7 @@ class Config:
 
                 setts[name] = value
 
-            except Exception:
+            except KeyError:
                 logger.exception("Exception raised on setting value: %r", name)
 
         # checking existance of important files' dir

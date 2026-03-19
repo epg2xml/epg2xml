@@ -134,12 +134,9 @@ class WAVVE(EPGProvider):
                     cid = ch["channelid"]
                     channeldict.setdefault(cid, [])
                     toappend = ch.get("list") or []
-                    try:
-                        # 3시간 단위로 요청된 스케줄 앞 뒤로 중복이 있을 수 있다.
-                        if channeldict[cid][-1] == toappend[0]:
-                            toappend = toappend[1:]
-                    except Exception:
-                        pass
+                    # 3시간 단위로 요청된 스케줄 앞 뒤로 중복이 있을 수 있다.
+                    if channeldict[cid] and toappend and channeldict[cid][-1] == toappend[0]:
+                        toappend = toappend[1:]
                     channeldict[cid] += toappend
 
         for idx, _ch in enumerate(self.req_channels):
@@ -147,7 +144,7 @@ class WAVVE(EPGProvider):
             for program in channeldict[_ch.svcid]:
                 try:
                     _epg = self.__epg_of_program(_ch.id, program)
-                except Exception:
+                except (AttributeError, KeyError, TypeError, ValueError):
                     log.exception("프로그램 파싱 중 예외: %s", _ch)
                 else:
                     _ch.programs.append(_epg)
@@ -162,6 +159,6 @@ class WAVVE(EPGProvider):
                 # { "resultcode": "550", "resultmessage": "해당 데이터가 없습니다." }
                 return None
             return self.__get(f"/fz/vod/contents-detail/{data['content_id'].strip()}")
-        except Exception:
+        except (AttributeError, KeyError, TypeError, ValueError):
             log.exception("프로그램 상세 정보 요청 중 예외: %s", programid)
             return None

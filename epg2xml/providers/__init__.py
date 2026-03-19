@@ -287,10 +287,8 @@ class EPGProvider:
                 ret = r.json()
             except (json.decoder.JSONDecodeError, ValueError):
                 ret = r.text
-        except requests.exceptions.HTTPError as e:
+        except requests.exceptions.RequestException as e:
             log.error("요청 중 에러: %s", e)
-        except Exception:
-            log.exception("요청 중 예외:")
         return ret
 
     def load_svc_channels(self, channeljson: dict = None) -> None:
@@ -301,19 +299,20 @@ class EPGProvider:
             channelinfo = channeljson[self.provider_name.upper()]
             total = channelinfo["TOTAL"]
             channels = channelinfo["CHANNELS"]
-            assert total == len(channels), "TOTAL != len(CHANNELS)"
+            if total != len(channels):
+                raise ValueError("TOTAL != len(CHANNELS)")
             updated_at = datetime.fromisoformat(channelinfo["UPDATED"])
             if (datetime.now() - updated_at).total_seconds() <= 3600 * 24 * 4:
                 self.svc_channels = channels
                 plog.info("%03d service channels loaded from cache", len(channels))
                 return
             plog.debug("Updating service channels as outdated...")
-        except Exception as e:
+        except (KeyError, TypeError, ValueError) as e:
             plog.debug("Updating service channels as cache broken: %s", e)
 
         try:
             channels = self.get_svc_channels()
-        except Exception:
+        except (AttributeError, KeyError, TypeError, ValueError):
             plog.exception("Exception while retrieving service channels:")
         else:
             self.svc_channels = channels

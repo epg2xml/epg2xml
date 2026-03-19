@@ -89,7 +89,7 @@ class LG(EPGProvider):
                     break  # 오늘 없으면 내일도 없는 채널로 간주
                 try:
                     _epgs = self.__epgs_of_day(_ch.id, data)
-                except Exception:
+                except (KeyError, TypeError, ValueError):
                     log.exception("프로그램 파싱 중 예외: %s, %s", _ch, day)
                 else:
                     _ch.programs.extend(_epgs)
