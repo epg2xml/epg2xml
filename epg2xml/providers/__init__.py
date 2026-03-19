@@ -12,7 +12,7 @@ from functools import wraps
 from importlib import import_module
 from itertools import chain
 from os import PathLike
-from typing import ClassVar, Iterator, List, Literal, Tuple, Union
+from typing import ClassVar, Iterator, List, Literal, TextIO, Tuple, Union
 
 try:
     from curl_cffi import requests
@@ -92,8 +92,9 @@ class EPGProgram:
             elif f.type == str:
                 setattr(self, f.name, (attr or "").strip())
 
-    def to_xml(self, cfg: dict) -> None:
+    def to_xml(self, cfg: dict, writer: TextIO = None) -> None:
         self.sanitize()
+        writer = writer or sys.stdout
 
         # local variables
         stime = self.stime.strftime("%Y%m%d%H%M%S +0900")
@@ -188,7 +189,8 @@ class EPGProgram:
             _p.append(_r)
 
         # dumps
-        print(_p.tostring(level=1))
+        writer.write(_p.tostring(level=1))
+        writer.write("\n")
 
 
 @dataclass
@@ -234,7 +236,8 @@ class EPGChannel:
             except IndexError:
                 prog.etime = (prog.stime + timedelta(days=1)).replace(hour=0, minute=0, second=0)
 
-    def to_xml(self) -> None:
+    def to_xml(self, writer: TextIO = None) -> None:
+        writer = writer or sys.stdout
         chel = Element("channel", id=self.id)
         # TODO: something better for display-name?
         chel.append(Element("display-name", self.name))
@@ -245,7 +248,8 @@ class EPGChannel:
             chel.append(Element("display-name", f"{self.no} {self.src}"))
         if self.icon:
             chel.append(Element("icon", src=self.icon))
-        print(chel.tostring(level=1))
+        writer.write(chel.tostring(level=1))
+        writer.write("\n")
 
 
 # user-agent - curl -L microlink.io/user-agents.json | jq -r .user[0]
@@ -363,20 +367,20 @@ class EPGProvider:
         )
         self.req_channels = req_channels
 
-    def write_channels(self) -> None:
+    def write_channels(self, writer: TextIO = None) -> None:
         for ch in self.req_channels:
             if not ch.programs:
                 log.warning("Skip writing as no program entries found for '%s'", ch.id)
                 continue
-            ch.to_xml()
+            ch.to_xml(writer=writer)
 
     def get_programs(self) -> None:
         raise NotImplementedError("method 'get_programs' must be implemented")
 
-    def write_programs(self) -> None:
+    def write_programs(self, writer: TextIO = None) -> None:
         for ch in self.req_channels:
             for prog in ch.programs:
-                prog.to_xml(self.cfg)
+                prog.to_xml(self.cfg, writer=writer)
             ch.programs.clear()  # for memory efficiency
 
 
@@ -454,20 +458,21 @@ class EPGHandler:
             for p in self.providers:
                 p.get_programs()
 
-    def to_xml(self):
-        print('<?xml version="1.0" encoding="UTF-8"?>')
-        print('<!DOCTYPE tv SYSTEM "xmltv.dtd">\n')
-        print(f'<tv generator-info-name="{__title__} v{__version__}">')
+    def to_xml(self, writer: TextIO = None):
+        writer = writer or sys.stdout
+        writer.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+        writer.write('<!DOCTYPE tv SYSTEM "xmltv.dtd">\n\n')
+        writer.write(f'<tv generator-info-name="{__title__} v{__version__}">\n')
 
         log.debug("Writing channels...")
         for p in self.providers:
-            p.write_channels()
+            p.write_channels(writer=writer)
 
         log.debug("Writing programs...")
         for p in self.providers:
-            p.write_programs()
+            p.write_programs(writer=writer)
 
-        print("</tv>")
+        writer.write("</tv>\n")
 
     @property
     def all_channels(self) -> Iterator:

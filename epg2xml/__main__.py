@@ -27,13 +27,13 @@ def main():
 
     if (cmd := conf.args["cmd"]) in ["run", "fromdb"]:
         with ExitStack() as stack:
-            # redirecting stdout to...
+            xml_output = sys.stdout
             if xmlfile := conf.settings["xmlfile"]:
-                sys.stdout = stack.enter_context(open(xmlfile, "w", encoding="utf-8"))
+                xml_output = stack.enter_context(open(xmlfile, "w", encoding="utf-8"))
             elif xmlsock := conf.settings["xmlsock"]:
                 sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
                 sock.connect(xmlsock)
-                sys.stdout = stack.enter_context(sock.makefile("w"))
+                xml_output = stack.enter_context(sock.makefile("w"))
 
             if cmd == "fromdb":
                 log.debug("Importing from dbfile...")
@@ -53,7 +53,7 @@ def main():
                     h.to_db(dbfile)
 
             log.info("Writing xmltv.dtd header...")
-            h.to_xml()
+            h.to_xml(writer=xml_output)
 
             log.info("Done")
     elif cmd == "update_channels":

@@ -1,3 +1,4 @@
+import io
 import sys
 import tempfile
 import types
@@ -88,6 +89,14 @@ class DummyResponse:
 
     def json(self):
         return {"ok": True}
+
+
+class FakeXmlProvider:
+    def write_channels(self, writer=None):
+        writer.write('  <channel id="fake"></channel>\n')
+
+    def write_programs(self, writer=None):
+        writer.write('  <programme channel="fake"></programme>\n')
 
 
 class TestProvider(unittest.TestCase):
@@ -193,6 +202,18 @@ class TestProvider(unittest.TestCase):
         self.assertEqual(len(loaded_channels), 1)
         self.assertEqual(loaded_channels[0].id, "kt.id")
         self.assertEqual([program.title for program in loaded_programs], ["A", "B"])
+
+    def test_to_xml_writes_to_given_stream(self):
+        handler = self.make_handler(FakeXmlProvider())
+        buffer = io.StringIO()
+
+        handler.to_xml(writer=buffer)
+
+        xml = buffer.getvalue()
+        self.assertIn('<?xml version="1.0" encoding="UTF-8"?>', xml)
+        self.assertIn('<channel id="fake"></channel>', xml)
+        self.assertIn('<programme channel="fake"></programme>', xml)
+        self.assertTrue(xml.rstrip().endswith("</tv>"))
 
 
 if __name__ == "__main__":
