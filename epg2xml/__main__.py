@@ -18,7 +18,7 @@ log = logging.getLogger("MAIN")
 ############################################################
 
 
-def main():
+def run():
     conf = Config()
     conf.load()
 
@@ -62,12 +62,18 @@ def main():
         raise NotImplementedError(f"Unknown command: {cmd}")
 
 
-if __name__ == "__main__":
+def main():
     try:
-        main()
+        run()
     except (ConfigHelpRequested, ConfigUpgradeRequired):
-        sys.exit(0)
+        return 0
     except (ConfigLoadError, FileNotFoundError, ImportError):
-        sys.exit(1)
+        return 1
     except KeyboardInterrupt:
-        sys.exit(0)
+        return 0
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
