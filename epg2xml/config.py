@@ -53,6 +53,7 @@ def setup_root_logger(
     logging.getLogger().addHandler(handler)
     logging.getLogger().setLevel(level)
 
+
 class Config:
 
     base_config = {
@@ -238,9 +239,9 @@ class Config:
                     raise ConfigUpgradeRequired(self.settings["config"])
 
             self.load_with_hidden(cfg)
-        except (json.decoder.JSONDecodeError, ValueError):
+        except (json.decoder.JSONDecodeError, ValueError) as exc:
             logger.exception("Please check your config here: %s", self.settings["config"])
-            raise ConfigLoadError(self.settings["config"])
+            raise ConfigLoadError(self.settings["config"]) from exc
 
     def save(self, cfg):
         dump_json(self.settings["config"], cfg)
@@ -387,8 +388,7 @@ class Config:
             parser.print_help()
             raise ConfigHelpRequested()
 
-        else:
-            return vars(parser.parse_args())
+        return vars(parser.parse_args())
 
 
 # logging

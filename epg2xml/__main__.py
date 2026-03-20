@@ -6,16 +6,7 @@ from contextlib import ExitStack
 from epg2xml.config import Config, ConfigHelpRequested, ConfigLoadError, ConfigUpgradeRequired
 from epg2xml.providers import EPGHandler
 
-############################################################
-# INIT
-############################################################
-
-# logger
 log = logging.getLogger("MAIN")
-
-############################################################
-# MAIN
-############################################################
 
 
 def run():
