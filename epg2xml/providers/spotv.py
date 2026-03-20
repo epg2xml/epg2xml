@@ -62,12 +62,15 @@ class SPOTV(EPGProvider):
                 continue
             data.extend(response)
 
-        # 날짜의 경계에서 발생할 수 있는 중복 제거
+        # 날짜 경계에서 같은 편성이 중복으로 내려오는 경우를 제거한다.
         _data = []
-        for _d in data:
-            _d.pop("date", None)
-            if _d not in _data:
-                _data.append(_d)
+        seen = set()
+        for item in data:
+            key = (item.get("channelId"), item.get("startTime"), item.get("endTime"))
+            if key in seen:
+                continue
+            seen.add(key)
+            _data.append(item)
 
         for idx, _ch in enumerate(self.req_channels):
             log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)

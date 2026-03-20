@@ -6,8 +6,8 @@ import unittest
 import warnings
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
-
 
 bs4 = types.ModuleType("bs4")
 
@@ -26,7 +26,7 @@ bs4.FeatureNotFound = DummyFeatureNotFound
 sys.modules.setdefault("bs4", bs4)
 
 from epg2xml.providers import EPGChannel, EPGHandler, EPGProgram, EPGProvider, SQLite
-
+from epg2xml.providers.spotv import SPOTV
 
 CFG = {
     "ENABLED": True,
@@ -64,7 +64,7 @@ class FakeHandlerProvider:
         self.provider_name = "FAKE"
         self.svc_channels = []
 
-    def load_svc_channels(self, channeljson=None):
+    def load_svc_channels(self, _channeljson=None):
         if self.error is not None:
             raise self.error
 
@@ -75,9 +75,9 @@ class FakeHandlerProvider:
 
 class DummySession:
     def __init__(self, **kwargs):
-        self.kwargs = kwargs
-        self.proxies = {}
-        self.calls = []
+        self.kwargs: dict[str, Any] = kwargs
+        self.proxies: dict[str, str] = {}
+        self.calls: list[dict[str, Any]] = []
 
     def request(self, **kwargs):
         self.calls.append(kwargs)
@@ -161,14 +161,15 @@ class TestProvider(unittest.TestCase):
         self.assertTrue(provider.was_channel_updated)
 
     def test_request_uses_default_timeout_and_status_check(self):
-        with patch("epg2xml.providers.requests.Session", DummySession):
+        session = DummySession()
+        with patch("epg2xml.providers.requests.Session", return_value=session):
             provider = FAKE(dict(CFG))
 
         response = provider.request("https://example.com")
 
         self.assertEqual(response, {"ok": True})
-        self.assertEqual(provider.sess.calls[0]["timeout"], provider.timeout)
-        self.assertEqual(provider.sess.calls[0]["url"], "https://example.com")
+        self.assertEqual(session.calls[0]["timeout"], provider.timeout)
+        self.assertEqual(session.calls[0]["url"], "https://example.com")
 
     def test_load_channels_parallel_propagates_worker_exceptions(self):
         handler = self.make_handler(FakeHandlerProvider(RuntimeError("boom")))
@@ -218,6 +219,40 @@ class TestProvider(unittest.TestCase):
         self.assertIn('<channel id="fake"></channel>', xml)
         self.assertIn('<programme channel="fake"></programme>', xml)
         self.assertTrue(xml.rstrip().endswith("</tv>"))
+
+    def test_spotv_deduplicates_boundary_programs_without_mutating_source(self):
+        with patch("epg2xml.providers.requests.Session", DummySession):
+            provider = SPOTV(dict(CFG))
+
+        day1 = [
+            {
+                "date": "2026-01-01",
+                "channelId": "ch1",
+                "startTime": "2026-01-01 23:00",
+                "endTime": "2026-01-02 01:00",
+                "title": "Late Match",
+                "type": 100,
+            }
+        ]
+        day2 = [
+            {
+                "date": "2026-01-02",
+                "channelId": "ch1",
+                "startTime": "2026-01-01 23:00",
+                "endTime": "2026-01-02 01:00",
+                "title": "Late Match",
+                "type": 100,
+            }
+        ]
+        provider.req_channels = [EPGChannel("spotv.id", "SPOTV", "ch1", "SPOTV 1")]
+
+        with patch.object(provider, "request", side_effect=[day1, day2]):
+            provider.get_programs()
+
+        self.assertEqual(len(provider.req_channels[0].programs), 1)
+        self.assertEqual(provider.req_channels[0].programs[0].title, "Late Match")
+        self.assertEqual(day1[0]["date"], "2026-01-01")
+        self.assertEqual(day2[0]["date"], "2026-01-02")
 
 
 if __name__ == "__main__":
