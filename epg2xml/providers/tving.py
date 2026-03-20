@@ -84,13 +84,15 @@ class TVING(EPGProvider):
     def get_svc_channels(self) -> List[dict]:
         def get_imgurl(_item: dict):
             for _code in PRIORITY_IMG_CODE:
-                try:
-                    img_list = [x for x in _item["image"] if x["code"] == _code]
-                    if not img_list:
-                        continue
-                    return "https://image.tving.com" + (img_list[0].get("url") or img_list[0]["url2"])
-                except Exception:
-                    pass
+                image_list = _item.get("image")
+                if not isinstance(image_list, list):
+                    continue
+                img_list = [x for x in image_list if x.get("code") == _code]
+                if not img_list:
+                    continue
+                image_url = img_list[0].get("url") or img_list[0].get("url2")
+                if image_url:
+                    return "https://image.tving.com" + image_url
             return None
 
         params = {
@@ -132,19 +134,16 @@ class TVING(EPGProvider):
                         chcode = ch["channel_code"]
                         schdict.setdefault(chcode, [])
                         toappend = ch.get("schedules") or []
-                        try:
-                            # 3시간 단위로 요청된 스케줄 앞 뒤로 중복이 있을 수 있다.
-                            if schdict[chcode][-1] == toappend[0]:
-                                toappend = toappend[1:]
-                        except Exception:
-                            pass
+                        # 3시간 단위로 요청된 스케줄 앞 뒤로 중복이 있을 수 있다.
+                        if schdict[chcode] and toappend and schdict[chcode][-1] == toappend[0]:
+                            toappend = toappend[1:]
                         schdict[chcode] += toappend
 
             for idx, _ch in enumerate(chgroup):
                 log.info("%03d/%03d %s", gid * 20 + idx + 1, len(self.req_channels), _ch)
                 try:
                     _epgs = self.__epgs_of_channel(_ch.id, schdict[_ch.svcid])
-                except Exception:
+                except (KeyError, TypeError, ValueError):
                     log.exception("프로그램 파싱 중 예외: %s", _ch)
                 else:
                     _ch.programs.extend(_epgs)

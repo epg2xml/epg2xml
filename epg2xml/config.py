@@ -4,7 +4,7 @@ import json
 import logging
 import os
 import sys
-from copy import copy
+from copy import deepcopy
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Union
@@ -18,6 +18,18 @@ logging.getLogger("urllib3.connectionpool").setLevel(logging.ERROR)
 logging.getLogger("curl_cffi").setLevel(logging.ERROR)
 
 logger = logging.getLogger("CONFIG")
+
+
+class ConfigHelpRequested(Exception):
+    pass
+
+
+class ConfigUpgradeRequired(Exception):
+    pass
+
+
+class ConfigLoadError(Exception):
+    pass
 
 
 def setup_root_logger(
@@ -42,18 +54,7 @@ def setup_root_logger(
     logging.getLogger().setLevel(level)
 
 
-class Singleton(type):
-    _instances = {}
-
-    def __call__(cls, *args, **kwargs):
-        if cls not in cls._instances:
-            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
-
-        return cls._instances[cls]
-
-
 class Config:
-    __metaclass__ = Singleton
 
     base_config = {
         "GLOBAL": {
@@ -157,12 +158,11 @@ class Config:
     @property
     def default_config(self):
         """reserved for adding extra fields"""
-        cfg = copy(self.base_config)
-        return cfg
+        return deepcopy(self.base_config)
 
     def __inner_upgrade(self, settings1, settings2, key=None, overwrite=False):
         sub_upgraded = False
-        merged = copy(settings2)
+        merged = deepcopy(settings2)
 
         if isinstance(settings1, dict):
             for k, v in settings1.items():
@@ -183,12 +183,12 @@ class Config:
                     )
                     sub_upgraded = did_upgrade or sub_upgraded
                 elif settings1[k] != settings2[k] and overwrite:
-                    merged = settings1
+                    merged = deepcopy(settings1)
                     sub_upgraded = True
         elif isinstance(settings1, list) and key:
             for v in settings1:
                 if v not in settings2:
-                    merged.append(v)
+                    merged.append(deepcopy(v))
                     sub_upgraded = True
                     logger.info("Added to config option %r: %s", str(key), str(v))
                     continue
@@ -213,12 +213,12 @@ class Config:
         return upgraded_configs, upgraded
 
     def load_with_hidden(self, cfg_old):
-        cfg_new = copy(cfg_old)
+        cfg_new = deepcopy(cfg_old)
         for p in cfg_new:
             # push items in GLOBAL as defaults
             for k, v in cfg_old["GLOBAL"].items():
                 if k not in cfg_new[p]:
-                    cfg_new[p][k] = v
+                    cfg_new[p][k] = deepcopy(v)
         del cfg_new["GLOBAL"]
         self.configs = cfg_new
 
@@ -227,6 +227,7 @@ class Config:
         if not Path(self.settings["config"]).exists():
             logger.info("No config file found. Creating a default one...")
             self.save(self.default_config)
+            raise ConfigUpgradeRequired(self.settings["config"])
 
         try:
             with open(self.settings["config"], "r", encoding="utf-8") as fp:
@@ -235,20 +236,16 @@ class Config:
                 # Save config if upgraded
                 if upgraded:
                     self.save(cfg)
-                    sys.exit(0)
+                    raise ConfigUpgradeRequired(self.settings["config"])
 
             self.load_with_hidden(cfg)
-        except (json.decoder.JSONDecodeError, ValueError):
+        except (json.decoder.JSONDecodeError, ValueError) as exc:
             logger.exception("Please check your config here: %s", self.settings["config"])
-            sys.exit(1)
+            raise ConfigLoadError(self.settings["config"]) from exc
 
-    def save(self, cfg, exitOnSave=True):
+    def save(self, cfg):
         dump_json(self.settings["config"], cfg)
-        if exitOnSave:
-            logger.info("Your config was upgraded. You may check the changes here: %r", self.settings["config"])
-
-        if exitOnSave:
-            sys.exit(0)
+        logger.info("Your config was upgraded. You may check the changes here: %r", self.settings["config"])
 
     def get_settings(self):
         setts = {}
@@ -273,15 +270,14 @@ class Config:
 
                 setts[name] = value
 
-            except Exception:
+            except KeyError:
                 logger.exception("Exception raised on setting value: %r", name)
 
         # checking existance of important files' dir
         for argname in ["config", "logfile", "channelfile", "dbfile"]:
             filepath = setts[argname]
             if filepath is not None and not Path(filepath).parent.exists():
-                logger.error(FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), filepath))
-                sys.exit(1)
+                raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), filepath)
 
         # handling of boolean args
         for argname in ["parallel"]:
@@ -390,11 +386,9 @@ class Config:
         # Print help by default if no arguments
         if len(sys.argv) == 1:
             parser.print_help()
+            raise ConfigHelpRequested()
 
-            sys.exit(0)
-
-        else:
-            return vars(parser.parse_args())
+        return vars(parser.parse_args())
 
 
 # logging

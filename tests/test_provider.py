@@ -1,16 +1,34 @@
-import logging
-import os
-import subprocess
+import io
 import sys
-from contextlib import redirect_stdout
-from importlib import import_module
+import tempfile
+import types
+import unittest
+import warnings
+from datetime import datetime, timedelta
 from pathlib import Path
-from random import shuffle
-from timeit import default_timer as timer
+from unittest.mock import patch
 
-from epg2xml import __title__, __version__
 
-cfg = {
+bs4 = types.ModuleType("bs4")
+
+
+class DummyBeautifulSoup:
+    def __init__(self, *args, **kwargs):
+        pass
+
+
+class DummyFeatureNotFound(Exception):
+    pass
+
+
+bs4.BeautifulSoup = DummyBeautifulSoup
+bs4.FeatureNotFound = DummyFeatureNotFound
+sys.modules.setdefault("bs4", bs4)
+
+from epg2xml.providers import EPGChannel, EPGHandler, EPGProgram, EPGProvider, SQLite
+
+
+CFG = {
     "ENABLED": True,
     "FETCH_LIMIT": 2,
     "ID_FORMAT": "{ServiceId}.{Source.lower()}",
@@ -20,87 +38,187 @@ cfg = {
     "ADD_XMLTV_NS": False,
     "GET_MORE_DETAILS": False,
     "ADD_CHANNEL_ICON": True,
-    "HTTP_PROXY": os.environ.get("HTTP_PROXY"),
-    "MY_CHANNELS": "*",
+    "HTTP_PROXY": None,
+    "MY_CHANNELS": [],
 }
 
-# logging
-log_fmt = "%(asctime)-15s %(levelname)-8s %(name)-7s %(lineno)4d: %(message)s"
-formatter = logging.Formatter(log_fmt, datefmt="%Y/%m/%d %H:%M:%S")
-rootLogger = logging.getLogger()
-rootLogger.setLevel(logging.DEBUG)
 
-# suppress modules logging
-logging.getLogger("requests").setLevel(logging.ERROR)
-logging.getLogger("urllib3.connectionpool").setLevel(logging.ERROR)
-logging.getLogger("curl_cffi").setLevel(logging.ERROR)
+class FAKE(EPGProvider):
+    def __init__(self, cfg):
+        self.fetch_count = 0
+        self.to_return = []
+        super().__init__(cfg)
 
-# logging to console, stderr by default
-consolehandler = logging.StreamHandler()
-consolehandler.setFormatter(formatter)
-rootLogger.addHandler(consolehandler)
+    def get_svc_channels(self):
+        self.fetch_count += 1
+        return list(self.to_return)
 
-# logger
-log = rootLogger.getChild("TEST")
+    def get_programs(self):
+        raise NotImplementedError
 
-# provider
-provider_name = sys.argv[1]
-module = import_module(f"epg2xml.providers.{provider_name.lower()}")
-provider = getattr(module, provider_name.upper())(cfg)
 
-if provider_name.lower() in ["daum", "kbs", "mbc"]:
-    cfg["ID_FORMAT"] = "{No}.{Source.lower()}"
+class FakeHandlerProvider:
+    def __init__(self, error=None):
+        self.error = error
+        self.was_channel_updated = False
+        self.provider_name = "FAKE"
+        self.svc_channels = []
 
-stime = timer()
-provider.load_svc_channels()
-etime_ch = timer() - stime
+    def load_svc_channels(self, channeljson=None):
+        if self.error is not None:
+            raise self.error
 
-provider.load_req_channels()
+    def get_programs(self):
+        if self.error is not None:
+            raise self.error
 
-rch = provider.req_channels
-if sys.argv[3] == "true":
-    log.info("Shuffling requested channels...")
-    shuffle(rch)
-if sys.argv[2].isdecimal() and (num_rch := int(sys.argv[2])) > 0:
-    log.info("Using %d of them...", num_rch)
-    rch = rch[: max(1, num_rch)]
-elif (per_rch := float(sys.argv[2]) * 100) > 0.0:
-    log.info("Using %3.1f%% of them...", per_rch)
-    num_rch = int(len(rch) * per_rch / 100)
-    rch = rch[: max(10, num_rch)]
-provider.req_channels = rch
 
-stime = timer()
-provider.get_programs()
-etime_prog = timer() - stime
-num_rch = len(provider.req_channels)
+class DummySession:
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+        self.proxies = {}
+        self.calls = []
 
-provider.req_channels = [x for x in provider.req_channels if x.programs]
-num_gch = len(provider.req_channels)
+    def request(self, **kwargs):
+        self.calls.append(kwargs)
+        return DummyResponse()
 
-# status
-log.info(f"To load service channels: {etime_ch:.2f}s")
-log.info(f"To get EPG: {etime_prog:.2f}s/{num_rch:d} = {etime_prog/num_rch:.2f}s")
-log.info(f"Requested: {num_rch} / Alive: {num_gch}")
 
-if not provider.req_channels:
-    sys.exit(0)
+class DummyResponse:
+    def raise_for_status(self):
+        return None
 
-xmlfile = Path.cwd().joinpath(f"xmltv_{provider.provider_name.lower()}.xml")
-with open(xmlfile, "w", encoding="utf-8") as f:
-    with redirect_stdout(f):
-        print('<?xml version="1.0" encoding="UTF-8"?>')
-        print('<!DOCTYPE tv SYSTEM "xmltv.dtd">\n')
-        print(f'<tv generator-info-name="{__title__} v{__version__}">')
+    def json(self):
+        return {"ok": True}
 
-        provider.write_channels()
-        provider.write_programs()
 
-        print("</tv>")
+class FakeXmlProvider:
+    def write_channels(self, writer=None):
+        writer.write('  <channel id="fake"></channel>\n')
 
-log.info(f"Average size: {xmlfile.stat().st_size/num_gch/1000.:.2f} kbyte/ch")
+    def write_programs(self, writer=None):
+        writer.write('  <programme channel="fake"></programme>\n')
 
-try:
-    subprocess.run(["tv_validate_file", xmlfile], check=True)
-except subprocess.CalledProcessError as e:
-    sys.exit(1)
+
+class TestProvider(unittest.TestCase):
+    def make_handler(self, *providers):
+        handler = EPGHandler.__new__(EPGHandler)
+        handler.providers = list(providers)
+        return handler
+
+    def test_load_svc_channels_uses_recent_cache(self):
+        with patch("epg2xml.providers.requests.Session", DummySession):
+            provider = FAKE(dict(CFG))
+        cached_channels = [{"Name": "A", "ServiceId": "1"}]
+        channeljson = {
+            "FAKE": {
+                "UPDATED": datetime.now().isoformat(),
+                "TOTAL": len(cached_channels),
+                "CHANNELS": cached_channels,
+            }
+        }
+
+        provider.load_svc_channels(channeljson=channeljson)
+
+        self.assertEqual(provider.svc_channels, cached_channels)
+        self.assertEqual(provider.fetch_count, 0)
+        self.assertFalse(provider.was_channel_updated)
+
+    def test_load_svc_channels_fetches_when_cache_is_broken(self):
+        with patch("epg2xml.providers.requests.Session", DummySession):
+            provider = FAKE(dict(CFG))
+        provider.to_return = [{"Name": "B", "ServiceId": "2"}]
+        broken_channeljson = {
+            "FAKE": {
+                "UPDATED": datetime.now().isoformat(),
+                "TOTAL": 999,
+                "CHANNELS": [],
+            }
+        }
+
+        provider.load_svc_channels(channeljson=broken_channeljson)
+
+        self.assertEqual(provider.svc_channels, provider.to_return)
+        self.assertEqual(provider.fetch_count, 1)
+        self.assertTrue(provider.was_channel_updated)
+
+    def test_load_svc_channels_fetches_when_cache_is_outdated(self):
+        with patch("epg2xml.providers.requests.Session", DummySession):
+            provider = FAKE(dict(CFG))
+        provider.to_return = [{"Name": "C", "ServiceId": "3"}]
+        stale_channeljson = {
+            "FAKE": {
+                "UPDATED": (datetime.now() - timedelta(days=5)).isoformat(),
+                "TOTAL": 1,
+                "CHANNELS": [{"Name": "OLD", "ServiceId": "0"}],
+            }
+        }
+
+        provider.load_svc_channels(channeljson=stale_channeljson)
+
+        self.assertEqual(provider.svc_channels, provider.to_return)
+        self.assertEqual(provider.fetch_count, 1)
+        self.assertTrue(provider.was_channel_updated)
+
+    def test_request_uses_default_timeout_and_status_check(self):
+        with patch("epg2xml.providers.requests.Session", DummySession):
+            provider = FAKE(dict(CFG))
+
+        response = provider.request("https://example.com")
+
+        self.assertEqual(response, {"ok": True})
+        self.assertEqual(provider.sess.calls[0]["timeout"], provider.timeout)
+        self.assertEqual(provider.sess.calls[0]["url"], "https://example.com")
+
+    def test_load_channels_parallel_propagates_worker_exceptions(self):
+        handler = self.make_handler(FakeHandlerProvider(RuntimeError("boom")))
+
+        with self.assertRaises(RuntimeError):
+            handler.load_channels("unused.json", parallel=True)
+
+    def test_get_programs_parallel_propagates_worker_exceptions(self):
+        handler = self.make_handler(FakeHandlerProvider(RuntimeError("boom")))
+
+        with self.assertRaises(RuntimeError):
+            handler.get_programs(parallel=True)
+
+    def test_sqlite_round_trip_preserves_channel_and_program_order(self):
+        channel = EPGChannel("kt.id", "KT", "svc1", "Channel A")
+        channel.no = "101"
+        programs = [
+            EPGProgram("kt.id", stime=datetime(2026, 1, 1, 10, 0), etime=datetime(2026, 1, 1, 11, 0), title="B"),
+            EPGProgram("kt.id", stime=datetime(2026, 1, 1, 9, 0), etime=datetime(2026, 1, 1, 10, 0), title="A"),
+        ]
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            with tempfile.TemporaryDirectory() as tmpdir:
+                dbfile = Path(tmpdir) / "epg.db"
+                with SQLite(dbfile, "w") as db:
+                    db.insert_channels([channel])
+                    db.insert_programs(programs)
+
+                with SQLite(dbfile, "r") as db:
+                    loaded_channels = db.select_channels("KT")
+                    loaded_programs = db.select_programs("kt.id")
+
+        self.assertEqual(len(loaded_channels), 1)
+        self.assertEqual(loaded_channels[0].id, "kt.id")
+        self.assertEqual([program.title for program in loaded_programs], ["A", "B"])
+        self.assertFalse(any(issubclass(w.category, DeprecationWarning) for w in caught))
+
+    def test_to_xml_writes_to_given_stream(self):
+        handler = self.make_handler(FakeXmlProvider())
+        buffer = io.StringIO()
+
+        handler.to_xml(writer=buffer)
+
+        xml = buffer.getvalue()
+        self.assertIn('<?xml version="1.0" encoding="UTF-8"?>', xml)
+        self.assertIn('<channel id="fake"></channel>', xml)
+        self.assertIn('<programme channel="fake"></programme>', xml)
+        self.assertTrue(xml.rstrip().endswith("</tv>"))
+
+
+if __name__ == "__main__":
+    unittest.main()

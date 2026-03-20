@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        provider: [kt, lg, sk, daum, naver, tving, wavve, spotv, kbs]
+        provider: [kt, lg, sk, daum, naver, tving, wavve, spotv, kbs, mbc, sbs]
         python-version: ['3.8', '3.14']
     steps:
     - name: Set up Python ${{ matrix.python-version }}
@@ -35,7 +35,7 @@ jobs:
     - name: Test ${{ matrix.provider }}
       run: |
         export HTTP_PROXY="${{ secrets.HTTP_PROXY }}"
-        python -m tests.test_provider \
+        python -m scripts.check_provider \
           ${{ matrix.provider }} \
           ${{ github.event.inputs.numChannels }} \
           ${{ github.event.inputs.shuffle }}

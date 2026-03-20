@@ -4,7 +4,7 @@ import re
 import sqlite3
 import sys
 from collections import Counter
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import closing
 from dataclasses import InitVar, dataclass, fields
 from datetime import datetime, timedelta
@@ -12,7 +12,7 @@ from functools import wraps
 from importlib import import_module
 from itertools import chain
 from os import PathLike
-from typing import ClassVar, Iterator, List, Literal, Tuple, Union
+from typing import ClassVar, Iterator, List, Literal, TextIO, Tuple, Union
 
 try:
     from curl_cffi import requests
@@ -58,6 +58,10 @@ TAG_CREDITS = (
 )
 
 
+class DuplicateChannelIdError(ValueError):
+    """Raised when requested channels resolve to duplicate XML channel IDs."""
+
+
 @dataclass
 class EPGProgram:
     """For individual program entities"""
@@ -88,8 +92,9 @@ class EPGProgram:
             elif f.type == str:
                 setattr(self, f.name, (attr or "").strip())
 
-    def to_xml(self, cfg: dict) -> None:
+    def to_xml(self, cfg: dict, writer: TextIO = None) -> None:
         self.sanitize()
+        writer = writer or sys.stdout
 
         # local variables
         stime = self.stime.strftime("%Y%m%d%H%M%S +0900")
@@ -184,7 +189,8 @@ class EPGProgram:
             _p.append(_r)
 
         # dumps
-        print(_p.tostring(level=1))
+        writer.write(_p.tostring(level=1))
+        writer.write("\n")
 
 
 @dataclass
@@ -230,7 +236,8 @@ class EPGChannel:
             except IndexError:
                 prog.etime = (prog.stime + timedelta(days=1)).replace(hour=0, minute=0, second=0)
 
-    def to_xml(self) -> None:
+    def to_xml(self, writer: TextIO = None) -> None:
+        writer = writer or sys.stdout
         chel = Element("channel", id=self.id)
         # TODO: something better for display-name?
         chel.append(Element("display-name", self.name))
@@ -241,7 +248,8 @@ class EPGChannel:
             chel.append(Element("display-name", f"{self.no} {self.src}"))
         if self.icon:
             chel.append(Element("icon", src=self.icon))
-        print(chel.tostring(level=1))
+        writer.write(chel.tostring(level=1))
+        writer.write("\n")
 
 
 # user-agent - curl -L microlink.io/user-agents.json | jq -r .user[0]
@@ -254,6 +262,7 @@ class EPGProvider:
     referer: str = None
     title_regex: Union[str, re.Pattern] = None
     tps: float = 1.0
+    timeout: float = 10.0
     was_channel_updated: bool = False
 
     def __init__(self, cfg: dict):
@@ -278,15 +287,15 @@ class EPGProvider:
     def __request(self, url: str, method: str = "GET", **kwargs) -> str:
         ret = ""
         try:
+            kwargs.setdefault("timeout", self.timeout)
             r = self.sess.request(method=method, url=url, **kwargs)
+            r.raise_for_status()
             try:
                 ret = r.json()
             except (json.decoder.JSONDecodeError, ValueError):
                 ret = r.text
-        except requests.exceptions.HTTPError as e:
+        except requests.exceptions.RequestException as e:
             log.error("요청 중 에러: %s", e)
-        except Exception:
-            log.exception("요청 중 예외:")
         return ret
 
     def load_svc_channels(self, channeljson: dict = None) -> None:
@@ -297,19 +306,20 @@ class EPGProvider:
             channelinfo = channeljson[self.provider_name.upper()]
             total = channelinfo["TOTAL"]
             channels = channelinfo["CHANNELS"]
-            assert total == len(channels), "TOTAL != len(CHANNELS)"
+            if total != len(channels):
+                raise ValueError("TOTAL != len(CHANNELS)")
             updated_at = datetime.fromisoformat(channelinfo["UPDATED"])
             if (datetime.now() - updated_at).total_seconds() <= 3600 * 24 * 4:
                 self.svc_channels = channels
                 plog.info("%03d service channels loaded from cache", len(channels))
                 return
             plog.debug("Updating service channels as outdated...")
-        except Exception as e:
+        except (KeyError, TypeError, ValueError) as e:
             plog.debug("Updating service channels as cache broken: %s", e)
 
         try:
             channels = self.get_svc_channels()
-        except Exception:
+        except (AttributeError, KeyError, TypeError, ValueError):
             plog.exception("Exception while retrieving service channels:")
         else:
             self.svc_channels = channels
@@ -357,20 +367,20 @@ class EPGProvider:
         )
         self.req_channels = req_channels
 
-    def write_channels(self) -> None:
+    def write_channels(self, writer: TextIO = None) -> None:
         for ch in self.req_channels:
             if not ch.programs:
                 log.warning("Skip writing as no program entries found for '%s'", ch.id)
                 continue
-            ch.to_xml()
+            ch.to_xml(writer=writer)
 
     def get_programs(self) -> None:
         raise NotImplementedError("method 'get_programs' must be implemented")
 
-    def write_programs(self) -> None:
+    def write_programs(self, writer: TextIO = None) -> None:
         for ch in self.req_channels:
             for prog in ch.programs:
-                prog.to_xml(self.cfg)
+                prog.to_xml(self.cfg, writer=writer)
             ch.programs.clear()  # for memory efficiency
 
 
@@ -400,7 +410,7 @@ class EPGHandler:
                 providers.append(getattr(m, name.upper())(cfg))
             except ModuleNotFoundError:
                 log.error("No such provider found: '%s'", name)
-                sys.exit(1)
+                raise ImportError(f"No such provider found: '{name}'") from None
         return providers
 
     def load_channels(self, channelfile: str, parallel: bool = False) -> None:
@@ -413,8 +423,9 @@ class EPGHandler:
             channeljson = {}
         if parallel:
             with ThreadPoolExecutor() as exe:
-                for p in self.providers:
-                    exe.submit(p.load_svc_channels, channeljson=channeljson)
+                futures = {exe.submit(p.load_svc_channels, channeljson=channeljson): p for p in self.providers}
+                for future in as_completed(futures):
+                    future.result()
         else:
             for p in self.providers:
                 p.load_svc_channels(channeljson=channeljson)
@@ -434,31 +445,34 @@ class EPGHandler:
 
         log.debug("Checking uniqueness of channelid...")
         cids = [c.id for p in self.providers for c in p.req_channels]
-        assert len(cids) == len(set(cids)), f"채널ID 중복: { {k:v for k,v in Counter(cids).items() if v > 1} }"
+        if len(cids) != len(set(cids)):
+            raise DuplicateChannelIdError(f"채널ID 중복: { {k:v for k,v in Counter(cids).items() if v > 1} }")
 
     def get_programs(self, parallel: bool = False):
         if parallel:
             with ThreadPoolExecutor() as exe:
-                for p in self.providers:
-                    exe.submit(p.get_programs)
+                futures = {exe.submit(p.get_programs): p for p in self.providers}
+                for future in as_completed(futures):
+                    future.result()
         else:
             for p in self.providers:
                 p.get_programs()
 
-    def to_xml(self):
-        print('<?xml version="1.0" encoding="UTF-8"?>')
-        print('<!DOCTYPE tv SYSTEM "xmltv.dtd">\n')
-        print(f'<tv generator-info-name="{__title__} v{__version__}">')
+    def to_xml(self, writer: TextIO = None):
+        writer = writer or sys.stdout
+        writer.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+        writer.write('<!DOCTYPE tv SYSTEM "xmltv.dtd">\n\n')
+        writer.write(f'<tv generator-info-name="{__title__} v{__version__}">\n')
 
         log.debug("Writing channels...")
         for p in self.providers:
-            p.write_channels()
+            p.write_channels(writer=writer)
 
         log.debug("Writing programs...")
         for p in self.providers:
-            p.write_programs()
+            p.write_programs(writer=writer)
 
-        print("</tv>")
+        writer.write("</tv>\n")
 
     @property
     def all_channels(self) -> Iterator:
@@ -485,6 +499,8 @@ class EPGHandler:
 
 sqlite3.register_adapter(bool, int)
 sqlite3.register_converter("BOOLEAN", lambda v: bool(int(v)))
+sqlite3.register_adapter(datetime, lambda v: v.isoformat())
+sqlite3.register_converter("TIMESTAMP", lambda v: datetime.fromisoformat(v.decode()))
 sqlite3.register_adapter(list, lambda v: json.dumps(v, ensure_ascii=False))
 sqlite3.register_converter("JSON", json.loads)
 
@@ -517,8 +533,13 @@ class SQLite:
         with closing(self.conn.cursor()) as c:
             cols = [f"{f.name} {SQLITE_DTYPES.get(f.type, 'TEXT')}" for f in fields(EPGProgram)]
             c.executescript(
-                f"""CREATE TABLE IF NOT EXISTS epgchannel ({', '.join(EPGChannel.columns)});
+                f"""CREATE TABLE IF NOT EXISTS epgchannel (
+                {', '.join(EPGChannel.columns)},
+                PRIMARY KEY (Id)
+                );
                 CREATE TABLE IF NOT EXISTS epgprogram ({', '.join(cols)});
+                CREATE INDEX IF NOT EXISTS idx_epgchannel_source ON epgchannel (Source);
+                CREATE INDEX IF NOT EXISTS idx_epgprogram_channelid_stime ON epgprogram (channelid, stime);
                 DELETE FROM epgchannel; DELETE FROM epgprogram;"""
             )
 
@@ -539,9 +560,9 @@ class SQLite:
             return c.execute(*args, **kwargs).fetchall()
 
     def select_channels(self, source: str) -> List[EPGChannel]:
-        sql = "SELECT * FROM epgchannel WHERE Source = ?"
+        sql = "SELECT * FROM epgchannel WHERE Source = ? ORDER BY No, Name, Id"
         return [EPGChannel(*x) for x in self.__fetchall(sql, (source,))]
 
     def select_programs(self, channelid: str) -> List[EPGProgram]:
-        sql = "SELECT * FROM epgprogram WHERE channelid = ?"
+        sql = "SELECT * FROM epgprogram WHERE channelid = ? ORDER BY stime, etime, title"
         return [EPGProgram(*x) for x in self.__fetchall(sql, (channelid,))]

@@ -58,17 +58,20 @@ class DAUM(EPGProvider):
             data = self.request(search_url)
             try:
                 _epgs = self.__epgs_of_days(_ch.id, data)
-            except AssertionError as e:
+            except ValueError as e:
                 log.warning("%s: %s", e, _ch)
-            except Exception:
+            except (AttributeError, IndexError, KeyError, TypeError):
                 log.exception("프로그램 파싱 중 예외: %s", _ch)
             else:
                 _ch.programs.extend(_epgs)
 
     def __epgs_of_days(self, channelid: str, data: str) -> List[EPGProgram]:
         soup = BeautifulSoup(data)
-        assert soup.find_all(attrs={"disp-attr": "B3T"}), "EPG 정보가 없거나 없는 채널입니다"
+        if not soup.find_all(attrs={"disp-attr": "B3T"}):
+            raise ValueError("EPG 정보가 없거나 없는 채널입니다")
         days = soup.select('div[class="tbl_head head_type2"] > span > span[class="date"]')
+        if not days:
+            raise ValueError("방송 일자 정보를 찾지 못했습니다")
 
         # 연도 추정
         currdate = datetime.now()  # 언제나 basedate보다 미래
@@ -79,7 +82,8 @@ class DAUM(EPGProvider):
         _epgs = []
         for nd, _ in enumerate(days):
             hours = soup.select(f'[id="tvProgramListWrap"] > table > tbody > tr > td:nth-of-type({nd+1})')
-            assert len(hours) == 24, f"24개의 시간 행이 있어야 합니다: 현재: {len(hours):d}"
+            if len(hours) != 24:
+                raise ValueError(f"24개의 시간 행이 있어야 합니다: 현재: {len(hours):d}")
             for nh, hour in enumerate(hours):
                 for dl in hour.select("dl"):
                     _epg = EPGProgram(channelid)

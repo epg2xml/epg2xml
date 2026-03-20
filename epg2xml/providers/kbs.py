@@ -93,18 +93,18 @@ class KBS(EPGProvider):
                 if endpoint == self.schedule_url:
                     params["local_station_code"] = local_station_code
 
+                data = self.request(endpoint, params=params)
                 try:
-                    data = self.request(endpoint, params=params)
-                except Exception:
-                    log.exception("프로그램 요청 중 예외: endpoint=%s params=%s", endpoint, params)
+                    sch_map = self.__build_schedule_map(data)
+                except (KeyError, TypeError, ValueError):
+                    log.exception("프로그램 응답 처리 중 예외: endpoint=%s params=%s", endpoint, params)
                     continue
 
-                sch_map = self.__build_schedule_map(data)
                 for idx, _ch, _, _, channel_code in batch:
                     log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)
                     try:
                         _epgs = self.__epgs_of_channel(_ch.id, sch_map.get((local_station_code, channel_code), []))
-                    except Exception:
+                    except (KeyError, TypeError, ValueError):
                         log.exception("프로그램 파싱 중 예외: %s", _ch)
                         continue
                     _ch.programs.extend(_epgs)
@@ -131,7 +131,7 @@ class KBS(EPGProvider):
         for sch in schedules:
             try:
                 _epg = self.__epg_of_program(channelid, sch)
-            except Exception:
+            except (KeyError, TypeError, ValueError):
                 log.exception("프로그램 파싱 중 예외: %s", sch)
                 continue
 

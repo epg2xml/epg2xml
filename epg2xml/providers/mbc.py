@@ -93,7 +93,7 @@ class MBC(EPGProvider):
                 day = date.today() + timedelta(days=nd)
                 try:
                     _epgs = self.__epg_of_day(_ch.id, _ch.svcid, day)
-                except Exception:
+                except (KeyError, TypeError, ValueError):
                     log.exception("프로그램 파싱 중 예외: %s, %s", _ch, day)
                 else:
                     _ch.programs.extend(_epgs)
@@ -148,10 +148,10 @@ class MBC(EPGProvider):
 
         try:
             base = datetime.strptime(day_text, "%Y%m%d")
-        except Exception:
+        except ValueError:
             try:
                 base = datetime.strptime(day_text, "%Y-%m-%d")
-            except Exception:
+            except ValueError:
                 return None
         return base + timedelta(hours=hour, minutes=minute)
 

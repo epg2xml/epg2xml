@@ -60,7 +60,7 @@ class SBS(EPGProvider):
                 day = date.today() + timedelta(days=nd)
                 try:
                     epgs = self.__epgs_of_day(ch, day)
-                except Exception:
+                except (KeyError, TypeError, ValueError):
                     log.exception("프로그램 파싱 중 예외: %s, %s", ch, day)
                     continue
                 ch.programs.extend(epgs)
@@ -82,7 +82,7 @@ class SBS(EPGProvider):
                 epg = self.__epg_of_program(ch.id, day, item)
                 if not epg.title or not epg.stime:
                     raise ValueError("Invalid schedule item")
-            except Exception:
+            except (KeyError, TypeError, ValueError):
                 log.exception("프로그램 항목 파싱 중 예외: %s, %s, %s", ch, day, item)
                 continue
             epgs.append(epg)
