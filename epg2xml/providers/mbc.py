@@ -4,6 +4,7 @@ from datetime import date, datetime, timedelta
 from typing import Callable, List, Optional, Tuple
 
 from epg2xml.providers import EPGProgram, EPGProvider
+from epg2xml.utils import strip_or_none, time_to_td
 
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 
@@ -66,8 +67,8 @@ class MBC(EPGProvider):
         params = {"sDate": day.strftime("%Y%m%d"), "sType": stype}
         return endpoint, params, self.__get_parser(parser_key)
 
-    def __epg_of_day(self, channelid: str, schedule_code: str, day: date) -> List[EPGProgram]:
-        endpoint, params, parser = self.__request_spec(schedule_code, day)
+    def __epg_of_day(self, ch, day: date) -> List[EPGProgram]:
+        endpoint, params, parser = self.__request_spec(ch.svcid, day)
         data = self.request(endpoint, params=params)
         if not isinstance(data, list):
             raise ValueError(
@@ -76,7 +77,7 @@ class MBC(EPGProvider):
 
         _epgs = []
         for item in data:
-            _epg = parser(channelid, item, params["sDate"])
+            _epg = parser(ch.id, item, params["sDate"])
             if not _epg.stime:
                 raise ValueError("Invalid StartTime in schedule item")
             if not _epg.etime:
@@ -92,7 +93,7 @@ class MBC(EPGProvider):
             for nd in range(int(self.cfg["FETCH_LIMIT"])):
                 day = date.today() + timedelta(days=nd)
                 try:
-                    _epgs = self.__epg_of_day(_ch.id, _ch.svcid, day)
+                    _epgs = self.__epg_of_day(_ch, day)
                 except (KeyError, TypeError, ValueError):
                     log.exception("프로그램 파싱 중 예외: %s, %s", _ch, day)
                 else:
@@ -100,60 +101,36 @@ class MBC(EPGProvider):
 
     def __epg_of_tv(self, channelid: str, item: dict, _sdate: str) -> EPGProgram:
         _epg = self.__base_epg(channelid, item, "Title")
-        _epg.rating = self.__parse_rating(str(item.get("AgeRange") or "").strip())
-        _epg.stime = self.__parse_dt(item["ScheduleDay"], item["StartTime"])
-        _epg.etime = self.__parse_dt(item["ScheduleDay"], item["EndTime"])
+        _epg.rating = self.__parse_rating(strip_or_none(item.get("AgeRange")))
+        day = datetime.strptime(item["ScheduleDay"], "%Y%m%d")
+        _epg.stime = day + time_to_td(item["StartTime"])
+        _epg.etime = day + time_to_td(item["EndTime"])
         return _epg
 
     def __epg_of_radio(self, channelid: str, item: dict, _sdate: str) -> EPGProgram:
         _epg = self.__base_epg(channelid, item, "Title")
-        _epg.stime = self.__parse_dt(item["BroadDate"], item["StartTime"])
-        _epg.etime = self.__parse_dt(item["BroadDate"], item["EndTime"])
+        day = datetime.strptime(item["BroadDate"], "%Y-%m-%d")
+        _epg.stime = day + time_to_td(item["StartTime"])
+        _epg.etime = day + time_to_td(item["EndTime"])
         return _epg
 
     def __epg_of_mbcplus(self, channelid: str, item: dict, sdate: str) -> EPGProgram:
         _epg = self.__base_epg(channelid, item, "ProgramTitle")
-        _epg.rating = self.__parse_rating(str(item.get("TargetAge") or "").strip())
-        _epg.stime = self.__parse_dt(sdate, item["StartTime"])
-        _epg.etime = self.__parse_dt(sdate, item["EndTime"])
+        _epg.rating = self.__parse_rating(strip_or_none(item.get("TargetAge")))
+        day = datetime.strptime(sdate, "%Y%m%d")
+        _epg.stime = day + time_to_td(item["StartTime"])
+        _epg.etime = day + time_to_td(item["EndTime"])
         return _epg
 
     def __base_epg(self, channelid: str, item: dict, title_key: str) -> EPGProgram:
         _epg = EPGProgram(channelid)
-        _epg.title = str(item[title_key]).strip()
+        _epg.title = strip_or_none(item[title_key])
         if not _epg.title:
             raise ValueError("Empty title in schedule item")
-        title_sub = str(item.get("SubTitle") or "").strip() or None
-        if title_sub == _epg.title:
-            title_sub = None
-        _epg.title_sub = title_sub
-        _epg.poster_url = str(item.get("Photo") or "").strip() or None
+        title_sub = strip_or_none(item.get("SubTitle"))
+        _epg.title_sub = None if title_sub == _epg.title else title_sub
+        _epg.poster_url = strip_or_none(item.get("Photo"))
         return _epg
-
-    def __parse_dt(self, schedule_day: str, hhmm: str) -> Optional[datetime]:
-        if schedule_day is None or hhmm is None:
-            return None
-        day_text = str(schedule_day).strip()
-        time_text = str(hhmm).strip()
-        if not day_text or not time_text:
-            return None
-
-        if not time_text.isdigit() or len(time_text) != 4:
-            return None
-        hour = int(time_text[:2])
-        minute = int(time_text[2:])
-
-        if minute > 59:
-            return None
-
-        try:
-            base = datetime.strptime(day_text, "%Y%m%d")
-        except ValueError:
-            try:
-                base = datetime.strptime(day_text, "%Y-%m-%d")
-            except ValueError:
-                return None
-        return base + timedelta(hours=hour, minutes=minute)
 
     def __parse_rating(self, value: Optional[str]) -> int:
         if not value:

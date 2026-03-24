@@ -82,7 +82,7 @@ class NAVER(EPGProvider):
                 else:
                     _ch.programs.extend(_epgs)
 
-    def __epgs_of_day(self, channelid: str, data: dict, day: datetime) -> List[EPGProgram]:
+    def __epgs_of_day(self, channelid: str, data: dict, day: date) -> List[EPGProgram]:
         _epgs = []
         soup = BeautifulSoup("".join(data["dataHtml"]))
         for row in soup.find_all("li", {"class": "list"}):

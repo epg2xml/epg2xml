@@ -5,6 +5,7 @@ from datetime import date, datetime, timedelta
 from typing import List
 
 from epg2xml.providers import EPGProgram, EPGProvider
+from epg2xml.utils import strip_or_none, time_to_td
 
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 
@@ -147,24 +148,18 @@ class KBS(EPGProvider):
     def __epg_of_program(self, channelid: str, sch: dict) -> EPGProgram:
         _epg = EPGProgram(channelid)
         program_date = datetime.strptime(sch["program_planned_date"], "%Y%m%d")
-        stime_delta = self.__parse_timedelta(sch["program_planned_start_time"])
-        if stime_delta is None:
-            raise ValueError("invalid program_planned_start_time")
-        etime_delta = self.__parse_timedelta(sch["program_planned_end_time"])
-        if etime_delta is None:
-            raise ValueError("invalid program_planned_end_time")
-        if etime_delta < stime_delta:
+        _epg.stime = program_date + time_to_td(sch["program_planned_start_time"])
+        _epg.etime = program_date + time_to_td(sch["program_planned_end_time"])
+        if _epg.etime < _epg.stime:
             # API에서 간헐적으로 발생하는 시간 역전(human error) 데이터를 보정한다.
-            etime_delta += timedelta(days=1)
-        _epg.stime = program_date + stime_delta
-        _epg.etime = program_date + etime_delta
-        _epg.title = self.__strip_or_none(sch.get("program_title"))
+            _epg.etime += timedelta(days=1)
+        _epg.title = strip_or_none(sch.get("program_title"))
         if not _epg.title:
-            _epg.title = self.__strip_or_none(sch.get("programming_table_title"))
+            _epg.title = strip_or_none(sch.get("programming_table_title"))
         if not _epg.title:
             raise ValueError("empty program_title")
-        _epg.title_sub = self.__strip_or_none(sch.get("program_subtitle"))
-        _epg.ep_num = self.__strip_or_none(sch.get("program_sequence_number"))
+        _epg.title_sub = strip_or_none(sch.get("program_subtitle"))
+        _epg.ep_num = strip_or_none(sch.get("program_sequence_number"))
 
         _epg.rating = 0
         if grade := sch.get("deliberation_grade"):
@@ -180,30 +175,8 @@ class KBS(EPGProvider):
         if staff := sch.get("program_staff"):
             _epg.crew = [{"name": x.strip(), "title": "director"} for x in staff.split(",") if x.strip()]
 
-        _epg.desc = self.__strip_or_none(sch.get("program_intention"))
+        _epg.desc = strip_or_none(sch.get("program_intention"))
 
         if image_url := sch.get("image_w"):
             _epg.poster_url = image_url
         return _epg
-
-    def __parse_timedelta(self, value):
-        text = str(value).strip().replace(":", "")
-        if not text.isdecimal():
-            return None
-        if len(text) != 8:
-            return None
-
-        # HHMMSSff (8자리). ff는 밀리초 유사 하위단위로 간주하며 버림
-        hour = int(text[:2])  # 24시 초과(예: 27, 28) 허용
-        minute = int(text[2:4])
-        second = int(text[4:6])
-
-        if minute > 59 or second > 59:
-            return None
-        return timedelta(hours=hour, minutes=minute, seconds=second)
-
-    def __strip_or_none(self, value):
-        if value is None:
-            return None
-        text = str(value).strip()
-        return text or None

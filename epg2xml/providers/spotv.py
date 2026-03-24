@@ -3,6 +3,7 @@ from datetime import date, datetime, timedelta
 from typing import List
 
 from epg2xml.providers import EPGProgram, EPGProvider
+from epg2xml.utils import time_to_td
 
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 
@@ -29,13 +30,6 @@ class SPOTV(EPGProvider):
             }
             for ch in self.request(url)
         ]
-
-    def __dt(self, dt: str) -> datetime:
-        if not dt:
-            return None
-        if dt.endswith("24:00"):
-            return datetime.strptime(dt.replace("24:00", "00:00"), "%Y-%m-%d %H:%M") + timedelta(days=1)
-        return datetime.strptime(dt, "%Y-%m-%d %H:%M")
 
     def get_programs(self) -> None:
         max_ndays = 5
@@ -92,9 +86,14 @@ class SPOTV(EPGProvider):
         for p in programs:
             _epg = EPGProgram(channelid)
             _epg.title = p["title"]
-            _epg.stime = self.__dt(p["startTime"])
+            start_day, start_time = p["startTime"].split(" ", maxsplit=1)
+            _epg.stime = datetime.strptime(start_day, "%Y-%m-%d") + time_to_td(start_time)
             # 끝나는 시간이 없으면 해당일 자정으로 강제
-            _epg.etime = self.__dt(p["endTime"]) or (_epg.stime.replace(hour=0, minute=0) + timedelta(days=1))
+            end_time = None
+            if p["endTime"]:
+                end_day, end_time = p["endTime"].split(" ", maxsplit=1)
+                end_time = datetime.strptime(end_day, "%Y-%m-%d") + time_to_td(end_time)
+            _epg.etime = end_time or (_epg.stime.replace(hour=0, minute=0) + timedelta(days=1))
             if _epg.stime == _epg.etime:
                 continue
 

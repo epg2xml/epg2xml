@@ -1,8 +1,9 @@
 import logging
 from datetime import date, datetime, timedelta
-from typing import List, Optional
+from typing import List
 
 from epg2xml.providers import EPGProgram, EPGProvider, no_endtime
+from epg2xml.utils import strip_or_none, time_to_td
 
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 
@@ -90,34 +91,15 @@ class SBS(EPGProvider):
 
     def __epg_of_program(self, channelid: str, day: date, item: dict) -> EPGProgram:
         epg = EPGProgram(channelid)
-        epg.title = self.__strip_or_none(item.get("title"))
-        epg.desc = self.__strip_or_none(item.get("description"))
-        epg.poster_url = self.__strip_or_none(item.get("program_image"))
+        epg.title = strip_or_none(item.get("title"))
+        epg.desc = strip_or_none(item.get("description"))
+        epg.poster_url = strip_or_none(item.get("program_image"))
         epg.rating = int(item.get("target_age") or "0")
-        epg.stime = self.__parse_dt(day, item.get("start_time"))
-        epg.etime = self.__parse_dt(day, item.get("end_time"))
+        base_day = datetime.combine(day, datetime.min.time())
+        start_delta = time_to_td(item.get("start_time"))
+        end_delta = time_to_td(item.get("end_time"))
+        epg.stime = None if start_delta is None else base_day + start_delta
+        epg.etime = None if end_delta is None else base_day + end_delta
         if epg.etime and epg.stime and epg.etime <= epg.stime:
             epg.etime += timedelta(days=1)
         return epg
-
-    def __parse_dt(self, day: date, hhmm: Optional[str]) -> Optional[datetime]:
-        text = self.__strip_or_none(hhmm)
-        if text is None:
-            return None
-        parts = text.split(":", maxsplit=1)
-        if len(parts) != 2:
-            return None
-        hour_text, minute_text = parts
-        if not hour_text.isdigit() or not minute_text.isdigit():
-            return None
-        hour = int(hour_text)
-        minute = int(minute_text)
-        if minute > 59:
-            return None
-        return datetime.combine(day, datetime.min.time()) + timedelta(hours=hour, minutes=minute)
-
-    def __strip_or_none(self, value) -> Optional[str]:
-        if value is None:
-            return None
-        text = str(value).strip()
-        return text or None

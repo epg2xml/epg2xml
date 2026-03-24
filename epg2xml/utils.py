@@ -5,9 +5,10 @@ import sys
 import threading
 import time
 import xml.etree.ElementTree as ET
+from datetime import timedelta
 from functools import wraps
 from math import floor
-from typing import Callable
+from typing import Callable, Optional
 
 from bs4 import BeautifulSoup, FeatureNotFound
 
@@ -21,6 +22,38 @@ def dump_json(file_path, data) -> int:
         txt = re.sub(r",\n\s{8}\"", ', "', txt)
         txt = re.sub(r"\s{6}{\s+(.*)\s+}", r"      { \g<1> }", txt)
         return f.write(txt)
+
+
+def strip_or_none(value) -> Optional[str]:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def time_to_td(value) -> Optional[timedelta]:
+    text = strip_or_none(value)
+    if text is None:
+        return None
+
+    normalized = text.replace(":", "")
+    if not normalized.isdigit():
+        return None
+
+    if len(normalized) == 4:
+        hour = int(normalized[:2])
+        minute = int(normalized[2:4])
+        second = 0
+    elif len(normalized) in (6, 8):
+        hour = int(normalized[:2])
+        minute = int(normalized[2:4])
+        second = int(normalized[4:6])
+    else:
+        return None
+
+    if minute > 59 or second > 59:
+        return None
+    return timedelta(hours=hour, minutes=minute, seconds=second)
 
 
 # https://stackoverflow.com/a/22273639

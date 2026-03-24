@@ -27,6 +27,7 @@ sys.modules.setdefault("bs4", bs4)
 
 from epg2xml.providers import EPGChannel, EPGHandler, EPGProgram, EPGProvider, SQLite
 from epg2xml.providers.spotv import SPOTV
+from epg2xml.utils import time_to_td
 
 CFG = {
     "ENABLED": True,
@@ -64,7 +65,8 @@ class FakeHandlerProvider:
         self.provider_name = "FAKE"
         self.svc_channels = []
 
-    def load_svc_channels(self, _channeljson=None):
+    def load_svc_channels(self, channeljson=None):
+        del channeljson
         if self.error is not None:
             raise self.error
 
@@ -219,6 +221,16 @@ class TestProvider(unittest.TestCase):
         self.assertIn('<channel id="fake"></channel>', xml)
         self.assertIn('<programme channel="fake"></programme>', xml)
         self.assertTrue(xml.rstrip().endswith("</tv>"))
+
+    def test_time_to_td_handles_overflow_hours(self):
+        parsed = time_to_td("24:30")
+
+        self.assertEqual(parsed, timedelta(hours=24, minutes=30))
+
+    def test_time_to_td_supports_kbs_time_format(self):
+        parsed = time_to_td("25000099")
+
+        self.assertEqual(parsed, timedelta(hours=25))
 
     def test_spotv_deduplicates_boundary_programs_without_mutating_source(self):
         with patch("epg2xml.providers.requests.Session", DummySession):
