@@ -12,7 +12,7 @@ from functools import wraps
 from importlib import import_module
 from itertools import chain
 from os import PathLike
-from typing import ClassVar, Iterator, List, Literal, TextIO, Tuple, Union
+from typing import ClassVar, Iterator, List, Literal, Optional, TextIO, Tuple, Union
 
 try:
     from curl_cffi import requests
@@ -84,13 +84,49 @@ class EPGProgram:
     extras: List[str] = None
     keywords: List[str] = None
 
+    @staticmethod
+    def _normalize_text(value) -> Optional[str]:
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None
+
+    @classmethod
+    def _normalize_text_list(cls, values: List[str]) -> Optional[List[str]]:
+        if not values:
+            return None
+        normalized = [text for text in (cls._normalize_text(value) for value in values) if text]
+        return normalized or None
+
+    @classmethod
+    def _normalize_credits(cls, values: List[dict]) -> Optional[List[dict]]:
+        if not values:
+            return None
+
+        normalized = []
+        for value in values:
+            if not isinstance(value, dict):
+                continue
+            name = cls._normalize_text(value.get("name"))
+            title = cls._normalize_text(value.get("title"))
+            if not name or not title:
+                continue
+            attrs = {k: v for k, v in value.items() if k not in {"name", "title"} and v is not None}
+            normalized.append({"name": name, "title": title, **attrs})
+        return normalized or None
+
     def sanitize(self) -> None:
-        for f in fields(self):
-            attr = getattr(self, f.name)
-            if f.type == List[str] and attr is not None:
-                setattr(self, f.name, [x.strip() for x in filter(bool, attr) if x.strip()])
-            elif f.type == str:
-                setattr(self, f.name, (attr or "").strip())
+        for field_name in ("title", "title_sub", "part_num", "ep_num", "desc", "poster_url"):
+            setattr(self, field_name, self._normalize_text(getattr(self, field_name)))
+        for field_name in ("categories", "extras", "keywords"):
+            setattr(self, field_name, self._normalize_text_list(getattr(self, field_name)))
+
+        self.cast = self._normalize_credits(self.cast)
+        self.crew = self._normalize_credits(self.crew)
+        try:
+            self.rating = max(0, int(self.rating or 0))
+        except (TypeError, ValueError):
+            self.rating = 0
 
     def to_xml(self, cfg: dict, writer: TextIO = None) -> None:
         self.sanitize()
@@ -146,9 +182,13 @@ class EPGProgram:
         if cast or crew:
             _c = Element("credits")
             for cc in sorted(cast + crew, key=lambda x: TAG_CREDITS.index(x["title"])):
-                title = cc.pop("title")
-                name = cc.pop("name")
-                _c.append(Element(title, name, **cc))
+                _c.append(
+                    Element(
+                        cc["title"],
+                        cc["name"],
+                        **{k: v for k, v in cc.items() if k not in {"title", "name"}},
+                    )
+                )
             _p.append(_c)
 
         # categories
@@ -226,6 +266,15 @@ class EPGChannel:
     def __str__(self):
         return f"{self.name} <{self.id}>"
 
+    def sanitize(self) -> None:
+        self.id = EPGProgram._normalize_text(self.id)
+        self.src = EPGProgram._normalize_text(self.src)
+        self.svcid = EPGProgram._normalize_text(self.svcid)
+        self.name = EPGProgram._normalize_text(self.name)
+        self.icon = EPGProgram._normalize_text(self.icon)
+        self.no = EPGProgram._normalize_text(self.no)
+        self.category = EPGProgram._normalize_text(self.category)
+
     def set_etime(self) -> None:
         """Completes missing program endtimes based on the successive relationship between programs."""
         for ind, prog in enumerate(self.programs):
@@ -238,6 +287,7 @@ class EPGChannel:
 
     def to_xml(self, writer: TextIO = None) -> None:
         writer = writer or sys.stdout
+        self.sanitize()
         chel = Element("channel", id=self.id)
         # TODO: something better for display-name?
         chel.append(Element("display-name", self.name))

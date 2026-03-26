@@ -222,6 +222,49 @@ class TestProvider(unittest.TestCase):
         self.assertIn('<programme channel="fake"></programme>', xml)
         self.assertTrue(xml.rstrip().endswith("</tv>"))
 
+    def test_program_to_xml_sanitizes_metadata_without_mutating_credits(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=datetime(2026, 1, 1, 10, 0),
+            title="  Program Title  ",
+            title_sub="  Subtitle  ",
+            categories=[" 뉴스 ", "", "  "],
+            keywords=[" 키워드 ", None, ""],
+            cast=[{"name": " Alice ", "title": "actor", "role": "lead"}],
+            crew=[{"name": " Bob ", "title": "director"}],
+            rating="15",
+        )
+        buffer = io.StringIO()
+
+        program.to_xml(CFG, writer=buffer)
+
+        xml = buffer.getvalue()
+        self.assertEqual(program.title, "Program Title")
+        self.assertEqual(program.title_sub, "Subtitle")
+        self.assertEqual(program.categories, ["뉴스"])
+        self.assertEqual(program.keywords, ["키워드"])
+        self.assertEqual(program.cast, [{"name": "Alice", "title": "actor", "role": "lead"}])
+        self.assertEqual(program.crew, [{"name": "Bob", "title": "director"}])
+        self.assertEqual(program.rating, 15)
+        self.assertIn("<actor role=\"lead\">Alice</actor>", xml)
+        self.assertIn("<director>Bob</director>", xml)
+
+    def test_channel_to_xml_sanitizes_text_fields(self):
+        channel = EPGChannel(" kt.id ", " KT ", " svc1 ", " Channel A ")
+        channel.no = " 101 "
+        channel.icon = " https://example.com/icon.png "
+        buffer = io.StringIO()
+
+        channel.to_xml(writer=buffer)
+
+        self.assertEqual(channel.id, "kt.id")
+        self.assertEqual(channel.src, "KT")
+        self.assertEqual(channel.svcid, "svc1")
+        self.assertEqual(channel.name, "Channel A")
+        self.assertEqual(channel.no, "101")
+        self.assertEqual(channel.icon, "https://example.com/icon.png")
+
     def test_time_to_td_handles_overflow_hours(self):
         parsed = time_to_td("24:30")
 
