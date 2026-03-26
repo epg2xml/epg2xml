@@ -91,8 +91,6 @@ class Credit:
             raise ValueError("Credit.name is required")
         if not self.title:
             raise ValueError("Credit.title is required")
-        if self.role is not None and not isinstance(self.role, str):
-            raise TypeError("Credit.role must be a string when present")
         if self.title not in TAG_CREDITS:
             raise ValueError(f"Unsupported credit title: {self.title}")
 
@@ -198,10 +196,6 @@ class EPGProgram:
             raise TypeError("EPGProgram.stime must be a datetime")
         if not self.title:
             raise ValueError("EPGProgram.title is required")
-        for field_name in ("title_sub", "part_num", "ep_num", "desc", "poster_url"):
-            value = getattr(self, field_name)
-            if value is not None and not isinstance(value, str):
-                raise TypeError(f"EPGProgram.{field_name} must be a string when present")
         if not isinstance(self.rebroadcast, bool):
             raise TypeError("EPGProgram.rebroadcast must be a bool")
         if not isinstance(self.rating, int):
@@ -211,18 +205,6 @@ class EPGProgram:
                 raise TypeError("EPGProgram.etime must be a datetime when present")
             if self.etime < self.stime:
                 raise ValueError("EPGProgram.etime must not be earlier than stime")
-        for field_name in ("categories", "extras", "keywords"):
-            values = getattr(self, field_name)
-            if values is not None and not all(
-                isinstance(value, str) for value in values  # pylint: disable=not-an-iterable
-            ):
-                raise TypeError(f"EPGProgram.{field_name} must contain only strings")
-        for field_name in ("cast", "crew"):
-            values = getattr(self, field_name)
-            if values is not None and not all(
-                isinstance(value, Credit) for value in values  # pylint: disable=not-an-iterable
-            ):
-                raise TypeError(f"EPGProgram.{field_name} must contain only Credit instances")
         for credit in (self.cast or []) + (self.crew or []):
             credit.validate()
 

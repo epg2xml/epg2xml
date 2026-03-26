@@ -359,7 +359,7 @@ class TestProvider(unittest.TestCase):
         with self.assertRaises(ValueError):
             program.to_xml(CFG, writer=io.StringIO())
 
-    def test_program_validate_rejects_invalid_credit_role_type(self):
+    def test_program_sanitize_normalizes_credit_role(self):
         program = EPGProgram(
             "kt.id",
             stime=datetime(2026, 1, 1, 9, 0),
@@ -368,8 +368,9 @@ class TestProvider(unittest.TestCase):
             cast=[Credit(name="Alice", title="actor", role=1)],
         )
 
-        with self.assertRaises(TypeError):
-            program.validate()
+        program.sanitize()
+
+        self.assertEqual(program.cast, [Credit(name="Alice", title="actor", role="1")])
 
     def test_program_to_xml_requires_datetime_fields(self):
         program = EPGProgram(
@@ -414,10 +415,12 @@ class TestProvider(unittest.TestCase):
             rebroadcast="Y",
         )
 
+        program.sanitize()
+
         with self.assertRaises(TypeError):
             program.validate()
 
-    def test_program_validate_rejects_non_int_rating(self):
+    def test_program_sanitize_coerces_rating_before_validate(self):
         program = EPGProgram(
             "kt.id",
             stime=datetime(2026, 1, 1, 9, 0),
@@ -426,10 +429,12 @@ class TestProvider(unittest.TestCase):
             rating="15",
         )
 
-        with self.assertRaises(TypeError):
-            program.validate()
+        program.sanitize()
 
-    def test_program_validate_rejects_non_string_optional_field(self):
+        self.assertEqual(program.rating, 15)
+        program.validate()
+
+    def test_program_sanitize_normalizes_optional_string_field(self):
         program = EPGProgram(
             "kt.id",
             stime=datetime(2026, 1, 1, 9, 0),
@@ -438,10 +443,12 @@ class TestProvider(unittest.TestCase):
             poster_url=123,
         )
 
-        with self.assertRaises(TypeError):
-            program.validate()
+        program.sanitize()
 
-    def test_program_validate_rejects_non_credit_items(self):
+        self.assertEqual(program.poster_url, "123")
+        program.validate()
+
+    def test_program_sanitize_discards_non_credit_items_before_validate(self):
         program = EPGProgram(
             "kt.id",
             stime=datetime(2026, 1, 1, 9, 0),
@@ -450,8 +457,10 @@ class TestProvider(unittest.TestCase):
             cast=["Alice"],
         )
 
-        with self.assertRaises(TypeError):
-            program.validate()
+        program.sanitize()
+
+        self.assertIsNone(program.cast)
+        program.validate()
 
     def test_program_to_xml_requires_etime_for_serialization(self):
         program = EPGProgram(
