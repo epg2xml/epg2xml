@@ -76,6 +76,7 @@ class MBC(EPGProvider):
             )
 
         _epgs = []
+        prev_stime = None
         for item in data:
             _epg = parser(ch.id, item, params["sDate"])
             if not _epg.stime:
@@ -84,6 +85,13 @@ class MBC(EPGProvider):
                 raise ValueError("Invalid EndTime in schedule item")
             if _epg.etime <= _epg.stime:
                 _epg.etime += timedelta(days=1)
+            # MBC+ can emit post-midnight entries against the same sDate even after 24:00+ rows.
+            # When the parsed start time goes backwards, treat it as the next calendar day.
+            if prev_stime is not None and _epg.stime < prev_stime:
+                while _epg.stime < prev_stime:
+                    _epg.stime += timedelta(days=1)
+                    _epg.etime += timedelta(days=1)
+            prev_stime = _epg.stime
             _epgs.append(_epg)
         return _epgs
 

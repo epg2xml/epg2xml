@@ -26,6 +26,7 @@ bs4.FeatureNotFound = DummyFeatureNotFound
 sys.modules.setdefault("bs4", bs4)
 
 from epg2xml.providers import Credit, EPGChannel, EPGHandler, EPGProgram, EPGProvider, SQLite
+from epg2xml.providers.mbc import MBC
 from epg2xml.providers.spotv import SPOTV
 from epg2xml.utils import time_to_td
 
@@ -551,6 +552,33 @@ class TestProvider(unittest.TestCase):
         parsed = time_to_td("25000099")
 
         self.assertEqual(parsed, timedelta(hours=25))
+
+    def test_mbcplus_rolls_post_midnight_entries_forward_when_sdate_resets(self):
+        with patch("epg2xml.providers.requests.Session", DummySession):
+            provider = MBC(dict(CFG))
+        channel = EPGChannel("mbcnet.id", "MBC", "MBCNET", "MBCNET")
+        payload = [
+            {
+                "ProgramTitle": "Late Show",
+                "TargetAge": "15",
+                "StartTime": "2330",
+                "EndTime": "2430",
+            },
+            {
+                "ProgramTitle": "After Midnight",
+                "TargetAge": "15",
+                "StartTime": "0030",
+                "EndTime": "0130",
+            },
+        ]
+
+        with patch.object(provider, "request", return_value=payload):
+            programs = provider._MBC__epg_of_day(channel, datetime(2026, 1, 1).date())
+
+        self.assertEqual(programs[0].stime, datetime(2026, 1, 1, 23, 30))
+        self.assertEqual(programs[0].etime, datetime(2026, 1, 2, 0, 30))
+        self.assertEqual(programs[1].stime, datetime(2026, 1, 2, 0, 30))
+        self.assertEqual(programs[1].etime, datetime(2026, 1, 2, 1, 30))
 
     def test_spotv_deduplicates_boundary_programs_without_mutating_source(self):
         with patch("epg2xml.providers.requests.Session", DummySession):
