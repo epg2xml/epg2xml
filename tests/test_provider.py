@@ -265,6 +265,26 @@ class TestProvider(unittest.TestCase):
         self.assertEqual(program.cast, [Credit(name="Alice", title="actor", role="lead")])
         self.assertEqual(program.crew, [Credit(name="Bob", title="director", role=None)])
 
+    def test_program_sanitize_deduplicates_text_lists_and_title_sub(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=datetime(2026, 1, 1, 10, 0),
+            title=" Program ",
+            title_sub=" Program ",
+            categories=["뉴스", " 뉴스 ", "", "스포츠", "뉴스"],
+            extras=["HD", " HD ", None],
+            keywords=["키워드", " 키워드 ", "다시보기"],
+        )
+
+        program.sanitize()
+
+        self.assertEqual(program.title, "Program")
+        self.assertIsNone(program.title_sub)
+        self.assertEqual(program.categories, ["뉴스", "스포츠"])
+        self.assertEqual(program.extras, ["HD"])
+        self.assertEqual(program.keywords, ["키워드", "다시보기"])
+
     def test_program_to_xml_rejects_invalid_credit_title(self):
         program = EPGProgram(
             "kt.id",

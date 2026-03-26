@@ -115,7 +115,13 @@ class EPGProgram:
     def _normalize_text_list(cls, values: List[str]) -> Optional[List[str]]:
         if not values:
             return None
-        normalized = [text for text in (cls._normalize_text(value) for value in values) if text]
+        normalized = []
+        seen = set()
+        for text in (cls._normalize_text(value) for value in values):
+            if not text or text in seen:
+                continue
+            seen.add(text)
+            normalized.append(text)
         return normalized or None
 
     @classmethod
@@ -150,6 +156,8 @@ class EPGProgram:
 
         self.cast = self._normalize_credits(self.cast)
         self.crew = self._normalize_credits(self.crew)
+        if self.title and self.title_sub == self.title:
+            self.title_sub = None
         try:
             self.rating = max(0, int(self.rating or 0))
         except (TypeError, ValueError):
