@@ -160,6 +160,7 @@ class EPGProgram:
             return None
 
         normalized = []
+        seen = set()
         for value in values:
             if not isinstance(value, Credit):
                 continue
@@ -167,6 +168,10 @@ class EPGProgram:
             credit.sanitize()
             if not credit.name or not credit.title:
                 continue
+            credit_key = (credit.name, credit.title, credit.role)
+            if credit_key in seen:
+                continue
+            seen.add(credit_key)
             normalized.append(credit)
         return normalized or None
 

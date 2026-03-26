@@ -265,6 +265,27 @@ class TestProvider(unittest.TestCase):
         self.assertEqual(program.cast, [Credit(name="Alice", title="actor", role="lead")])
         self.assertEqual(program.crew, [Credit(name="Bob", title="director", role=None)])
 
+    def test_program_sanitize_deduplicates_credit_objects(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=datetime(2026, 1, 1, 10, 0),
+            title="Program",
+            cast=[
+                Credit(name=" Alice ", title="actor"),
+                Credit(name="Alice", title="actor"),
+            ],
+            crew=[
+                Credit(name=" Bob ", title="director", role="main"),
+                Credit(name="Bob", title="director", role=" main "),
+            ],
+        )
+
+        program.sanitize()
+
+        self.assertEqual(program.cast, [Credit(name="Alice", title="actor", role=None)])
+        self.assertEqual(program.crew, [Credit(name="Bob", title="director", role="main")])
+
     def test_program_sanitize_discards_non_credit_items(self):
         program = EPGProgram(
             "kt.id",
