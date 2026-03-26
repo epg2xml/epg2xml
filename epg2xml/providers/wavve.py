@@ -4,7 +4,7 @@ from functools import lru_cache
 from typing import List
 from xml.sax.saxutils import unescape
 
-from epg2xml.providers import EPGProgram, EPGProvider
+from epg2xml.providers import Credit, EPGProgram, EPGProvider
 
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 today = date.today()
@@ -115,9 +115,9 @@ class WAVVE(EPGProvider):
         actors = detail.get("season_actors") or detail.get("actors") or {"list": []}
         directors = detail.get("season_directors") or detail.get("directors") or {"list": []}
         writers = detail.get("season_writers") or detail.get("writers") or {"list": []}
-        _epg.cast = [{"name": x["text"], "title": "actor"} for x in actors["list"]]
-        _epg.crew = [{"name": x["text"], "title": "director"} for x in directors["list"]]
-        _epg.crew += [{"name": x["text"], "title": "writer"} for x in writers["list"]]
+        _epg.cast = [Credit(name=x["text"], title="actor") for x in actors["list"]]
+        _epg.crew = [Credit(name=x["text"], title="director") for x in directors["list"]]
+        _epg.crew += [Credit(name=x["text"], title="writer") for x in writers["list"]]
         return _epg
 
     def get_programs(self) -> None:
