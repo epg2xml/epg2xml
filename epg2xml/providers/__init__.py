@@ -86,6 +86,7 @@ class Credit:
             setattr(self, field_name, norm_text(getattr(self, field_name)))
 
     def validate(self) -> None:
+        # Assumes sanitize() has already normalized field values.
         if not self.name:
             raise ValueError("Credit.name is required")
         if not self.title:
@@ -190,11 +191,12 @@ class EPGProgram:
             self.rating = 0
 
     def validate(self) -> None:
+        # Assumes sanitize() has already normalized field values.
         if not self.channelid:
             raise ValueError("EPGProgram.channelid is required")
         if not isinstance(self.stime, datetime):
             raise TypeError("EPGProgram.stime must be a datetime")
-        if not norm_text(self.title):
+        if not self.title:
             raise ValueError("EPGProgram.title is required")
         for field_name in ("title_sub", "part_num", "ep_num", "desc", "poster_url"):
             value = getattr(self, field_name)
@@ -365,6 +367,7 @@ class EPGChannel:
             setattr(self, field_name, norm_text(getattr(self, field_name)))
 
     def validate(self) -> None:
+        # Assumes sanitize() has already normalized field values.
         if not self.id:
             raise ValueError("EPGChannel.id is required")
         if not self.src:

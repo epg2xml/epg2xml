@@ -390,6 +390,8 @@ class TestProvider(unittest.TestCase):
             title="   ",
         )
 
+        program.sanitize()
+
         with self.assertRaises(ValueError):
             program.validate()
 
