@@ -56,6 +56,8 @@ TAG_CREDITS = (
     "commentator",
     "guest",
 )
+
+
 def norm_text_list(values: List[str]) -> Optional[List[str]]:
     if not values:
         return None
@@ -114,41 +116,41 @@ class EPGProgram:
     extras: List[str] = None
     keywords: List[str] = None
 
-    @classmethod
-    def credits(cls, values, title: str) -> Optional[List[Credit]]:
-        if not values:
-            return None
-        return cls._norm_credits([Credit(name=value, title=title) for value in values])
-
-    def extend_categories(self, values: Iterable[str]) -> None:
-        values = norm_text_list(values)
-        if not values:
+    def _add_text_item(self, field_name: str, value: str) -> None:
+        value = norm_text(value)
+        if not value:
             return
-        self.categories = norm_text_list((self.categories or []) + values)
+        items = getattr(self, field_name) or []
+        if value not in items:
+            items.append(value)
+            setattr(self, field_name, items)
 
-    def extend_keywords(self, values: Iterable[str]) -> None:
-        values = norm_text_list(values)
-        if not values:
-            return
-        self.keywords = norm_text_list((self.keywords or []) + values)
+    def add_category(self, value: str) -> None:
+        self._add_text_item("categories", value)
 
-    def extend_extras(self, values: Iterable[str]) -> None:
-        values = norm_text_list(values)
-        if not values:
+    def add_keyword(self, value: str) -> None:
+        self._add_text_item("keywords", value)
+
+    def add_extra(self, value: str) -> None:
+        self._add_text_item("extras", value)
+
+    def _add_credit(self, field_name: str, name: str, title: str, role: str = None) -> None:
+        credit = Credit(name=name, title=title, role=role)
+        credit.sanitize()
+        if not credit.name or not credit.title:
             return
-        self.extras = norm_text_list((self.extras or []) + values)
+        items = getattr(self, field_name) or []
+        if credit not in items:
+            items.append(credit)
+            setattr(self, field_name, items)
 
     def add_cast(self, values: Iterable[str]) -> None:
-        creds = self.credits(values, "actor")
-        if not creds:
-            return
-        self.cast = (self.cast or []) + creds
+        for value in values:
+            self._add_credit("cast", value, "actor")
 
     def add_crew(self, values: Iterable[str], title: str) -> None:
-        creds = self.credits(values, title)
-        if not creds:
-            return
-        self.crew = (self.crew or []) + creds
+        for value in values:
+            self._add_credit("crew", value, title)
 
     @classmethod
     def _norm_credits(cls, values: List[Credit]) -> Optional[List[Credit]]:

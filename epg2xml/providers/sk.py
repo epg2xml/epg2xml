@@ -107,7 +107,7 @@ class SK(EPGProvider):
             _epg.stime = datetime.strptime(info["dtEventStart"], "%Y%m%d%H%M%S")
             _epg.etime = datetime.strptime(info["dtEventEnd"], "%Y%m%d%H%M%S")
             if info["cdGenre"] and (info["cdGenre"] in GENRE_CODE):
-                _epg.extend_categories([GENRE_CODE[info["cdGenre"]]])
+                _epg.add_category(GENRE_CODE[info["cdGenre"]])
             _epg.desc = info["nmSynop"] or None  # 값이 없음
             _epgs.append(_epg)
         return _epgs

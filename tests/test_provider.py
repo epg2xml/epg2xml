@@ -283,9 +283,14 @@ class TestProvider(unittest.TestCase):
     def test_program_collection_helpers_accumulate_normalized_values(self):
         program = EPGProgram("kt.id", stime=datetime(2026, 1, 1, 9, 0), etime=datetime(2026, 1, 1, 10, 0))
 
-        program.extend_categories([" 뉴스 ", "스포츠", "뉴스"])
-        program.extend_keywords([" 키워드 ", "", "다시보기"])
-        program.extend_extras(["HD", " HD "])
+        program.add_category(" 뉴스 ")
+        program.add_category("스포츠")
+        program.add_category("뉴스")
+        program.add_keyword(" 키워드 ")
+        program.add_keyword("")
+        program.add_keyword("다시보기")
+        program.add_extra("HD")
+        program.add_extra(" HD ")
         program.add_cast([" Alice ", "", "Bob"])
         program.add_crew([" Carol "], "director")
 

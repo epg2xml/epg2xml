@@ -109,9 +109,10 @@ class WAVVE(EPGProvider):
         _epg.desc = "\n".join(
             [x.replace("<br>", "\n").strip() for x in synopsis.splitlines()]
         )  # carriage return(\r) 제거, <br> 제거
-        _epg.extend_categories([detail["genretext"]])
+        _epg.add_category(detail["genretext"])
         _epg.poster_url = self.__url(detail["seasonposterimage"].strip())
-        _epg.extend_keywords(x["text"] for x in detail["tags"]["list"])
+        for tag in detail["tags"]["list"]:
+            _epg.add_keyword(tag["text"])
         actors = detail.get("season_actors") or detail.get("actors") or {"list": []}
         directors = detail.get("season_directors") or detail.get("directors") or {"list": []}
         writers = detail.get("season_writers") or detail.get("writers") or {"list": []}
