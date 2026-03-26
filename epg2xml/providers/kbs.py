@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta
 from typing import List
 
 from epg2xml.providers import EPGProgram, EPGProvider
-from epg2xml.utils import strip_or_none, time_to_td
+from epg2xml.utils import norm_text, time_to_td
 
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 
@@ -153,9 +153,9 @@ class KBS(EPGProvider):
         if _epg.etime < _epg.stime:
             # API에서 간헐적으로 발생하는 시간 역전(human error) 데이터를 보정한다.
             _epg.etime += timedelta(days=1)
-        _epg.title = strip_or_none(sch.get("program_title"))
+        _epg.title = norm_text(sch.get("program_title"))
         if not _epg.title:
-            _epg.title = strip_or_none(sch.get("programming_table_title"))
+            _epg.title = norm_text(sch.get("programming_table_title"))
         if not _epg.title:
             raise ValueError("empty program_title")
         _epg.title_sub = sch.get("program_subtitle")

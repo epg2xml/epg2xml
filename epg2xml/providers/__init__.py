@@ -21,7 +21,7 @@ except ImportError:
 
 from epg2xml import __title__, __version__
 from epg2xml.id_format import render_id_format
-from epg2xml.utils import Element, PrefixLogger, RateLimiter, dump_json
+from epg2xml.utils import Element, PrefixLogger, RateLimiter, dump_json, norm_text
 
 log = logging.getLogger("PROV")
 
@@ -56,21 +56,12 @@ TAG_CREDITS = (
     "commentator",
     "guest",
 )
-
-
-def normalize_text(value) -> Optional[str]:
-    if value is None:
-        return None
-    text = str(value).strip()
-    return text or None
-
-
-def normalize_text_list(values: List[str]) -> Optional[List[str]]:
+def norm_text_list(values: List[str]) -> Optional[List[str]]:
     if not values:
         return None
     normalized = []
     seen = set()
-    for text in (normalize_text(value) for value in values):
+    for text in (norm_text(value) for value in values):
         if not text or text in seen:
             continue
         seen.add(text)
@@ -90,7 +81,7 @@ class Credit:
 
     def sanitize(self) -> None:
         for field_name in ("name", "title", "role"):
-            setattr(self, field_name, normalize_text(getattr(self, field_name)))
+            setattr(self, field_name, norm_text(getattr(self, field_name)))
 
     def validate(self) -> None:
         if not self.name:
@@ -127,25 +118,25 @@ class EPGProgram:
     def credits(cls, values, title: str) -> Optional[List[Credit]]:
         if not values:
             return None
-        return cls._normalize_credits([Credit(name=value, title=title) for value in values])
+        return cls._norm_credits([Credit(name=value, title=title) for value in values])
 
     def extend_categories(self, values: Iterable[str]) -> None:
-        values = normalize_text_list(values)
+        values = norm_text_list(values)
         if not values:
             return
-        self.categories = normalize_text_list((self.categories or []) + values)
+        self.categories = norm_text_list((self.categories or []) + values)
 
     def extend_keywords(self, values: Iterable[str]) -> None:
-        values = normalize_text_list(values)
+        values = norm_text_list(values)
         if not values:
             return
-        self.keywords = normalize_text_list((self.keywords or []) + values)
+        self.keywords = norm_text_list((self.keywords or []) + values)
 
     def extend_extras(self, values: Iterable[str]) -> None:
-        values = normalize_text_list(values)
+        values = norm_text_list(values)
         if not values:
             return
-        self.extras = normalize_text_list((self.extras or []) + values)
+        self.extras = norm_text_list((self.extras or []) + values)
 
     def add_cast(self, values: Iterable[str]) -> None:
         creds = self.credits(values, "actor")
@@ -160,7 +151,7 @@ class EPGProgram:
         self.crew = (self.crew or []) + creds
 
     @classmethod
-    def _normalize_credits(cls, values: List[Union[Credit, dict]]) -> Optional[List[Credit]]:
+    def _norm_credits(cls, values: List[Union[Credit, dict]]) -> Optional[List[Credit]]:
         if not values:
             return None
 
@@ -185,11 +176,11 @@ class EPGProgram:
 
     def sanitize(self) -> None:
         for field_name in ("title", "title_sub", "part_num", "ep_num", "desc", "poster_url"):
-            setattr(self, field_name, normalize_text(getattr(self, field_name)))
+            setattr(self, field_name, norm_text(getattr(self, field_name)))
         for field_name in ("categories", "extras", "keywords"):
-            setattr(self, field_name, normalize_text_list(getattr(self, field_name)))
+            setattr(self, field_name, norm_text_list(getattr(self, field_name)))
         for field_name in ("cast", "crew"):
-            setattr(self, field_name, self._normalize_credits(getattr(self, field_name)))
+            setattr(self, field_name, self._norm_credits(getattr(self, field_name)))
         if self.title and self.title_sub == self.title:
             self.title_sub = None
         try:
@@ -202,7 +193,7 @@ class EPGProgram:
             raise ValueError("EPGProgram.channelid is required")
         if not isinstance(self.stime, datetime):
             raise TypeError("EPGProgram.stime must be a datetime")
-        if not normalize_text(self.title):
+        if not norm_text(self.title):
             raise ValueError("EPGProgram.title is required")
         if self.etime is not None:
             if not isinstance(self.etime, datetime):
@@ -356,7 +347,7 @@ class EPGChannel:
 
     def sanitize(self) -> None:
         for field_name in ("id", "src", "svcid", "name", "icon", "no", "category"):
-            setattr(self, field_name, normalize_text(getattr(self, field_name)))
+            setattr(self, field_name, norm_text(getattr(self, field_name)))
 
     def validate(self) -> None:
         if not self.id:

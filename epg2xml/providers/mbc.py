@@ -4,7 +4,7 @@ from datetime import date, datetime, timedelta
 from typing import Callable, List, Optional, Tuple
 
 from epg2xml.providers import EPGProgram, EPGProvider
-from epg2xml.utils import strip_or_none, time_to_td
+from epg2xml.utils import norm_text, time_to_td
 
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 
@@ -101,7 +101,7 @@ class MBC(EPGProvider):
 
     def __epg_of_tv(self, channelid: str, item: dict, _sdate: str) -> EPGProgram:
         _epg = self.__base_epg(channelid, item, "Title")
-        _epg.rating = self.__parse_rating(strip_or_none(item.get("AgeRange")))
+        _epg.rating = self.__parse_rating(norm_text(item.get("AgeRange")))
         day = datetime.strptime(item["ScheduleDay"], "%Y%m%d")
         _epg.stime = day + time_to_td(item["StartTime"])
         _epg.etime = day + time_to_td(item["EndTime"])
@@ -116,7 +116,7 @@ class MBC(EPGProvider):
 
     def __epg_of_mbcplus(self, channelid: str, item: dict, sdate: str) -> EPGProgram:
         _epg = self.__base_epg(channelid, item, "ProgramTitle")
-        _epg.rating = self.__parse_rating(strip_or_none(item.get("TargetAge")))
+        _epg.rating = self.__parse_rating(norm_text(item.get("TargetAge")))
         day = datetime.strptime(sdate, "%Y%m%d")
         _epg.stime = day + time_to_td(item["StartTime"])
         _epg.etime = day + time_to_td(item["EndTime"])
@@ -124,11 +124,11 @@ class MBC(EPGProvider):
 
     def __base_epg(self, channelid: str, item: dict, title_key: str) -> EPGProgram:
         _epg = EPGProgram(channelid)
-        _epg.title = strip_or_none(item[title_key])
+        _epg.title = norm_text(item[title_key])
         if not _epg.title:
             raise ValueError("Empty title in schedule item")
         _epg.title_sub = item.get("SubTitle")
-        _epg.poster_url = strip_or_none(item.get("Photo"))
+        _epg.poster_url = norm_text(item.get("Photo"))
         return _epg
 
     def __parse_rating(self, value: Optional[str]) -> int:

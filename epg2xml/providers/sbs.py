@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta
 from typing import List
 
 from epg2xml.providers import EPGProgram, EPGProvider, no_endtime
-from epg2xml.utils import time_to_td
+from epg2xml.utils import norm_text, time_to_td
 
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 
@@ -48,7 +48,7 @@ class SBS(EPGProvider):
                 {
                     "Name": str(ch["channelname"]).strip(),
                     "ServiceId": channelid,
-                    "Category": str(ch.get("type") or "").strip() or None,
+                    "Category": norm_text(ch.get("type")),
                 }
             )
         return svc_channels
