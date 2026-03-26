@@ -6,7 +6,7 @@ import sys
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import closing
-from dataclasses import InitVar, dataclass, fields
+from dataclasses import InitVar, asdict, dataclass, fields
 from datetime import datetime, timedelta
 from functools import wraps
 from importlib import import_module
@@ -63,6 +63,18 @@ class DuplicateChannelIdError(ValueError):
 
 
 @dataclass
+class Credit:
+    name: str
+    title: str
+    role: str = None
+
+    def sanitize(self) -> None:
+        self.name = EPGProgram._normalize_text(self.name)
+        self.title = EPGProgram._normalize_text(self.title)
+        self.role = EPGProgram._normalize_text(self.role)
+
+
+@dataclass
 class EPGProgram:
     """For individual program entities"""
 
@@ -79,8 +91,8 @@ class EPGProgram:
     # not usually given by default
     desc: str = None
     poster_url: str = None
-    cast: List[dict] = None  # 출연진
-    crew: List[dict] = None  # 제작진
+    cast: List[Credit] = None  # 출연진
+    crew: List[Credit] = None  # 제작진
     extras: List[str] = None
     keywords: List[str] = None
 
@@ -99,20 +111,27 @@ class EPGProgram:
         return normalized or None
 
     @classmethod
-    def _normalize_credits(cls, values: List[dict]) -> Optional[List[dict]]:
+    def _normalize_credits(cls, values: List[Union[Credit, dict]]) -> Optional[List[Credit]]:
         if not values:
             return None
 
         normalized = []
         for value in values:
-            if not isinstance(value, dict):
+            if isinstance(value, Credit):
+                credit = value
+            elif isinstance(value, dict):
+                credit = Credit(
+                    name=value.get("name"),
+                    title=value.get("title"),
+                    role=value.get("role"),
+                )
+            else:
                 continue
-            name = cls._normalize_text(value.get("name"))
-            title = cls._normalize_text(value.get("title"))
-            if not name or not title:
+
+            credit.sanitize()
+            if not credit.name or not credit.title:
                 continue
-            attrs = {k: v for k, v in value.items() if k not in {"name", "title"} and v is not None}
-            normalized.append({"name": name, "title": title, **attrs})
+            normalized.append(credit)
         return normalized or None
 
     def sanitize(self) -> None:
@@ -170,8 +189,8 @@ class EPGProgram:
                 f"방송 : {rebroadcast}방송" if rebroadcast else "",
                 f"회차 : {episode}회" if episode else "",
                 f"장르 : {','.join(categories)}" if categories else "",
-                f"출연 : {','.join(x['name'] for x in cast)}" if cast else "",
-                f"제작 : {','.join(x['name'] for x in crew)}" if crew else "",
+                f"출연 : {','.join(x.name for x in cast)}" if cast else "",
+                f"제작 : {','.join(x.name for x in crew)}" if crew else "",
                 f"등급 : {rating}",
                 self.desc,
             ]
@@ -181,14 +200,9 @@ class EPGProgram:
         # credits
         if cast or crew:
             _c = Element("credits")
-            for cc in sorted(cast + crew, key=lambda x: TAG_CREDITS.index(x["title"])):
-                _c.append(
-                    Element(
-                        cc["title"],
-                        cc["name"],
-                        **{k: v for k, v in cc.items() if k not in {"title", "name"}},
-                    )
-                )
+            for cc in sorted(cast + crew, key=lambda x: TAG_CREDITS.index(x.title)):
+                attrs = {k: v for k, v in asdict(cc).items() if k not in {"title", "name"} and v is not None}
+                _c.append(Element(cc.title, cc.name, **attrs))
             _p.append(_c)
 
         # categories

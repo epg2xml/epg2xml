@@ -25,7 +25,7 @@ bs4.BeautifulSoup = DummyBeautifulSoup
 bs4.FeatureNotFound = DummyFeatureNotFound
 sys.modules.setdefault("bs4", bs4)
 
-from epg2xml.providers import EPGChannel, EPGHandler, EPGProgram, EPGProvider, SQLite
+from epg2xml.providers import Credit, EPGChannel, EPGHandler, EPGProgram, EPGProvider, SQLite
 from epg2xml.providers.spotv import SPOTV
 from epg2xml.utils import time_to_td
 
@@ -244,11 +244,26 @@ class TestProvider(unittest.TestCase):
         self.assertEqual(program.title_sub, "Subtitle")
         self.assertEqual(program.categories, ["뉴스"])
         self.assertEqual(program.keywords, ["키워드"])
-        self.assertEqual(program.cast, [{"name": "Alice", "title": "actor", "role": "lead"}])
-        self.assertEqual(program.crew, [{"name": "Bob", "title": "director"}])
+        self.assertEqual(program.cast, [Credit(name="Alice", title="actor", role="lead")])
+        self.assertEqual(program.crew, [Credit(name="Bob", title="director", role=None)])
         self.assertEqual(program.rating, 15)
         self.assertIn("<actor role=\"lead\">Alice</actor>", xml)
         self.assertIn("<director>Bob</director>", xml)
+
+    def test_program_sanitize_accepts_credit_objects(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=datetime(2026, 1, 1, 10, 0),
+            title="Program",
+            cast=[Credit(name=" Alice ", title="actor", role=" lead ")],
+            crew=[Credit(name=" Bob ", title="director")],
+        )
+
+        program.sanitize()
+
+        self.assertEqual(program.cast, [Credit(name="Alice", title="actor", role="lead")])
+        self.assertEqual(program.crew, [Credit(name="Bob", title="director", role=None)])
 
     def test_channel_to_xml_sanitizes_text_fields(self):
         channel = EPGChannel(" kt.id ", " KT ", " svc1 ", " Channel A ")
