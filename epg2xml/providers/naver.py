@@ -99,7 +99,7 @@ class NAVER(EPGProvider):
                 else:
                     _epg.extend_extras([span_txt])
             try:
-                _epg.title_sub = cell[5].text.strip()
+                _epg.title_sub = cell[5].text
             except IndexError:
                 pass
             _epgs.append(_epg)

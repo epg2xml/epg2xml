@@ -127,8 +127,7 @@ class MBC(EPGProvider):
         _epg.title = strip_or_none(item[title_key])
         if not _epg.title:
             raise ValueError("Empty title in schedule item")
-        title_sub = strip_or_none(item.get("SubTitle"))
-        _epg.title_sub = None if title_sub == _epg.title else title_sub
+        _epg.title_sub = item.get("SubTitle")
         _epg.poster_url = strip_or_none(item.get("Photo"))
         return _epg
 

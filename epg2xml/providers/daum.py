@@ -101,7 +101,7 @@ class DAUM(EPGProvider):
                             _epg.rating = int(class_val.split("ico_rate")[1].strip())
                         else:
                             # ico_live ico_hd ico_subtitle ico_hand ico_uhd ico_talk ico_st
-                            _epg.extend_extras([span.text.strip()])
+                            _epg.extend_extras([span.text])
                     if m := self.title_regex.search(_epg.title):
                         _epg.title = m.group("title")
                         _epg.part_num = m.group("part")

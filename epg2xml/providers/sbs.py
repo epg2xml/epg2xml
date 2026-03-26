@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta
 from typing import List
 
 from epg2xml.providers import EPGProgram, EPGProvider, no_endtime
-from epg2xml.utils import strip_or_none, time_to_td
+from epg2xml.utils import time_to_td
 
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 
@@ -91,9 +91,9 @@ class SBS(EPGProvider):
 
     def __epg_of_program(self, channelid: str, day: date, item: dict) -> EPGProgram:
         epg = EPGProgram(channelid)
-        epg.title = strip_or_none(item.get("title"))
-        epg.desc = strip_or_none(item.get("description"))
-        epg.poster_url = strip_or_none(item.get("program_image"))
+        epg.title = item.get("title")
+        epg.desc = item.get("description")
+        epg.poster_url = item.get("program_image")
         epg.rating = int(item.get("target_age") or "0")
         base_day = datetime.combine(day, datetime.min.time())
         start_delta = time_to_td(item.get("start_time"))

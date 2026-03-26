@@ -158,8 +158,8 @@ class KBS(EPGProvider):
             _epg.title = strip_or_none(sch.get("programming_table_title"))
         if not _epg.title:
             raise ValueError("empty program_title")
-        _epg.title_sub = strip_or_none(sch.get("program_subtitle"))
-        _epg.ep_num = strip_or_none(sch.get("program_sequence_number"))
+        _epg.title_sub = sch.get("program_subtitle")
+        _epg.ep_num = sch.get("program_sequence_number")
 
         _epg.rating = 0
         if grade := sch.get("deliberation_grade"):
@@ -175,7 +175,7 @@ class KBS(EPGProvider):
         if staff := sch.get("program_staff"):
             _epg.add_crew((x.strip() for x in staff.split(",")), "director")
 
-        _epg.desc = strip_or_none(sch.get("program_intention"))
+        _epg.desc = sch.get("program_intention")
 
         if image_url := sch.get("image_w"):
             _epg.poster_url = image_url

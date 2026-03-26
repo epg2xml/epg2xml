@@ -12,7 +12,7 @@ from functools import wraps
 from importlib import import_module
 from itertools import chain
 from os import PathLike
-from typing import ClassVar, Iterator, List, Literal, Optional, TextIO, Tuple, Union
+from typing import ClassVar, Iterable, Iterator, List, Literal, Optional, TextIO, Tuple, Union
 
 try:
     from curl_cffi import requests
@@ -58,6 +58,26 @@ TAG_CREDITS = (
 )
 
 
+def normalize_text(value) -> Optional[str]:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def normalize_text_list(values: List[str]) -> Optional[List[str]]:
+    if not values:
+        return None
+    normalized = []
+    seen = set()
+    for text in (normalize_text(value) for value in values):
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        normalized.append(text)
+    return normalized or None
+
+
 class DuplicateChannelIdError(ValueError):
     """Raised when requested channels resolve to duplicate XML channel IDs."""
 
@@ -69,9 +89,8 @@ class Credit:
     role: str = None
 
     def sanitize(self) -> None:
-        self.name = EPGProgram._normalize_text(self.name)
-        self.title = EPGProgram._normalize_text(self.title)
-        self.role = EPGProgram._normalize_text(self.role)
+        for field_name in ("name", "title", "role"):
+            setattr(self, field_name, normalize_text(getattr(self, field_name)))
 
     def validate(self) -> None:
         if not self.name:
@@ -104,61 +123,41 @@ class EPGProgram:
     extras: List[str] = None
     keywords: List[str] = None
 
-    @staticmethod
-    def _normalize_text(value) -> Optional[str]:
-        if value is None:
-            return None
-        text = str(value).strip()
-        return text or None
-
     @classmethod
     def credits(cls, values, title: str) -> Optional[List[Credit]]:
         if not values:
             return None
         return cls._normalize_credits([Credit(name=value, title=title) for value in values])
 
-    def extend_categories(self, values) -> None:
-        values = self._normalize_text_list(values)
+    def extend_categories(self, values: Iterable[str]) -> None:
+        values = normalize_text_list(values)
         if not values:
             return
-        self.categories = self._normalize_text_list((self.categories or []) + values)
+        self.categories = normalize_text_list((self.categories or []) + values)
 
-    def extend_keywords(self, values) -> None:
-        values = self._normalize_text_list(values)
+    def extend_keywords(self, values: Iterable[str]) -> None:
+        values = normalize_text_list(values)
         if not values:
             return
-        self.keywords = self._normalize_text_list((self.keywords or []) + values)
+        self.keywords = normalize_text_list((self.keywords or []) + values)
 
-    def extend_extras(self, values) -> None:
-        values = self._normalize_text_list(values)
+    def extend_extras(self, values: Iterable[str]) -> None:
+        values = normalize_text_list(values)
         if not values:
             return
-        self.extras = self._normalize_text_list((self.extras or []) + values)
+        self.extras = normalize_text_list((self.extras or []) + values)
 
-    def add_cast(self, values) -> None:
-        credits = self.credits(values, "actor")
-        if not credits:
+    def add_cast(self, values: Iterable[str]) -> None:
+        creds = self.credits(values, "actor")
+        if not creds:
             return
-        self.cast = (self.cast or []) + credits
+        self.cast = (self.cast or []) + creds
 
-    def add_crew(self, values, title: str) -> None:
-        credits = self.credits(values, title)
-        if not credits:
+    def add_crew(self, values: Iterable[str], title: str) -> None:
+        creds = self.credits(values, title)
+        if not creds:
             return
-        self.crew = (self.crew or []) + credits
-
-    @classmethod
-    def _normalize_text_list(cls, values: List[str]) -> Optional[List[str]]:
-        if not values:
-            return None
-        normalized = []
-        seen = set()
-        for text in (cls._normalize_text(value) for value in values):
-            if not text or text in seen:
-                continue
-            seen.add(text)
-            normalized.append(text)
-        return normalized or None
+        self.crew = (self.crew or []) + creds
 
     @classmethod
     def _normalize_credits(cls, values: List[Union[Credit, dict]]) -> Optional[List[Credit]]:
@@ -186,12 +185,11 @@ class EPGProgram:
 
     def sanitize(self) -> None:
         for field_name in ("title", "title_sub", "part_num", "ep_num", "desc", "poster_url"):
-            setattr(self, field_name, self._normalize_text(getattr(self, field_name)))
+            setattr(self, field_name, normalize_text(getattr(self, field_name)))
         for field_name in ("categories", "extras", "keywords"):
-            setattr(self, field_name, self._normalize_text_list(getattr(self, field_name)))
-
-        self.cast = self._normalize_credits(self.cast)
-        self.crew = self._normalize_credits(self.crew)
+            setattr(self, field_name, normalize_text_list(getattr(self, field_name)))
+        for field_name in ("cast", "crew"):
+            setattr(self, field_name, self._normalize_credits(getattr(self, field_name)))
         if self.title and self.title_sub == self.title:
             self.title_sub = None
         try:
@@ -204,16 +202,27 @@ class EPGProgram:
             raise ValueError("EPGProgram.channelid is required")
         if not isinstance(self.stime, datetime):
             raise TypeError("EPGProgram.stime must be a datetime")
-        if not isinstance(self.etime, datetime):
-            raise TypeError("EPGProgram.etime must be a datetime")
-        if self.etime < self.stime:
-            raise ValueError("EPGProgram.etime must not be earlier than stime")
+        if not normalize_text(self.title):
+            raise ValueError("EPGProgram.title is required")
+        if self.etime is not None:
+            if not isinstance(self.etime, datetime):
+                raise TypeError("EPGProgram.etime must be a datetime when present")
+            if self.etime < self.stime:
+                raise ValueError("EPGProgram.etime must not be earlier than stime")
+        for field_name in ("categories", "extras", "keywords"):
+            values = getattr(self, field_name)
+            if values is not None and not all(
+                isinstance(value, str) for value in values  # pylint: disable=not-an-iterable
+            ):
+                raise TypeError(f"EPGProgram.{field_name} must contain only strings")
         for credit in (self.cast or []) + (self.crew or []):
             credit.validate()
 
     def to_xml(self, cfg: dict, writer: TextIO = None) -> None:
         self.sanitize()
         self.validate()
+        if self.etime is None:
+            raise ValueError("EPGProgram.etime is required for XML serialization")
         writer = writer or sys.stdout
 
         # local variables
@@ -237,7 +246,7 @@ class EPGProgram:
             title = matches.group(1).strip()
             title_sub = (matches.group(2) + " " + title_sub).strip()
         title = [
-            title or title_sub or "제목 없음",
+            title,
             f"({episode}회)" if episode and cfg["ADD_EPNUM_TO_TITLE"] else "",
             f"({rebroadcast})" if rebroadcast and cfg["ADD_REBROADCAST_TO_TITLE"] else "",
         ]
@@ -346,13 +355,8 @@ class EPGChannel:
         return f"{self.name} <{self.id}>"
 
     def sanitize(self) -> None:
-        self.id = EPGProgram._normalize_text(self.id)
-        self.src = EPGProgram._normalize_text(self.src)
-        self.svcid = EPGProgram._normalize_text(self.svcid)
-        self.name = EPGProgram._normalize_text(self.name)
-        self.icon = EPGProgram._normalize_text(self.icon)
-        self.no = EPGProgram._normalize_text(self.no)
-        self.category = EPGProgram._normalize_text(self.category)
+        for field_name in ("id", "src", "svcid", "name", "icon", "no", "category"):
+            setattr(self, field_name, normalize_text(getattr(self, field_name)))
 
     def validate(self) -> None:
         if not self.id:
@@ -363,6 +367,11 @@ class EPGChannel:
             raise ValueError("EPGChannel.svcid is required")
         if not self.name:
             raise ValueError("EPGChannel.name is required")
+        for program in self.programs:
+            if not isinstance(program, EPGProgram):
+                raise TypeError("EPGChannel.programs must contain only EPGProgram instances")
+            if program.channelid != self.id:
+                raise ValueError("EPGChannel.programs must match channel id")
 
     def set_etime(self) -> None:
         """Completes missing program endtimes based on the successive relationship between programs."""

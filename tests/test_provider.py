@@ -329,6 +329,38 @@ class TestProvider(unittest.TestCase):
         with self.assertRaises(TypeError):
             program.to_xml(CFG, writer=io.StringIO())
 
+    def test_program_validate_requires_title(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=datetime(2026, 1, 1, 10, 0),
+            title="   ",
+        )
+
+        with self.assertRaises(ValueError):
+            program.validate()
+
+    def test_program_validate_allows_missing_etime_before_finalization(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=None,
+            title="Program",
+        )
+
+        program.validate()
+
+    def test_program_to_xml_requires_etime_for_serialization(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=None,
+            title="Program",
+        )
+
+        with self.assertRaises(ValueError):
+            program.to_xml(CFG, writer=io.StringIO())
+
     def test_channel_to_xml_sanitizes_text_fields(self):
         channel = EPGChannel(" kt.id ", " KT ", " svc1 ", " Channel A ")
         channel.no = " 101 "
@@ -346,6 +378,24 @@ class TestProvider(unittest.TestCase):
 
     def test_channel_to_xml_requires_required_fields(self):
         channel = EPGChannel("kt.id", "KT", "svc1", "   ")
+
+        with self.assertRaises(ValueError):
+            channel.to_xml(writer=io.StringIO())
+
+    def test_channel_to_xml_rejects_non_program_items(self):
+        channel = EPGChannel("kt.id", "KT", "svc1", "Channel A", programs=["not-a-program"])
+
+        with self.assertRaises(TypeError):
+            channel.to_xml(writer=io.StringIO())
+
+    def test_channel_to_xml_rejects_programs_for_other_channel(self):
+        program = EPGProgram(
+            "other.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=datetime(2026, 1, 1, 10, 0),
+            title="Program",
+        )
+        channel = EPGChannel("kt.id", "KT", "svc1", "Channel A", programs=[program])
 
         with self.assertRaises(ValueError):
             channel.to_xml(writer=io.StringIO())
