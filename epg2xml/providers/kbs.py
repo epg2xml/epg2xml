@@ -4,7 +4,7 @@ import re
 from datetime import date, datetime, timedelta
 from typing import List
 
-from epg2xml.providers import Credit, EPGProgram, EPGProvider
+from epg2xml.providers import EPGProgram, EPGProvider
 from epg2xml.utils import strip_or_none, time_to_td
 
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
@@ -171,9 +171,9 @@ class KBS(EPGProvider):
 
         # 규칙이 애매해서 가장 strict한 콤마로만 구분
         if actors := sch.get("program_actor"):
-            _epg.cast = [Credit(name=x.strip(), title="actor") for x in actors.split(",") if x.strip()]
+            _epg.cast = EPGProgram.credits((x.strip() for x in actors.split(",")), "actor")
         if staff := sch.get("program_staff"):
-            _epg.crew = [Credit(name=x.strip(), title="director") for x in staff.split(",") if x.strip()]
+            _epg.crew = EPGProgram.credits((x.strip() for x in staff.split(",")), "director")
 
         _epg.desc = strip_or_none(sch.get("program_intention"))
 

@@ -112,6 +112,12 @@ class EPGProgram:
         return text or None
 
     @classmethod
+    def credits(cls, values, title: str) -> Optional[List[Credit]]:
+        if not values:
+            return None
+        return cls._normalize_credits([Credit(name=value, title=title) for value in values])
+
+    @classmethod
     def _normalize_text_list(cls, values: List[str]) -> Optional[List[str]]:
         if not values:
             return None

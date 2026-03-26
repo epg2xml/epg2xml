@@ -8,7 +8,7 @@ try:
 except ImportError:
     import requests
 
-from epg2xml.providers import Credit, EPGProgram, EPGProvider
+from epg2xml.providers import EPGProgram, EPGProvider
 
 log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 today = date.today()
@@ -168,9 +168,9 @@ class TVING(EPGProvider):
             if cate2 := sch[get_from]["category2_name"]:
                 _epg.categories = (_epg.categories or []) + [cate2.get("ko")]
             if actors := sch[get_from]["actor"]:
-                _epg.cast = [Credit(name=x, title="actor") for x in actors]
+                _epg.cast = EPGProgram.credits(actors, "actor")
             if directors := sch[get_from]["director"]:
-                _epg.crew = [Credit(name=x, title="director") for x in directors]
+                _epg.crew = EPGProgram.credits(directors, "director")
 
             poster = [x["url"] for x in sch[get_from]["image"] if x["code"] == img_code]
             if poster:
