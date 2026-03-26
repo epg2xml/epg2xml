@@ -265,6 +265,29 @@ class TestProvider(unittest.TestCase):
         self.assertEqual(program.cast, [Credit(name="Alice", title="actor", role="lead")])
         self.assertEqual(program.crew, [Credit(name="Bob", title="director", role=None)])
 
+    def test_program_to_xml_rejects_invalid_credit_title(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=datetime(2026, 1, 1, 10, 0),
+            title="Program",
+            cast=[Credit(name="Alice", title="invalid-role")],
+        )
+
+        with self.assertRaises(ValueError):
+            program.to_xml(CFG, writer=io.StringIO())
+
+    def test_program_to_xml_requires_datetime_fields(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=None,
+            etime=datetime(2026, 1, 1, 10, 0),
+            title="Program",
+        )
+
+        with self.assertRaises(TypeError):
+            program.to_xml(CFG, writer=io.StringIO())
+
     def test_channel_to_xml_sanitizes_text_fields(self):
         channel = EPGChannel(" kt.id ", " KT ", " svc1 ", " Channel A ")
         channel.no = " 101 "
@@ -279,6 +302,12 @@ class TestProvider(unittest.TestCase):
         self.assertEqual(channel.name, "Channel A")
         self.assertEqual(channel.no, "101")
         self.assertEqual(channel.icon, "https://example.com/icon.png")
+
+    def test_channel_to_xml_requires_required_fields(self):
+        channel = EPGChannel("kt.id", "KT", "svc1", "   ")
+
+        with self.assertRaises(ValueError):
+            channel.to_xml(writer=io.StringIO())
 
     def test_time_to_td_handles_overflow_hours(self):
         parsed = time_to_td("24:30")

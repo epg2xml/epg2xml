@@ -73,6 +73,14 @@ class Credit:
         self.title = EPGProgram._normalize_text(self.title)
         self.role = EPGProgram._normalize_text(self.role)
 
+    def validate(self) -> None:
+        if not self.name:
+            raise ValueError("Credit.name is required")
+        if not self.title:
+            raise ValueError("Credit.title is required")
+        if self.title not in TAG_CREDITS:
+            raise ValueError(f"Unsupported credit title: {self.title}")
+
 
 @dataclass
 class EPGProgram:
@@ -147,8 +155,21 @@ class EPGProgram:
         except (TypeError, ValueError):
             self.rating = 0
 
+    def validate(self) -> None:
+        if not self.channelid:
+            raise ValueError("EPGProgram.channelid is required")
+        if not isinstance(self.stime, datetime):
+            raise TypeError("EPGProgram.stime must be a datetime")
+        if not isinstance(self.etime, datetime):
+            raise TypeError("EPGProgram.etime must be a datetime")
+        if self.etime < self.stime:
+            raise ValueError("EPGProgram.etime must not be earlier than stime")
+        for credit in (self.cast or []) + (self.crew or []):
+            credit.validate()
+
     def to_xml(self, cfg: dict, writer: TextIO = None) -> None:
         self.sanitize()
+        self.validate()
         writer = writer or sys.stdout
 
         # local variables
@@ -289,6 +310,16 @@ class EPGChannel:
         self.no = EPGProgram._normalize_text(self.no)
         self.category = EPGProgram._normalize_text(self.category)
 
+    def validate(self) -> None:
+        if not self.id:
+            raise ValueError("EPGChannel.id is required")
+        if not self.src:
+            raise ValueError("EPGChannel.src is required")
+        if not self.svcid:
+            raise ValueError("EPGChannel.svcid is required")
+        if not self.name:
+            raise ValueError("EPGChannel.name is required")
+
     def set_etime(self) -> None:
         """Completes missing program endtimes based on the successive relationship between programs."""
         for ind, prog in enumerate(self.programs):
@@ -302,6 +333,7 @@ class EPGChannel:
     def to_xml(self, writer: TextIO = None) -> None:
         writer = writer or sys.stdout
         self.sanitize()
+        self.validate()
         chel = Element("channel", id=self.id)
         # TODO: something better for display-name?
         chel.append(Element("display-name", self.name))
