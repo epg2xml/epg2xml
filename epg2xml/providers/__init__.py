@@ -151,23 +151,15 @@ class EPGProgram:
         self.crew = (self.crew or []) + creds
 
     @classmethod
-    def _norm_credits(cls, values: List[Union[Credit, dict]]) -> Optional[List[Credit]]:
+    def _norm_credits(cls, values: List[Credit]) -> Optional[List[Credit]]:
         if not values:
             return None
 
         normalized = []
         for value in values:
-            if isinstance(value, Credit):
-                credit = value
-            elif isinstance(value, dict):
-                credit = Credit(
-                    name=value.get("name"),
-                    title=value.get("title"),
-                    role=value.get("role"),
-                )
-            else:
+            if not isinstance(value, Credit):
                 continue
-
+            credit = value
             credit.sanitize()
             if not credit.name or not credit.title:
                 continue

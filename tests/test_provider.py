@@ -231,8 +231,8 @@ class TestProvider(unittest.TestCase):
             title_sub="  Subtitle  ",
             categories=[" 뉴스 ", "", "  "],
             keywords=[" 키워드 ", None, ""],
-            cast=[{"name": " Alice ", "title": "actor", "role": "lead"}],
-            crew=[{"name": " Bob ", "title": "director"}],
+            cast=[Credit(name=" Alice ", title="actor", role="lead")],
+            crew=[Credit(name=" Bob ", title="director")],
             rating="15",
         )
         buffer = io.StringIO()
@@ -263,6 +263,21 @@ class TestProvider(unittest.TestCase):
         program.sanitize()
 
         self.assertEqual(program.cast, [Credit(name="Alice", title="actor", role="lead")])
+        self.assertEqual(program.crew, [Credit(name="Bob", title="director", role=None)])
+
+    def test_program_sanitize_discards_non_credit_items(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=datetime(2026, 1, 1, 10, 0),
+            title="Program",
+            cast=[Credit(name=" Alice ", title="actor"), "not-a-credit"],
+            crew=[None, Credit(name=" Bob ", title="director")],
+        )
+
+        program.sanitize()
+
+        self.assertEqual(program.cast, [Credit(name="Alice", title="actor", role=None)])
         self.assertEqual(program.crew, [Credit(name="Bob", title="director", role=None)])
 
     def test_program_collection_helpers_accumulate_normalized_values(self):
