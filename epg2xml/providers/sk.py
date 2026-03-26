@@ -110,4 +110,4 @@ class SK(EPGProvider):
                 _epg.add_category(GENRE_CODE[info["cdGenre"]])
             _epg.desc = info["nmSynop"] or None  # 값이 없음
             _epgs.append(_epg)
-        return _epgs
+        return sorted(_epgs, key=lambda x: x.stime)
