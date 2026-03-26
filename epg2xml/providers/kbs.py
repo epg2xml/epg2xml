@@ -171,9 +171,9 @@ class KBS(EPGProvider):
 
         # 규칙이 애매해서 가장 strict한 콤마로만 구분
         if actors := sch.get("program_actor"):
-            _epg.cast = EPGProgram.credits((x.strip() for x in actors.split(",")), "actor")
+            _epg.add_cast(x.strip() for x in actors.split(","))
         if staff := sch.get("program_staff"):
-            _epg.crew = EPGProgram.credits((x.strip() for x in staff.split(",")), "director")
+            _epg.add_crew((x.strip() for x in staff.split(",")), "director")
 
         _epg.desc = strip_or_none(sch.get("program_intention"))
 

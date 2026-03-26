@@ -265,6 +265,27 @@ class TestProvider(unittest.TestCase):
         self.assertEqual(program.cast, [Credit(name="Alice", title="actor", role="lead")])
         self.assertEqual(program.crew, [Credit(name="Bob", title="director", role=None)])
 
+    def test_program_collection_helpers_accumulate_normalized_values(self):
+        program = EPGProgram("kt.id", stime=datetime(2026, 1, 1, 9, 0), etime=datetime(2026, 1, 1, 10, 0))
+
+        program.extend_categories([" 뉴스 ", "스포츠", "뉴스"])
+        program.extend_keywords([" 키워드 ", "", "다시보기"])
+        program.extend_extras(["HD", " HD "])
+        program.add_cast([" Alice ", "", "Bob"])
+        program.add_crew([" Carol "], "director")
+
+        self.assertEqual(program.categories, ["뉴스", "스포츠"])
+        self.assertEqual(program.keywords, ["키워드", "다시보기"])
+        self.assertEqual(program.extras, ["HD"])
+        self.assertEqual(
+            program.cast,
+            [
+                Credit(name="Alice", title="actor", role=None),
+                Credit(name="Bob", title="actor", role=None),
+            ],
+        )
+        self.assertEqual(program.crew, [Credit(name="Carol", title="director", role=None)])
+
     def test_program_sanitize_deduplicates_text_lists_and_title_sub(self):
         program = EPGProgram(
             "kt.id",

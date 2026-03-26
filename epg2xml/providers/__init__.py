@@ -117,6 +117,36 @@ class EPGProgram:
             return None
         return cls._normalize_credits([Credit(name=value, title=title) for value in values])
 
+    def extend_categories(self, values) -> None:
+        values = self._normalize_text_list(values)
+        if not values:
+            return
+        self.categories = self._normalize_text_list((self.categories or []) + values)
+
+    def extend_keywords(self, values) -> None:
+        values = self._normalize_text_list(values)
+        if not values:
+            return
+        self.keywords = self._normalize_text_list((self.keywords or []) + values)
+
+    def extend_extras(self, values) -> None:
+        values = self._normalize_text_list(values)
+        if not values:
+            return
+        self.extras = self._normalize_text_list((self.extras or []) + values)
+
+    def add_cast(self, values) -> None:
+        credits = self.credits(values, "actor")
+        if not credits:
+            return
+        self.cast = (self.cast or []) + credits
+
+    def add_crew(self, values, title: str) -> None:
+        credits = self.credits(values, title)
+        if not credits:
+            return
+        self.crew = (self.crew or []) + credits
+
     @classmethod
     def _normalize_text_list(cls, values: List[str]) -> Optional[List[str]]:
         if not values:
