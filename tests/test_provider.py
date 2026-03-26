@@ -338,6 +338,18 @@ class TestProvider(unittest.TestCase):
         with self.assertRaises(ValueError):
             program.to_xml(CFG, writer=io.StringIO())
 
+    def test_program_validate_rejects_invalid_credit_role_type(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=datetime(2026, 1, 1, 10, 0),
+            title="Program",
+            cast=[Credit(name="Alice", title="actor", role=1)],
+        )
+
+        with self.assertRaises(TypeError):
+            program.validate()
+
     def test_program_to_xml_requires_datetime_fields(self):
         program = EPGProgram(
             "kt.id",
@@ -369,6 +381,54 @@ class TestProvider(unittest.TestCase):
         )
 
         program.validate()
+
+    def test_program_validate_rejects_non_bool_rebroadcast(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=datetime(2026, 1, 1, 10, 0),
+            title="Program",
+            rebroadcast="Y",
+        )
+
+        with self.assertRaises(TypeError):
+            program.validate()
+
+    def test_program_validate_rejects_non_int_rating(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=datetime(2026, 1, 1, 10, 0),
+            title="Program",
+            rating="15",
+        )
+
+        with self.assertRaises(TypeError):
+            program.validate()
+
+    def test_program_validate_rejects_non_string_optional_field(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=datetime(2026, 1, 1, 10, 0),
+            title="Program",
+            poster_url=123,
+        )
+
+        with self.assertRaises(TypeError):
+            program.validate()
+
+    def test_program_validate_rejects_non_credit_items(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=datetime(2026, 1, 1, 10, 0),
+            title="Program",
+            cast=["Alice"],
+        )
+
+        with self.assertRaises(TypeError):
+            program.validate()
 
     def test_program_to_xml_requires_etime_for_serialization(self):
         program = EPGProgram(
@@ -416,6 +476,36 @@ class TestProvider(unittest.TestCase):
             title="Program",
         )
         channel = EPGChannel("kt.id", "KT", "svc1", "Channel A", programs=[program])
+
+        with self.assertRaises(ValueError):
+            channel.to_xml(writer=io.StringIO())
+
+    def test_channel_to_xml_rejects_programs_without_datetime_stime(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=None,
+            etime=datetime(2026, 1, 1, 10, 0),
+            title="Program",
+        )
+        channel = EPGChannel("kt.id", "KT", "svc1", "Channel A", programs=[program])
+
+        with self.assertRaises(TypeError):
+            channel.to_xml(writer=io.StringIO())
+
+    def test_channel_to_xml_rejects_programs_out_of_order(self):
+        first = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 10, 0),
+            etime=datetime(2026, 1, 1, 11, 0),
+            title="Program A",
+        )
+        second = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=datetime(2026, 1, 1, 10, 0),
+            title="Program B",
+        )
+        channel = EPGChannel("kt.id", "KT", "svc1", "Channel A", programs=[first, second])
 
         with self.assertRaises(ValueError):
             channel.to_xml(writer=io.StringIO())
