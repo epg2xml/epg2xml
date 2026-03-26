@@ -361,13 +361,20 @@ class EPGChannel:
         previous_stime = None
         for program in self.programs:
             if not isinstance(program, EPGProgram):
-                raise TypeError("EPGChannel.programs must contain only EPGProgram instances")
+                raise TypeError(f"EPGChannel.programs for {self.id} must contain only EPGProgram instances")
             if program.channelid != self.id:
-                raise ValueError("EPGChannel.programs must match channel id")
+                raise ValueError(
+                    f"EPGChannel.programs for {self.id} must match channel id: {program.channelid}"
+                )
             if not isinstance(program.stime, datetime):
-                raise TypeError("EPGChannel.programs must have datetime stime values")
+                raise TypeError(
+                    f"EPGChannel.programs for {self.id} must have datetime stime values: {program.stime!r}"
+                )
             if previous_stime is not None and program.stime < previous_stime:
-                raise ValueError("EPGChannel.programs must be ordered by stime")
+                raise ValueError(
+                    f"EPGChannel.programs must be ordered by stime for {self.id} "
+                    f"({self.name}): {previous_stime.isoformat()} > {program.stime.isoformat()}"
+                )
             previous_stime = program.stime
 
     def set_etime(self) -> None:
