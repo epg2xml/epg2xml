@@ -234,7 +234,8 @@ class EPGProgram:
         # title, sub-title
         if matches := PTN_TITLE.match(title):
             title = matches.group(1).strip()
-            title_sub = (matches.group(2) + " " + title_sub).strip()
+            title_sub = " ".join(filter(bool, [matches.group(2), title_sub]))
+            title_sub = title_sub or None
         title = [
             title,
             f"({episode}회)" if episode and cfg["ADD_EPNUM_TO_TITLE"] else "",

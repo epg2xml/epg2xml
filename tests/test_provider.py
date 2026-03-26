@@ -251,6 +251,22 @@ class TestProvider(unittest.TestCase):
         self.assertIn("<actor role=\"lead\">Alice</actor>", xml)
         self.assertIn("<director>Bob</director>", xml)
 
+    def test_program_to_xml_handles_part_title_without_existing_subtitle(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=datetime(2026, 1, 1, 10, 0),
+            title="Program 2부",
+            title_sub=None,
+        )
+        buffer = io.StringIO()
+
+        program.to_xml(CFG, writer=buffer)
+
+        xml = buffer.getvalue()
+        self.assertIn("<title lang=\"ko\">Program</title>", xml)
+        self.assertIn("<sub-title lang=\"ko\">2부</sub-title>", xml)
+
     def test_program_sanitize_accepts_credit_objects(self):
         program = EPGProgram(
             "kt.id",
