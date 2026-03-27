@@ -53,7 +53,7 @@ jobs:
         done
     - name: Run
       run: |
-        epg2xml run --xmlfile=xmltv.xml
+        epg2xml run --xmlfile=xmltv.xml --parallel
         tv_validate_file xmltv.xml
     - name: Diff (informational)
       if: github.event.pull_request.base.ref == 'main'
