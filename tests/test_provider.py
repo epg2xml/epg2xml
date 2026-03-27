@@ -556,8 +556,25 @@ class TestProvider(unittest.TestCase):
         )
         channel = EPGChannel("kt.id", "KT", "svc1", "Channel A", programs=[first, second])
 
+        channel.validate()
+
+    def test_channel_set_etime_rejects_programs_out_of_order(self):
+        first = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 10, 0),
+            etime=None,
+            title="Program A",
+        )
+        second = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=None,
+            title="Program B",
+        )
+        channel = EPGChannel("kt.id", "KT", "svc1", "Channel A", programs=[first, second])
+
         with self.assertRaises(ValueError):
-            channel.to_xml(writer=io.StringIO())
+            channel.set_etime()
 
     def test_time_to_td_handles_overflow_hours(self):
         parsed = time_to_td("24:30")

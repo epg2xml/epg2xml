@@ -359,28 +359,24 @@ class EPGChannel:
             raise ValueError("EPGChannel.svcid is required")
         if not self.name:
             raise ValueError("EPGChannel.name is required")
-        previous_stime = None
         for program in self.programs:
             if not isinstance(program, EPGProgram):
                 raise TypeError(f"EPGChannel.programs for {self.id} must contain only EPGProgram instances")
             if program.channelid != self.id:
-                raise ValueError(
-                    f"EPGChannel.programs for {self.id} must match channel id: {program.channelid}"
-                )
+                raise ValueError(f"EPGChannel.programs for {self.id} must match channel id: {program.channelid}")
             if not isinstance(program.stime, datetime):
-                raise TypeError(
-                    f"EPGChannel.programs for {self.id} must have datetime stime values: {program.stime!r}"
-                )
-            if previous_stime is not None and program.stime < previous_stime:
-                raise ValueError(
-                    f"EPGChannel.programs must be ordered by stime for {self.id} "
-                    f"({self.name}): {previous_stime.isoformat()} > {program.stime.isoformat()}"
-                )
-            previous_stime = program.stime
+                raise TypeError(f"EPGChannel.programs for {self.id} must have datetime stime values: {program.stime!r}")
 
     def set_etime(self) -> None:
         """Completes missing program endtimes based on the successive relationship between programs."""
+        previous_stime = None
         for ind, prog in enumerate(self.programs):
+            if previous_stime is not None and prog.stime < previous_stime:
+                raise ValueError(
+                    f"EPGChannel.programs must be ordered by stime for {self.id} "
+                    f"({self.name}): {previous_stime.isoformat()} > {prog.stime.isoformat()}"
+                )
+            previous_stime = prog.stime
             if prog.etime:
                 continue
             try:
