@@ -200,7 +200,7 @@ class EPGProgram:
         if not isinstance(self.stime, datetime):
             raise TypeError(f"EPGProgram.stime must be a datetime: {self}")
         if not self.title:
-            raise ValueError(f"EPGProgram.title is required: {self}")
+            log.warning("EPGProgram.title is missing: %s", self)
         if not isinstance(self.rebroadcast, bool):
             raise TypeError(f"EPGProgram.rebroadcast must be a bool: {self}")
         if not isinstance(self.rating, int):
@@ -237,12 +237,12 @@ class EPGProgram:
         _p = Element("programme", start=stime, stop=etime, channel=self.channelid)
 
         # title, sub-title
-        if matches := PTN_TITLE.match(title):
+        if title and (matches := PTN_TITLE.match(title)):
             title = matches.group(1).strip()
             title_sub = " ".join(filter(bool, [matches.group(2), title_sub]))
             title_sub = title_sub or None
         title = [
-            title,
+            title or title_sub or "제목 없음",
             f"({episode}회)" if episode and cfg["ADD_EPNUM_TO_TITLE"] else "",
             f"({rebroadcast})" if rebroadcast and cfg["ADD_REBROADCAST_TO_TITLE"] else "",
         ]

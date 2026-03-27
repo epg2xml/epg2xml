@@ -267,6 +267,36 @@ class TestProvider(unittest.TestCase):
         self.assertIn("<title lang=\"ko\">Program</title>", xml)
         self.assertIn("<sub-title lang=\"ko\">2부</sub-title>", xml)
 
+    def test_program_to_xml_falls_back_to_subtitle_when_title_is_missing(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=datetime(2026, 1, 1, 10, 0),
+            title=None,
+            title_sub="부제만 있음",
+        )
+        buffer = io.StringIO()
+
+        program.to_xml(CFG, writer=buffer)
+
+        xml = buffer.getvalue()
+        self.assertIn("<title lang=\"ko\">부제만 있음</title>", xml)
+
+    def test_program_to_xml_uses_placeholder_when_title_and_subtitle_are_missing(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=datetime(2026, 1, 1, 10, 0),
+            title=None,
+            title_sub=None,
+        )
+        buffer = io.StringIO()
+
+        program.to_xml(CFG, writer=buffer)
+
+        xml = buffer.getvalue()
+        self.assertIn("<title lang=\"ko\">제목 없음</title>", xml)
+
     def test_program_sanitize_accepts_credit_objects(self):
         program = EPGProgram(
             "kt.id",
@@ -400,7 +430,7 @@ class TestProvider(unittest.TestCase):
         with self.assertRaises(TypeError):
             program.to_xml(CFG, writer=io.StringIO())
 
-    def test_program_validate_requires_title(self):
+    def test_program_validate_allows_missing_title(self):
         program = EPGProgram(
             "kt.id",
             stime=datetime(2026, 1, 1, 9, 0),
@@ -409,9 +439,7 @@ class TestProvider(unittest.TestCase):
         )
 
         program.sanitize()
-
-        with self.assertRaises(ValueError):
-            program.validate()
+        program.validate()
 
     def test_program_validate_allows_missing_etime_before_finalization(self):
         program = EPGProgram(
