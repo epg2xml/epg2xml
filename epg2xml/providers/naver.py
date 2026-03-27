@@ -97,9 +97,9 @@ class NAVER(EPGProvider):
                 elif "re" in span["class"]:
                     _epg.rebroadcast = True
                 else:
-                    _epg.extras = (_epg.extras or []) + [span_txt]
+                    _epg.add_extra(span_txt)
             try:
-                _epg.title_sub = cell[5].text.strip()
+                _epg.title_sub = cell[5].text
             except IndexError:
                 pass
             _epgs.append(_epg)

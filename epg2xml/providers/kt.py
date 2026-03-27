@@ -106,7 +106,7 @@ class KT(EPGProvider):
                     if part_num := m.group("part"):
                         _epg.part_num = part_num
                         _epg.title += f" ({_epg.part_num}부)"
-                _epg.categories = [category.text.strip()]
+                _epg.add_category(category.text)
                 for image in program.find_all("img", alt=True):
                     if "시청 가능" not in (alt := image["alt"]):
                         continue

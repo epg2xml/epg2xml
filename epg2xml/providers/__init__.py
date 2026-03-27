@@ -6,13 +6,13 @@ import sys
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import closing
-from dataclasses import InitVar, dataclass, fields
+from dataclasses import InitVar, asdict, dataclass, fields
 from datetime import datetime, timedelta
 from functools import wraps
 from importlib import import_module
 from itertools import chain
 from os import PathLike
-from typing import ClassVar, Iterator, List, Literal, TextIO, Tuple, Union
+from typing import ClassVar, Iterable, Iterator, List, Literal, Optional, TextIO, Tuple, Union
 
 try:
     from curl_cffi import requests
@@ -21,7 +21,7 @@ except ImportError:
 
 from epg2xml import __title__, __version__
 from epg2xml.id_format import render_id_format
-from epg2xml.utils import Element, PrefixLogger, RateLimiter, dump_json
+from epg2xml.utils import Element, PrefixLogger, RateLimiter, dump_json, norm_text
 
 log = logging.getLogger("PROV")
 
@@ -58,8 +58,41 @@ TAG_CREDITS = (
 )
 
 
+def norm_text_list(values: List[str]) -> Optional[List[str]]:
+    if not values:
+        return None
+    normalized = []
+    seen = set()
+    for text in (norm_text(value) for value in values):
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        normalized.append(text)
+    return normalized or None
+
+
 class DuplicateChannelIdError(ValueError):
     """Raised when requested channels resolve to duplicate XML channel IDs."""
+
+
+@dataclass
+class Credit:
+    name: str
+    title: str
+    role: str = None
+
+    def sanitize(self) -> None:
+        for field_name in ("name", "title", "role"):
+            setattr(self, field_name, norm_text(getattr(self, field_name)))
+
+    def validate(self) -> None:
+        # Assumes sanitize() has already normalized field values.
+        if not self.name:
+            raise ValueError("Credit.name is required")
+        if not self.title:
+            raise ValueError("Credit.title is required")
+        if self.title not in TAG_CREDITS:
+            raise ValueError(f"Unsupported credit title: {self.title}")
 
 
 @dataclass
@@ -79,21 +112,112 @@ class EPGProgram:
     # not usually given by default
     desc: str = None
     poster_url: str = None
-    cast: List[dict] = None  # 출연진
-    crew: List[dict] = None  # 제작진
+    cast: List[Credit] = None  # 출연진
+    crew: List[Credit] = None  # 제작진
     extras: List[str] = None
     keywords: List[str] = None
 
+    def __str__(self) -> str:
+        title = self.title or "<untitled>"
+        stime = self.stime.isoformat() if isinstance(self.stime, datetime) else repr(self.stime)
+        return f"{title} <{self.channelid}> @ {stime}"
+
+    def _add_text_item(self, field_name: str, value: str) -> None:
+        value = norm_text(value)
+        if not value:
+            return
+        items = getattr(self, field_name) or []
+        if value not in items:
+            items.append(value)
+            setattr(self, field_name, items)
+
+    def add_category(self, value: str) -> None:
+        self._add_text_item("categories", value)
+
+    def add_keyword(self, value: str) -> None:
+        self._add_text_item("keywords", value)
+
+    def add_extra(self, value: str) -> None:
+        self._add_text_item("extras", value)
+
+    def _add_credit(self, field_name: str, name: str, title: str, role: str = None) -> None:
+        credit = Credit(name=name, title=title, role=role)
+        credit.sanitize()
+        if not credit.name or not credit.title:
+            return
+        items = getattr(self, field_name) or []
+        if credit not in items:
+            items.append(credit)
+            setattr(self, field_name, items)
+
+    def add_cast(self, values: Iterable[str]) -> None:
+        for value in values:
+            self._add_credit("cast", value, "actor")
+
+    def add_crew(self, values: Iterable[str], title: str) -> None:
+        for value in values:
+            self._add_credit("crew", value, title)
+
+    @classmethod
+    def _norm_credits(cls, values: List[Credit]) -> Optional[List[Credit]]:
+        if not values:
+            return None
+
+        normalized = []
+        seen = set()
+        for value in values:
+            if not isinstance(value, Credit):
+                continue
+            credit = value
+            credit.sanitize()
+            if not credit.name or not credit.title:
+                continue
+            credit_key = (credit.name, credit.title, credit.role)
+            if credit_key in seen:
+                continue
+            seen.add(credit_key)
+            normalized.append(credit)
+        return normalized or None
+
     def sanitize(self) -> None:
-        for f in fields(self):
-            attr = getattr(self, f.name)
-            if f.type == List[str] and attr is not None:
-                setattr(self, f.name, [x.strip() for x in filter(bool, attr) if x.strip()])
-            elif f.type == str:
-                setattr(self, f.name, (attr or "").strip())
+        for field_name in ("title", "title_sub", "part_num", "ep_num", "desc", "poster_url"):
+            setattr(self, field_name, norm_text(getattr(self, field_name)))
+        for field_name in ("categories", "extras", "keywords"):
+            setattr(self, field_name, norm_text_list(getattr(self, field_name)))
+        for field_name in ("cast", "crew"):
+            setattr(self, field_name, self._norm_credits(getattr(self, field_name)))
+        if self.title and self.title_sub == self.title:
+            self.title_sub = None
+        try:
+            self.rating = max(0, int(self.rating or 0))
+        except (TypeError, ValueError):
+            self.rating = 0
+
+    def validate(self) -> None:
+        # Assumes sanitize() has already normalized field values.
+        if not self.channelid:
+            raise ValueError(f"EPGProgram.channelid is required: {self}")
+        if not isinstance(self.stime, datetime):
+            raise TypeError(f"EPGProgram.stime must be a datetime: {self}")
+        if not self.title:
+            log.warning("EPGProgram.title is missing: %s", self)
+        if not isinstance(self.rebroadcast, bool):
+            raise TypeError(f"EPGProgram.rebroadcast must be a bool: {self}")
+        if not isinstance(self.rating, int):
+            raise TypeError(f"EPGProgram.rating must be an int: {self}")
+        if self.etime is not None:
+            if not isinstance(self.etime, datetime):
+                raise TypeError(f"EPGProgram.etime must be a datetime when present: {self}")
+            if self.etime < self.stime:
+                raise ValueError(f"EPGProgram.etime must not be earlier than stime: {self}")
+        for credit in (self.cast or []) + (self.crew or []):
+            credit.validate()
 
     def to_xml(self, cfg: dict, writer: TextIO = None) -> None:
         self.sanitize()
+        self.validate()
+        if self.etime is None:
+            raise ValueError("EPGProgram.etime is required for XML serialization")
         writer = writer or sys.stdout
 
         # local variables
@@ -113,9 +237,10 @@ class EPGProgram:
         _p = Element("programme", start=stime, stop=etime, channel=self.channelid)
 
         # title, sub-title
-        if matches := PTN_TITLE.match(title):
+        if title and (matches := PTN_TITLE.match(title)):
             title = matches.group(1).strip()
-            title_sub = (matches.group(2) + " " + title_sub).strip()
+            title_sub = " ".join(filter(bool, [matches.group(2), title_sub]))
+            title_sub = title_sub or None
         title = [
             title or title_sub or "제목 없음",
             f"({episode}회)" if episode and cfg["ADD_EPNUM_TO_TITLE"] else "",
@@ -134,8 +259,8 @@ class EPGProgram:
                 f"방송 : {rebroadcast}방송" if rebroadcast else "",
                 f"회차 : {episode}회" if episode else "",
                 f"장르 : {','.join(categories)}" if categories else "",
-                f"출연 : {','.join(x['name'] for x in cast)}" if cast else "",
-                f"제작 : {','.join(x['name'] for x in crew)}" if crew else "",
+                f"출연 : {','.join(x.name for x in cast)}" if cast else "",
+                f"제작 : {','.join(x.name for x in crew)}" if crew else "",
                 f"등급 : {rating}",
                 self.desc,
             ]
@@ -145,10 +270,9 @@ class EPGProgram:
         # credits
         if cast or crew:
             _c = Element("credits")
-            for cc in sorted(cast + crew, key=lambda x: TAG_CREDITS.index(x["title"])):
-                title = cc.pop("title")
-                name = cc.pop("name")
-                _c.append(Element(title, name, **cc))
+            for cc in sorted(cast + crew, key=lambda x: TAG_CREDITS.index(x.title)):
+                attrs = {k: v for k, v in asdict(cc).items() if k not in {"title", "name"} and v is not None}
+                _c.append(Element(cc.title, cc.name, **attrs))
             _p.append(_c)
 
         # categories
@@ -226,9 +350,38 @@ class EPGChannel:
     def __str__(self):
         return f"{self.name} <{self.id}>"
 
+    def sanitize(self) -> None:
+        for field_name in ("id", "src", "svcid", "name", "icon", "no", "category"):
+            setattr(self, field_name, norm_text(getattr(self, field_name)))
+
+    def validate(self) -> None:
+        # Assumes sanitize() has already normalized field values.
+        if not self.id:
+            raise ValueError("EPGChannel.id is required")
+        if not self.src:
+            raise ValueError("EPGChannel.src is required")
+        if not self.svcid:
+            raise ValueError("EPGChannel.svcid is required")
+        if not self.name:
+            raise ValueError("EPGChannel.name is required")
+        for program in self.programs:
+            if not isinstance(program, EPGProgram):
+                raise TypeError(f"EPGChannel.programs for {self} must contain only EPGProgram instances")
+            if program.channelid != self.id:
+                raise ValueError(f"EPGChannel.programs for {self} must match channel id: {program.channelid}")
+            if not isinstance(program.stime, datetime):
+                raise TypeError(f"EPGChannel.programs for {self} must have datetime stime values: {program.stime!r}")
+
     def set_etime(self) -> None:
         """Completes missing program endtimes based on the successive relationship between programs."""
+        previous_stime = None
         for ind, prog in enumerate(self.programs):
+            if previous_stime is not None and prog.stime < previous_stime:
+                raise ValueError(
+                    f"EPGChannel.programs must be ordered by stime for {self}: "
+                    f"{previous_stime.isoformat()} > {prog.stime.isoformat()}"
+                )
+            previous_stime = prog.stime
             if prog.etime:
                 continue
             try:
@@ -238,6 +391,8 @@ class EPGChannel:
 
     def to_xml(self, writer: TextIO = None) -> None:
         writer = writer or sys.stdout
+        self.sanitize()
+        self.validate()
         chel = Element("channel", id=self.id)
         # TODO: something better for display-name?
         chel.append(Element("display-name", self.name))

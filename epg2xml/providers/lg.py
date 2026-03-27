@@ -102,19 +102,19 @@ class LG(EPGProvider):
             _epg.desc = p.get("brdPgmDscr")  # 프로그램 상세 설명이 없는 채널도 있음
             _epg.stime = datetime.strptime(p["brdCntrTvChnlBrdDt"] + p["epgStrtTme"], "%Y%m%d%H:%M:%S")
             _epg.rating = G_CODE.get(p["brdWtchAgeGrdCd"], 0)
-            _epg.extras = [p["brdPgmRsolNm"]]  # 화질
+            _epg.add_extra(p["brdPgmRsolNm"])  # 화질
             if p["subtBrdYn"] == "Y":
-                _epg.extras.append("자막")
+                _epg.add_extra("자막")
             if p["explBrdYn"] == "Y":
-                _epg.extras.append("화면해설")
+                _epg.add_extra("화면해설")
             if p["silaBrdYn"] == "Y":
-                _epg.extras.append("수화")
+                _epg.add_extra("수화")
             if m := self.title_regex.match(_epg.title):
                 _epg.title = m.group(1)
                 _epg.title_sub = m.group(2)
                 _epg.ep_num = m.group(3)
                 _epg.rebroadcast = bool(m.group(4))
             if P_CATE[p["urcBrdCntrTvSchdGnreCd"]]:
-                _epg.categories = [P_CATE[p["urcBrdCntrTvSchdGnreCd"]]]
+                _epg.add_category(P_CATE[p["urcBrdCntrTvSchdGnreCd"]])
             _epgs.append(_epg)
         return _epgs

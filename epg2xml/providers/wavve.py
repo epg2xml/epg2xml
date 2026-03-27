@@ -109,15 +109,16 @@ class WAVVE(EPGProvider):
         _epg.desc = "\n".join(
             [x.replace("<br>", "\n").strip() for x in synopsis.splitlines()]
         )  # carriage return(\r) 제거, <br> 제거
-        _epg.categories = [detail["genretext"].strip()]
+        _epg.add_category(detail["genretext"])
         _epg.poster_url = self.__url(detail["seasonposterimage"].strip())
-        _epg.keywords = [x["text"] for x in detail["tags"]["list"]]
+        for tag in detail["tags"]["list"]:
+            _epg.add_keyword(tag["text"])
         actors = detail.get("season_actors") or detail.get("actors") or {"list": []}
         directors = detail.get("season_directors") or detail.get("directors") or {"list": []}
         writers = detail.get("season_writers") or detail.get("writers") or {"list": []}
-        _epg.cast = [{"name": x["text"], "title": "actor"} for x in actors["list"]]
-        _epg.crew = [{"name": x["text"], "title": "director"} for x in directors["list"]]
-        _epg.crew += [{"name": x["text"], "title": "writer"} for x in writers["list"]]
+        _epg.add_cast(x["text"] for x in actors["list"])
+        _epg.add_crew((x["text"] for x in directors["list"]), "director")
+        _epg.add_crew((x["text"] for x in writers["list"]), "writer")
         return _epg
 
     def get_programs(self) -> None:

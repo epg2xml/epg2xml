@@ -164,13 +164,13 @@ class TVING(EPGProvider):
             _epg.title = sch[get_from]["name"]["ko"]
             _epg.title_sub = sch[get_from]["name"].get("en")
             if cate1 := sch[get_from]["category1_name"]:
-                _epg.categories = [cate1.get("ko")]
+                _epg.add_category(cate1.get("ko"))
             if cate2 := sch[get_from]["category2_name"]:
-                _epg.categories = (_epg.categories or []) + [cate2.get("ko")]
+                _epg.add_category(cate2.get("ko"))
             if actors := sch[get_from]["actor"]:
-                _epg.cast = [{"name": x, "title": "actor"} for x in actors]
+                _epg.add_cast(actors)
             if directors := sch[get_from]["director"]:
-                _epg.crew = [{"name": x, "title": "director"} for x in directors]
+                _epg.add_crew(directors, "director")
 
             poster = [x["url"] for x in sch[get_from]["image"] if x["code"] == img_code]
             if poster:

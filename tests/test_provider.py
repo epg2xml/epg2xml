@@ -25,7 +25,8 @@ bs4.BeautifulSoup = DummyBeautifulSoup
 bs4.FeatureNotFound = DummyFeatureNotFound
 sys.modules.setdefault("bs4", bs4)
 
-from epg2xml.providers import EPGChannel, EPGHandler, EPGProgram, EPGProvider, SQLite
+from epg2xml.providers import Credit, EPGChannel, EPGHandler, EPGProgram, EPGProvider, SQLite
+from epg2xml.providers.mbc import MBC
 from epg2xml.providers.spotv import SPOTV
 from epg2xml.utils import time_to_td
 
@@ -222,6 +223,387 @@ class TestProvider(unittest.TestCase):
         self.assertIn('<programme channel="fake"></programme>', xml)
         self.assertTrue(xml.rstrip().endswith("</tv>"))
 
+    def test_program_to_xml_sanitizes_metadata_without_mutating_credits(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=datetime(2026, 1, 1, 10, 0),
+            title="  Program Title  ",
+            title_sub="  Subtitle  ",
+            categories=[" 뉴스 ", "", "  "],
+            keywords=[" 키워드 ", None, ""],
+            cast=[Credit(name=" Alice ", title="actor", role="lead")],
+            crew=[Credit(name=" Bob ", title="director")],
+            rating="15",
+        )
+        buffer = io.StringIO()
+
+        program.to_xml(CFG, writer=buffer)
+
+        xml = buffer.getvalue()
+        self.assertEqual(program.title, "Program Title")
+        self.assertEqual(program.title_sub, "Subtitle")
+        self.assertEqual(program.categories, ["뉴스"])
+        self.assertEqual(program.keywords, ["키워드"])
+        self.assertEqual(program.cast, [Credit(name="Alice", title="actor", role="lead")])
+        self.assertEqual(program.crew, [Credit(name="Bob", title="director", role=None)])
+        self.assertEqual(program.rating, 15)
+        self.assertIn("<actor role=\"lead\">Alice</actor>", xml)
+        self.assertIn("<director>Bob</director>", xml)
+
+    def test_program_to_xml_handles_part_title_without_existing_subtitle(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=datetime(2026, 1, 1, 10, 0),
+            title="Program 2부",
+            title_sub=None,
+        )
+        buffer = io.StringIO()
+
+        program.to_xml(CFG, writer=buffer)
+
+        xml = buffer.getvalue()
+        self.assertIn("<title lang=\"ko\">Program</title>", xml)
+        self.assertIn("<sub-title lang=\"ko\">2부</sub-title>", xml)
+
+    def test_program_to_xml_falls_back_to_subtitle_when_title_is_missing(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=datetime(2026, 1, 1, 10, 0),
+            title=None,
+            title_sub="부제만 있음",
+        )
+        buffer = io.StringIO()
+
+        program.to_xml(CFG, writer=buffer)
+
+        xml = buffer.getvalue()
+        self.assertIn("<title lang=\"ko\">부제만 있음</title>", xml)
+
+    def test_program_to_xml_uses_placeholder_when_title_and_subtitle_are_missing(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=datetime(2026, 1, 1, 10, 0),
+            title=None,
+            title_sub=None,
+        )
+        buffer = io.StringIO()
+
+        program.to_xml(CFG, writer=buffer)
+
+        xml = buffer.getvalue()
+        self.assertIn("<title lang=\"ko\">제목 없음</title>", xml)
+
+    def test_program_sanitize_accepts_credit_objects(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=datetime(2026, 1, 1, 10, 0),
+            title="Program",
+            cast=[Credit(name=" Alice ", title="actor", role=" lead ")],
+            crew=[Credit(name=" Bob ", title="director")],
+        )
+
+        program.sanitize()
+
+        self.assertEqual(program.cast, [Credit(name="Alice", title="actor", role="lead")])
+        self.assertEqual(program.crew, [Credit(name="Bob", title="director", role=None)])
+
+    def test_program_sanitize_deduplicates_credit_objects(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=datetime(2026, 1, 1, 10, 0),
+            title="Program",
+            cast=[
+                Credit(name=" Alice ", title="actor"),
+                Credit(name="Alice", title="actor"),
+            ],
+            crew=[
+                Credit(name=" Bob ", title="director", role="main"),
+                Credit(name="Bob", title="director", role=" main "),
+            ],
+        )
+
+        program.sanitize()
+
+        self.assertEqual(program.cast, [Credit(name="Alice", title="actor", role=None)])
+        self.assertEqual(program.crew, [Credit(name="Bob", title="director", role="main")])
+
+    def test_program_sanitize_discards_non_credit_items(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=datetime(2026, 1, 1, 10, 0),
+            title="Program",
+            cast=[Credit(name=" Alice ", title="actor"), "not-a-credit"],
+            crew=[None, Credit(name=" Bob ", title="director")],
+        )
+
+        program.sanitize()
+
+        self.assertEqual(program.cast, [Credit(name="Alice", title="actor", role=None)])
+        self.assertEqual(program.crew, [Credit(name="Bob", title="director", role=None)])
+
+    def test_program_collection_helpers_accumulate_normalized_values(self):
+        program = EPGProgram("kt.id", stime=datetime(2026, 1, 1, 9, 0), etime=datetime(2026, 1, 1, 10, 0))
+
+        program.add_category(" 뉴스 ")
+        program.add_category("스포츠")
+        program.add_category("뉴스")
+        program.add_keyword(" 키워드 ")
+        program.add_keyword("")
+        program.add_keyword("다시보기")
+        program.add_extra("HD")
+        program.add_extra(" HD ")
+        program.add_cast([" Alice ", "", "Bob"])
+        program.add_crew([" Carol "], "director")
+
+        self.assertEqual(program.categories, ["뉴스", "스포츠"])
+        self.assertEqual(program.keywords, ["키워드", "다시보기"])
+        self.assertEqual(program.extras, ["HD"])
+        self.assertEqual(
+            program.cast,
+            [
+                Credit(name="Alice", title="actor", role=None),
+                Credit(name="Bob", title="actor", role=None),
+            ],
+        )
+        self.assertEqual(program.crew, [Credit(name="Carol", title="director", role=None)])
+
+    def test_program_sanitize_deduplicates_text_lists_and_title_sub(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=datetime(2026, 1, 1, 10, 0),
+            title=" Program ",
+            title_sub=" Program ",
+            categories=["뉴스", " 뉴스 ", "", "스포츠", "뉴스"],
+            extras=["HD", " HD ", None],
+            keywords=["키워드", " 키워드 ", "다시보기"],
+        )
+
+        program.sanitize()
+
+        self.assertEqual(program.title, "Program")
+        self.assertIsNone(program.title_sub)
+        self.assertEqual(program.categories, ["뉴스", "스포츠"])
+        self.assertEqual(program.extras, ["HD"])
+        self.assertEqual(program.keywords, ["키워드", "다시보기"])
+
+    def test_program_to_xml_rejects_invalid_credit_title(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=datetime(2026, 1, 1, 10, 0),
+            title="Program",
+            cast=[Credit(name="Alice", title="invalid-role")],
+        )
+
+        with self.assertRaises(ValueError):
+            program.to_xml(CFG, writer=io.StringIO())
+
+    def test_program_sanitize_normalizes_credit_role(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=datetime(2026, 1, 1, 10, 0),
+            title="Program",
+            cast=[Credit(name="Alice", title="actor", role=1)],
+        )
+
+        program.sanitize()
+
+        self.assertEqual(program.cast, [Credit(name="Alice", title="actor", role="1")])
+
+    def test_program_to_xml_requires_datetime_fields(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=None,
+            etime=datetime(2026, 1, 1, 10, 0),
+            title="Program",
+        )
+
+        with self.assertRaises(TypeError):
+            program.to_xml(CFG, writer=io.StringIO())
+
+    def test_program_validate_allows_missing_title(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=datetime(2026, 1, 1, 10, 0),
+            title="   ",
+        )
+
+        program.sanitize()
+        program.validate()
+
+    def test_program_validate_allows_missing_etime_before_finalization(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=None,
+            title="Program",
+        )
+
+        program.validate()
+
+    def test_program_validate_rejects_non_bool_rebroadcast(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=datetime(2026, 1, 1, 10, 0),
+            title="Program",
+            rebroadcast="Y",
+        )
+
+        program.sanitize()
+
+        with self.assertRaises(TypeError):
+            program.validate()
+
+    def test_program_sanitize_coerces_rating_before_validate(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=datetime(2026, 1, 1, 10, 0),
+            title="Program",
+            rating="15",
+        )
+
+        program.sanitize()
+
+        self.assertEqual(program.rating, 15)
+        program.validate()
+
+    def test_program_sanitize_normalizes_optional_string_field(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=datetime(2026, 1, 1, 10, 0),
+            title="Program",
+            poster_url=123,
+        )
+
+        program.sanitize()
+
+        self.assertEqual(program.poster_url, "123")
+        program.validate()
+
+    def test_program_sanitize_discards_non_credit_items_before_validate(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=datetime(2026, 1, 1, 10, 0),
+            title="Program",
+            cast=["Alice"],
+        )
+
+        program.sanitize()
+
+        self.assertIsNone(program.cast)
+        program.validate()
+
+    def test_program_to_xml_requires_etime_for_serialization(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=None,
+            title="Program",
+        )
+
+        with self.assertRaises(ValueError):
+            program.to_xml(CFG, writer=io.StringIO())
+
+    def test_channel_to_xml_sanitizes_text_fields(self):
+        channel = EPGChannel(" kt.id ", " KT ", " svc1 ", " Channel A ")
+        channel.no = " 101 "
+        channel.icon = " https://example.com/icon.png "
+        buffer = io.StringIO()
+
+        channel.to_xml(writer=buffer)
+
+        self.assertEqual(channel.id, "kt.id")
+        self.assertEqual(channel.src, "KT")
+        self.assertEqual(channel.svcid, "svc1")
+        self.assertEqual(channel.name, "Channel A")
+        self.assertEqual(channel.no, "101")
+        self.assertEqual(channel.icon, "https://example.com/icon.png")
+
+    def test_channel_to_xml_requires_required_fields(self):
+        channel = EPGChannel("kt.id", "KT", "svc1", "   ")
+
+        with self.assertRaises(ValueError):
+            channel.to_xml(writer=io.StringIO())
+
+    def test_channel_to_xml_rejects_non_program_items(self):
+        channel = EPGChannel("kt.id", "KT", "svc1", "Channel A", programs=["not-a-program"])
+
+        with self.assertRaises(TypeError):
+            channel.to_xml(writer=io.StringIO())
+
+    def test_channel_to_xml_rejects_programs_for_other_channel(self):
+        program = EPGProgram(
+            "other.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=datetime(2026, 1, 1, 10, 0),
+            title="Program",
+        )
+        channel = EPGChannel("kt.id", "KT", "svc1", "Channel A", programs=[program])
+
+        with self.assertRaises(ValueError):
+            channel.to_xml(writer=io.StringIO())
+
+    def test_channel_to_xml_rejects_programs_without_datetime_stime(self):
+        program = EPGProgram(
+            "kt.id",
+            stime=None,
+            etime=datetime(2026, 1, 1, 10, 0),
+            title="Program",
+        )
+        channel = EPGChannel("kt.id", "KT", "svc1", "Channel A", programs=[program])
+
+        with self.assertRaises(TypeError):
+            channel.to_xml(writer=io.StringIO())
+
+    def test_channel_to_xml_rejects_programs_out_of_order(self):
+        first = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 10, 0),
+            etime=datetime(2026, 1, 1, 11, 0),
+            title="Program A",
+        )
+        second = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=datetime(2026, 1, 1, 10, 0),
+            title="Program B",
+        )
+        channel = EPGChannel("kt.id", "KT", "svc1", "Channel A", programs=[first, second])
+
+        channel.validate()
+
+    def test_channel_set_etime_rejects_programs_out_of_order(self):
+        first = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 10, 0),
+            etime=None,
+            title="Program A",
+        )
+        second = EPGProgram(
+            "kt.id",
+            stime=datetime(2026, 1, 1, 9, 0),
+            etime=None,
+            title="Program B",
+        )
+        channel = EPGChannel("kt.id", "KT", "svc1", "Channel A", programs=[first, second])
+
+        with self.assertRaises(ValueError):
+            channel.set_etime()
+
     def test_time_to_td_handles_overflow_hours(self):
         parsed = time_to_td("24:30")
 
@@ -231,6 +613,33 @@ class TestProvider(unittest.TestCase):
         parsed = time_to_td("25000099")
 
         self.assertEqual(parsed, timedelta(hours=25))
+
+    def test_mbcplus_rolls_post_midnight_entries_forward_when_sdate_resets(self):
+        with patch("epg2xml.providers.requests.Session", DummySession):
+            provider = MBC(dict(CFG))
+        channel = EPGChannel("mbcnet.id", "MBC", "MBCNET", "MBCNET")
+        payload = [
+            {
+                "ProgramTitle": "Late Show",
+                "TargetAge": "15",
+                "StartTime": "2330",
+                "EndTime": "2430",
+            },
+            {
+                "ProgramTitle": "After Midnight",
+                "TargetAge": "15",
+                "StartTime": "0030",
+                "EndTime": "0130",
+            },
+        ]
+
+        with patch.object(provider, "request", return_value=payload):
+            programs = provider._MBC__epg_of_day(channel, datetime(2026, 1, 1).date())
+
+        self.assertEqual(programs[0].stime, datetime(2026, 1, 1, 23, 30))
+        self.assertEqual(programs[0].etime, datetime(2026, 1, 2, 0, 30))
+        self.assertEqual(programs[1].stime, datetime(2026, 1, 2, 0, 30))
+        self.assertEqual(programs[1].etime, datetime(2026, 1, 2, 1, 30))
 
     def test_spotv_deduplicates_boundary_programs_without_mutating_source(self):
         with patch("epg2xml.providers.requests.Session", DummySession):

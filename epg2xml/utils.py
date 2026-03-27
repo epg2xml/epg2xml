@@ -24,7 +24,7 @@ def dump_json(file_path, data) -> int:
         return f.write(txt)
 
 
-def strip_or_none(value) -> Optional[str]:
+def norm_text(value) -> Optional[str]:
     if value is None:
         return None
     text = str(value).strip()
@@ -32,7 +32,7 @@ def strip_or_none(value) -> Optional[str]:
 
 
 def time_to_td(value) -> Optional[timedelta]:
-    text = strip_or_none(value)
+    text = norm_text(value)
     if text is None:
         return None
 
