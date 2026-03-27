@@ -117,6 +117,11 @@ class EPGProgram:
     extras: List[str] = None
     keywords: List[str] = None
 
+    def __str__(self) -> str:
+        title = self.title or "<untitled>"
+        stime = self.stime.isoformat() if isinstance(self.stime, datetime) else repr(self.stime)
+        return f"{title} <{self.channelid}> @ {stime}"
+
     def _add_text_item(self, field_name: str, value: str) -> None:
         value = norm_text(value)
         if not value:
@@ -191,20 +196,20 @@ class EPGProgram:
     def validate(self) -> None:
         # Assumes sanitize() has already normalized field values.
         if not self.channelid:
-            raise ValueError("EPGProgram.channelid is required")
+            raise ValueError(f"EPGProgram.channelid is required: {self}")
         if not isinstance(self.stime, datetime):
-            raise TypeError("EPGProgram.stime must be a datetime")
+            raise TypeError(f"EPGProgram.stime must be a datetime: {self}")
         if not self.title:
-            raise ValueError("EPGProgram.title is required")
+            raise ValueError(f"EPGProgram.title is required: {self}")
         if not isinstance(self.rebroadcast, bool):
-            raise TypeError("EPGProgram.rebroadcast must be a bool")
+            raise TypeError(f"EPGProgram.rebroadcast must be a bool: {self}")
         if not isinstance(self.rating, int):
-            raise TypeError("EPGProgram.rating must be an int")
+            raise TypeError(f"EPGProgram.rating must be an int: {self}")
         if self.etime is not None:
             if not isinstance(self.etime, datetime):
-                raise TypeError("EPGProgram.etime must be a datetime when present")
+                raise TypeError(f"EPGProgram.etime must be a datetime when present: {self}")
             if self.etime < self.stime:
-                raise ValueError("EPGProgram.etime must not be earlier than stime")
+                raise ValueError(f"EPGProgram.etime must not be earlier than stime: {self}")
         for credit in (self.cast or []) + (self.crew or []):
             credit.validate()
 
@@ -361,11 +366,11 @@ class EPGChannel:
             raise ValueError("EPGChannel.name is required")
         for program in self.programs:
             if not isinstance(program, EPGProgram):
-                raise TypeError(f"EPGChannel.programs for {self.id} must contain only EPGProgram instances")
+                raise TypeError(f"EPGChannel.programs for {self} must contain only EPGProgram instances")
             if program.channelid != self.id:
-                raise ValueError(f"EPGChannel.programs for {self.id} must match channel id: {program.channelid}")
+                raise ValueError(f"EPGChannel.programs for {self} must match channel id: {program.channelid}")
             if not isinstance(program.stime, datetime):
-                raise TypeError(f"EPGChannel.programs for {self.id} must have datetime stime values: {program.stime!r}")
+                raise TypeError(f"EPGChannel.programs for {self} must have datetime stime values: {program.stime!r}")
 
     def set_etime(self) -> None:
         """Completes missing program endtimes based on the successive relationship between programs."""
@@ -373,8 +378,8 @@ class EPGChannel:
         for ind, prog in enumerate(self.programs):
             if previous_stime is not None and prog.stime < previous_stime:
                 raise ValueError(
-                    f"EPGChannel.programs must be ordered by stime for {self.id} "
-                    f"({self.name}): {previous_stime.isoformat()} > {prog.stime.isoformat()}"
+                    f"EPGChannel.programs must be ordered by stime for {self}: "
+                    f"{previous_stime.isoformat()} > {prog.stime.isoformat()}"
                 )
             previous_stime = prog.stime
             if prog.etime:
