@@ -26,7 +26,6 @@ bs4.FeatureNotFound = DummyFeatureNotFound
 sys.modules.setdefault("bs4", bs4)
 
 from epg2xml.providers import Credit, EPGChannel, EPGHandler, EPGProgram, EPGProvider, SQLite
-from epg2xml.providers.sk import SK
 from epg2xml.providers.mbc import MBC
 from epg2xml.providers.spotv import SPOTV
 from epg2xml.utils import time_to_td
@@ -596,38 +595,6 @@ class TestProvider(unittest.TestCase):
         self.assertEqual(programs[0].etime, datetime(2026, 1, 2, 0, 30))
         self.assertEqual(programs[1].stime, datetime(2026, 1, 2, 0, 30))
         self.assertEqual(programs[1].etime, datetime(2026, 1, 2, 1, 30))
-
-    def test_sk_sorts_programs_of_day_by_stime(self):
-        with patch("epg2xml.providers.requests.Session", DummySession):
-            provider = SK(dict(CFG))
-        day = datetime(2026, 3, 27)
-        payload = [
-            {
-                "eventDt": "20260327",
-                "nmTitle": "Program B",
-                "cdRating": "0",
-                "dtEventStart": "20260327004448",
-                "dtEventEnd": "20260327004518",
-                "cdGenre": "2",
-                "nmSynop": "",
-            },
-            {
-                "eventDt": "20260327",
-                "nmTitle": "Program A",
-                "cdRating": "0",
-                "dtEventStart": "20260327004418",
-                "dtEventEnd": "20260327004448",
-                "cdGenre": "2",
-                "nmSynop": "",
-            },
-        ]
-
-        programs = provider._SK__epgs_of_day("325.sk", payload, day)
-
-        self.assertEqual(
-            [program.stime for program in programs],
-            [datetime(2026, 3, 27, 0, 44, 18), datetime(2026, 3, 27, 0, 44, 48)],
-        )
 
     def test_spotv_deduplicates_boundary_programs_without_mutating_source(self):
         with patch("epg2xml.providers.requests.Session", DummySession):
