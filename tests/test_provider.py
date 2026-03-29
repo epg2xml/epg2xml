@@ -25,6 +25,7 @@ bs4.BeautifulSoup = DummyBeautifulSoup
 bs4.FeatureNotFound = DummyFeatureNotFound
 sys.modules.setdefault("bs4", bs4)
 
+import epg2xml.providers as providers_module
 from epg2xml.providers import Credit, EPGChannel, EPGHandler, EPGProgram, EPGProvider, SQLite
 from epg2xml.providers.mbc import MBC
 from epg2xml.providers.spotv import SPOTV
@@ -81,9 +82,15 @@ class DummySession:
         self.kwargs: dict[str, Any] = kwargs
         self.proxies: dict[str, str] = {}
         self.calls: list[dict[str, Any]] = []
+        self.responses: list[Any] = []
 
     def request(self, **kwargs):
         self.calls.append(kwargs)
+        if self.responses:
+            response = self.responses.pop(0)
+            if isinstance(response, Exception):
+                raise response
+            return response
         return DummyResponse()
 
 
@@ -93,6 +100,13 @@ class DummyResponse:
 
     def json(self):
         return {"ok": True}
+
+
+class DummyTextResponse(DummyResponse):
+    text = "plain text response"
+
+    def json(self):
+        raise ValueError("not json")
 
 
 class FakeXmlProvider:
@@ -173,6 +187,51 @@ class TestProvider(unittest.TestCase):
         self.assertEqual(response, {"ok": True})
         self.assertEqual(session.calls[0]["timeout"], provider.timeout)
         self.assertEqual(session.calls[0]["url"], "https://example.com")
+
+    def test_request_retries_then_succeeds(self):
+        session = DummySession()
+        session.responses = [
+            providers_module.requests.exceptions.RequestException("boom1"),
+            providers_module.requests.exceptions.RequestException("boom2"),
+            DummyResponse(),
+        ]
+        with patch("epg2xml.providers.requests.Session", return_value=session):
+            provider = FAKE(dict(CFG))
+
+        with patch("epg2xml.providers.time.sleep") as sleep:
+            response = provider.request("https://example.com", params={"a": 1})
+
+        self.assertEqual(response, {"ok": True})
+        self.assertEqual(len(session.calls), 3)
+        self.assertEqual(sleep.call_args_list[0].args[0], provider.retry_backoff)
+        self.assertEqual(sleep.call_args_list[1].args[0], provider.retry_backoff * 2)
+
+    def test_request_returns_empty_string_after_retry_exhaustion(self):
+        session = DummySession()
+        session.responses = [
+            providers_module.requests.exceptions.RequestException("boom1"),
+            providers_module.requests.exceptions.RequestException("boom2"),
+            providers_module.requests.exceptions.RequestException("boom3"),
+        ]
+        with patch("epg2xml.providers.requests.Session", return_value=session):
+            provider = FAKE(dict(CFG))
+
+        with patch("epg2xml.providers.time.sleep") as sleep:
+            response = provider.request("https://example.com", params={"a": 1})
+
+        self.assertEqual(response, "")
+        self.assertEqual(len(session.calls), provider.retry_attempts)
+        self.assertEqual(sleep.call_count, provider.retry_attempts - 1)
+
+    def test_request_falls_back_to_text_for_non_json_response(self):
+        session = DummySession()
+        session.responses = [DummyTextResponse()]
+        with patch("epg2xml.providers.requests.Session", return_value=session):
+            provider = FAKE(dict(CFG))
+
+        response = provider.request("https://example.com")
+
+        self.assertEqual(response, "plain text response")
 
     def test_load_channels_parallel_propagates_worker_exceptions(self):
         handler = self.make_handler(FakeHandlerProvider(RuntimeError("boom")))

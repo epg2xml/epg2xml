@@ -17,6 +17,10 @@
 - 문자열 trim, 빈값 제거, 중복 제거 같은 후처리는 모델의 `sanitize()`가 일부 담당한다.
 - 필수 필드, 타입, 채널-프로그램 관계 검증은 모델의 `validate()`가 담당한다.
 - `validate()`는 기본적으로 `sanitize()`가 먼저 적용된 canonical 상태를 가정한다.
+- provider 내부 로그는 가능하면 전역 `log` 대신 `self.log`를 사용한다.
+- HTTP 요청은 공통 요청 계층이 담당한다.
+  - 기본 timeout, `raise_for_status()`, retry/backoff가 공통 적용된다.
+  - provider는 가능하면 `self.request(...)`만 사용하고, 요청별 특수 정책이 꼭 필요할 때만 별도 처리를 고려한다.
 
 ## 모델 개요
 
@@ -184,6 +188,10 @@ epg.add_crew(director_names, "director")
    - 예: `24:00` overflow 처리
    - 예: 사이트 고유 등급/제목 파싱
 9. 새 provider를 추가하거나 큰 파싱 규칙을 바꾸면 `tests/test_provider.py` 또는 fixture 기반 테스트를 같이 보강한다.
+10. HTTP 요청은 가능하면 `self.request(...)`를 사용한다.
+    - 공통 요청 계층이 timeout, 상태 코드 검사, 재시도, 백오프를 처리한다.
+11. provider 내부 로그는 가능하면 `self.log`를 사용한다.
+    - provider prefix가 공통으로 붙기 때문에 로그 문맥이 더 잘 유지된다.
 
 ## 추천 패턴
 

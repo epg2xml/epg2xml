@@ -3,6 +3,7 @@ import logging
 import re
 import sqlite3
 import sys
+import time
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import closing
@@ -12,7 +13,7 @@ from functools import wraps
 from importlib import import_module
 from itertools import chain
 from os import PathLike
-from typing import ClassVar, Iterable, Iterator, List, Literal, Optional, TextIO, Tuple, Union
+from typing import Any, ClassVar, Iterable, Iterator, List, Literal, Optional, TextIO, Tuple, Union
 
 try:
     from curl_cffi import requests
@@ -418,6 +419,8 @@ class EPGProvider:
     title_regex: Union[str, re.Pattern] = None
     tps: float = 1.0
     timeout: float = 10.0
+    retry_attempts: int = 3
+    retry_backoff: float = 0.5
     was_channel_updated: bool = False
 
     def __init__(self, cfg: dict):
@@ -440,19 +443,34 @@ class EPGProvider:
         self.svc_channels: List[dict] = []
         self.req_channels: List[EPGChannel] = []
 
-    def __request(self, url: str, method: str = "GET", **kwargs) -> str:
-        ret = ""
-        try:
-            kwargs.setdefault("timeout", self.timeout)
-            r = self.sess.request(method=method, url=url, **kwargs)
-            r.raise_for_status()
+    def __request(self, url: str, method: str = "GET", **kwargs) -> Any:
+        kwargs.setdefault("timeout", self.timeout)
+        request_desc = f"{method.upper()} {url}"
+        if params := kwargs.get("params"):
+            request_desc += f" params={params}"
+
+        for attempt in range(1, self.retry_attempts + 1):
             try:
-                ret = r.json()
-            except (json.decoder.JSONDecodeError, ValueError):
-                ret = r.text
-        except requests.exceptions.RequestException as e:
-            self.log.error("요청 중 에러: %s", e)
-        return ret
+                r = self.sess.request(method=method, url=url, **kwargs)
+                r.raise_for_status()
+                try:
+                    return r.json()
+                except (json.decoder.JSONDecodeError, ValueError):
+                    return r.text
+            except requests.exceptions.RequestException as e:
+                if attempt >= self.retry_attempts:
+                    self.log.error("요청 중 에러: %s (%s)", request_desc, e)
+                    return ""
+                self.log.warning(
+                    "요청 실패, 재시도 %d/%d: %s (%s)",
+                    attempt,
+                    self.retry_attempts - 1,
+                    request_desc,
+                    e,
+                )
+                time.sleep(self.retry_backoff * attempt)
+
+        return ""
 
     def load_svc_channels(self, channeljson: dict = None) -> None:
         # check if update required
