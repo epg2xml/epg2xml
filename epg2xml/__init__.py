@@ -10,6 +10,6 @@ except ImportError:
 
         version = get_version(version_scheme="release-branch-semver")
     except (ImportError, LookupError, OSError):
-        version = "2.7.0.dev0"
+        version = "2.8.0.dev0"
 
 __version__ = version
