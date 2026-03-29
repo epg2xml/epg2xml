@@ -29,6 +29,7 @@ import epg2xml.providers as providers_module
 from epg2xml.providers import Credit, EPGChannel, EPGHandler, EPGProgram, EPGProvider, SQLite
 from epg2xml.providers.mbc import MBC
 from epg2xml.providers.spotv import SPOTV
+from epg2xml.providers.wavve import WAVVE
 from epg2xml.utils import time_to_td
 
 CFG = {
@@ -79,6 +80,7 @@ class FakeHandlerProvider:
 class DummySession:
     def __init__(self, **kwargs):
         self.kwargs: dict[str, Any] = kwargs
+        self.headers: dict[str, str] = dict(kwargs.get("headers", {}))
         self.proxies: dict[str, str] = {}
         self.calls: list[dict[str, Any]] = []
         self.responses: list[Any] = []
@@ -125,6 +127,13 @@ class FakeCacheProvider:
     def load_svc_channels(self, channeljson=None):
         del channeljson
         return None
+
+
+class FixedDateTime(datetime):
+    @classmethod
+    def now(cls, tz=None):
+        del tz
+        return cls(2026, 1, 1, 23, 0, 0)
 
 
 class TestProvider(unittest.TestCase):
@@ -278,6 +287,39 @@ class TestProvider(unittest.TestCase):
 
         self.assertEqual(saved["A"]["CHANNELS"], updated_a)
         self.assertEqual(saved["B"]["CHANNELS"], cached_b)
+
+    def test_wavve_get_programs_skips_missing_channel_map_entries(self):
+        with patch("epg2xml.providers.requests.Session", DummySession):
+            provider = WAVVE(dict(CFG))
+
+        provider.req_channels = [
+            EPGChannel("missing.id", "WAVVE", "missing", "Missing"),
+            EPGChannel("present.id", "WAVVE", "present", "Present"),
+        ]
+        payload = {
+            "list": [
+                {
+                    "channelid": "present",
+                    "list": [
+                        {
+                            "starttime": "2026-01-01 23:00",
+                            "endtime": "2026-01-02 00:00",
+                            "title": "테스트 프로그램",
+                            "targetage": "15",
+                        }
+                    ],
+                }
+            ]
+        }
+
+        with patch("epg2xml.providers.wavve.datetime", FixedDateTime), patch.object(
+            provider, "_WAVVE__get", return_value=payload
+        ):
+            provider.get_programs()
+
+        self.assertEqual(provider.req_channels[0].programs, [])
+        self.assertEqual(len(provider.req_channels[1].programs), 1)
+        self.assertEqual(provider.req_channels[1].programs[0].title, "테스트 프로그램")
 
     def test_sqlite_round_trip_preserves_channel_and_program_order(self):
         channel = EPGChannel("kt.id", "KT", "svc1", "Channel A")

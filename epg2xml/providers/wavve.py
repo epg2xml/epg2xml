@@ -111,7 +111,11 @@ class WAVVE(EPGProvider):
 
         for idx, _ch in enumerate(self.req_channels):
             self.log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)
-            for program in channel_map[_ch.svcid]:
+            programs = channel_map.get(_ch.svcid)
+            if not programs:
+                self.log.warning("EPG 정보가 없거나 응답에서 누락된 채널입니다: %s", _ch)
+                continue
+            for program in programs:
                 try:
                     _epg = self.__epg_of_program(_ch.id, program)
                 except (AttributeError, KeyError, TypeError, ValueError):
