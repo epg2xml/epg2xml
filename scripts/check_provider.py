@@ -26,7 +26,7 @@ CFG = {
 
 
 def setup_logging():
-    log_fmt = "%(asctime)-15s %(levelname)-8s %(name)-7s %(lineno)4d: %(message)s"
+    log_fmt = "%(asctime)-15s %(levelname)-8s %(name)-7s: %(message)s"
     formatter = logging.Formatter(log_fmt, datefmt="%Y/%m/%d %H:%M:%S")
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.DEBUG)
