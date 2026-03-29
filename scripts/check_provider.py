@@ -19,7 +19,6 @@ CFG = {
     "ADD_EPNUM_TO_TITLE": True,
     "ADD_DESCRIPTION": True,
     "ADD_XMLTV_NS": False,
-    "GET_MORE_DETAILS": False,
     "ADD_CHANNEL_ICON": True,
     "HTTP_PROXY": os.environ.get("HTTP_PROXY"),
     "MY_CHANNELS": "*",

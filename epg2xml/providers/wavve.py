@@ -1,5 +1,4 @@
 from datetime import date, datetime, timedelta
-from functools import lru_cache
 from typing import List
 from xml.sax.saxutils import unescape
 
@@ -89,34 +88,6 @@ class WAVVE(EPGProvider):
             _epg.ep_num = None if episode == "0" else episode
             _epg.rebroadcast = bool(m.group(3))
         _epg.rating = 0 if data["targetage"] == "n" else int(data["targetage"])
-
-        # 추가 정보 가져오기
-        if not self.cfg["GET_MORE_DETAILS"]:
-            return _epg
-        programid = data["programid"].strip()
-        if not programid:
-            # 개별 programid가 없는 경우도 있으니 체크해야함
-            return _epg
-        detail = self.get_program_details(programid)
-        if not detail:
-            return _epg
-        # 여러가지 추가 정보가 제공되지만
-        # 방송되지 않은 미래의 프로그램/에피소드 정보는 반영되지 않았기에
-        # 일부 정보만 유효함을 유념
-        synopsis = detail["seasonsynopsis"] or detail["programsynopsis"] or detail["episodesynopsis"]
-        _epg.desc = "\n".join(
-            [x.replace("<br>", "\n").strip() for x in synopsis.splitlines()]
-        )  # carriage return(\r) 제거, <br> 제거
-        _epg.add_category(detail["genretext"])
-        _epg.poster_url = self.__url(detail["seasonposterimage"].strip())
-        for tag in detail["tags"]["list"]:
-            _epg.add_keyword(tag["text"])
-        actors = detail.get("season_actors") or detail.get("actors") or {"list": []}
-        directors = detail.get("season_directors") or detail.get("directors") or {"list": []}
-        writers = detail.get("season_writers") or detail.get("writers") or {"list": []}
-        _epg.add_cast(x["text"] for x in actors["list"])
-        _epg.add_crew((x["text"] for x in directors["list"]), "director")
-        _epg.add_crew((x["text"] for x in writers["list"]), "writer")
         return _epg
 
     def get_programs(self) -> None:
@@ -147,17 +118,3 @@ class WAVVE(EPGProvider):
                     self.log.exception("프로그램 파싱 중 예외: %s", _ch)
                 else:
                     _ch.programs.append(_epg)
-
-    @lru_cache
-    def get_program_details(self, programid: str) -> dict:
-        try:
-            params = {"history": "season", "programid": programid}
-            data = self.__get("/fz/vod/programs/landing", params=params)
-            if data.get("resultcode") in ["550"]:
-                # 애초에 유효하지 않은 programid가 있을 수 있음
-                # { "resultcode": "550", "resultmessage": "해당 데이터가 없습니다." }
-                return None
-            return self.__get(f"/fz/vod/contents-detail/{data['content_id'].strip()}")
-        except (AttributeError, KeyError, TypeError, ValueError):
-            self.log.exception("프로그램 상세 정보 요청 중 예외: %s", programid)
-            return None
