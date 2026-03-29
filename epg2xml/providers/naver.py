@@ -1,4 +1,3 @@
-import logging
 from datetime import date, datetime, timedelta
 from typing import List
 from xml.sax.saxutils import unescape
@@ -6,7 +5,6 @@ from xml.sax.saxutils import unescape
 from epg2xml.providers import EPGProgram, EPGProvider, no_endtime
 from epg2xml.utils import ParserBeautifulSoup as BeautifulSoup
 
-log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 today = date.today()
 
 CH_CATE = [
@@ -43,7 +41,7 @@ class NAVER(EPGProvider):
             params.update({"u1": c["u1"]})
             data = self.request(url, params=params)
             if data["statusCode"].lower() != "success":
-                log.error("유효한 응답이 아닙니다: %s", data["statusCode"])
+                self.log.error("유효한 응답이 아닙니다: %s", data["statusCode"])
                 continue
             soup = BeautifulSoup(data["dataHtml"])
             for ch in soup.select('li[class="item"]'):
@@ -67,18 +65,18 @@ class NAVER(EPGProvider):
         params = {"key": "SingleChannelDailySchedule", "where": "m", "pkid": "66", "u1": "SVCID", "u2": "EPGDATE"}
 
         for idx, _ch in enumerate(self.req_channels):
-            log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)
+            self.log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)
             for nd in range(int(self.cfg["FETCH_LIMIT"])):
                 day = today + timedelta(days=nd)
                 params.update({"u1": _ch.svcid, "u2": day.strftime("%Y%m%d")})
                 data = self.request(url, params=params)
                 if data["statusCode"].lower() != "success":
-                    log.error("유효한 응답이 아닙니다: %s %s", _ch, data["statusCode"])
+                    self.log.error("유효한 응답이 아닙니다: %s %s", _ch, data["statusCode"])
                     continue
                 try:
                     _epgs = self.__epgs_of_day(_ch.id, data, day)
                 except (AttributeError, IndexError, KeyError, TypeError, ValueError):
-                    log.exception("프로그램 파싱 중 예외: %s, %s", _ch, day)
+                    self.log.exception("프로그램 파싱 중 예외: %s, %s", _ch, day)
                 else:
                     _ch.programs.extend(_epgs)
 

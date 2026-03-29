@@ -1,11 +1,8 @@
-import logging
 from datetime import date, datetime, timedelta
 from typing import List
 from xml.sax.saxutils import unescape
 
 from epg2xml.providers import EPGProgram, EPGProvider
-
-log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 
 GENRE_CODE = {
     "1": "드라마",
@@ -57,7 +54,7 @@ class SK(EPGProvider):
     def get_programs(self) -> None:
         max_ndays = 3
         if int(self.cfg["FETCH_LIMIT"]) > max_ndays:
-            log.warning(
+            self.log.warning(
                 """
 
 ***********************************************************************
@@ -73,21 +70,21 @@ class SK(EPGProvider):
         params = {"idSvc": "SVCID", "stdDt": "EPGDATE", "gubun": "week"}
 
         for idx, _ch in enumerate(self.req_channels):
-            log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)
+            self.log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)
             params.update({"idSvc": _ch.svcid, "stdDt": date.today().strftime("%Y%m%d")})
             try:
                 infolist = self.request(url, params=params)["result"]["chnlFrmtInfoList"]
                 if not isinstance(infolist, list):
                     raise ValueError("chnlFrmtInfoList must be a list")
             except (KeyError, TypeError, ValueError):
-                log.exception("예상치 못한 응답: %s", params)
+                self.log.exception("예상치 못한 응답: %s", params)
                 continue
             for nd in range(min(int(self.cfg["FETCH_LIMIT"]), max_ndays)):
                 day = date.today() + timedelta(days=nd)
                 try:
                     _epgs = self.__epgs_of_day(_ch.id, infolist, day)
                 except (KeyError, TypeError, ValueError):
-                    log.exception("프로그램 파싱 중 예외: %s, %s", _ch, day)
+                    self.log.exception("프로그램 파싱 중 예외: %s, %s", _ch, day)
                 else:
                     _ch.programs.extend(_epgs)
 

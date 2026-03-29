@@ -1,11 +1,8 @@
-import logging
 from datetime import date, datetime, timedelta
 from typing import List
 
 from epg2xml.providers import EPGProgram, EPGProvider, no_endtime
 from epg2xml.utils import norm_text, time_to_td
-
-log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 
 
 class SBS(EPGProvider):
@@ -56,13 +53,13 @@ class SBS(EPGProvider):
     @no_endtime
     def get_programs(self) -> None:
         for idx, ch in enumerate(self.req_channels):
-            log.info("%03d/%03d %s", idx + 1, len(self.req_channels), ch)
+            self.log.info("%03d/%03d %s", idx + 1, len(self.req_channels), ch)
             for nd in range(int(self.cfg["FETCH_LIMIT"])):
                 day = date.today() + timedelta(days=nd)
                 try:
                     epgs = self.__epgs_of_day(ch, day)
                 except (KeyError, TypeError, ValueError):
-                    log.exception("프로그램 파싱 중 예외: %s, %s", ch, day)
+                    self.log.exception("프로그램 파싱 중 예외: %s, %s", ch, day)
                     continue
                 ch.programs.extend(epgs)
 
@@ -84,7 +81,7 @@ class SBS(EPGProvider):
                 if not epg.title or not epg.stime:
                     raise ValueError("Invalid schedule item")
             except (KeyError, TypeError, ValueError):
-                log.exception("프로그램 항목 파싱 중 예외: %s, %s, %s", ch, day, item)
+                self.log.exception("프로그램 항목 파싱 중 예외: %s, %s, %s", ch, day, item)
                 continue
             epgs.append(epg)
         return epgs

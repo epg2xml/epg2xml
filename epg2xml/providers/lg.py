@@ -1,10 +1,7 @@
-import logging
 from datetime import date, datetime, timedelta
 from typing import List
 
 from epg2xml.providers import EPGProgram, EPGProvider, no_endtime
-
-log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 
 G_CODE = {"0": 0, "1": 7, "2": 12, "3": 15, "4": 19}
 P_CATE = {
@@ -63,7 +60,7 @@ class LG(EPGProvider):
     def get_programs(self) -> None:
         max_ndays = 5
         if int(self.cfg["FETCH_LIMIT"]) > max_ndays:
-            log.warning(
+            self.log.warning(
                 """
 
 ***********************************************************************
@@ -78,19 +75,19 @@ class LG(EPGProvider):
         url = "https://www.lguplus.com/uhdc/fo/prdv/chnlgid/v1/tv-schedule-list"
         params = {"urcBrdCntrTvChnlId": "SVCID", "brdCntrTvChnlBrdDt": "EPGDATE"}
         for idx, _ch in enumerate(self.req_channels):
-            log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)
+            self.log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)
             for nd in range(min(int(self.cfg["FETCH_LIMIT"]), max_ndays)):
                 day = date.today() + timedelta(days=nd)
                 params.update({"urcBrdCntrTvChnlId": _ch.svcid, "brdCntrTvChnlBrdDt": day.strftime("%Y%m%d")})
                 data = self.request(url, params=params) or {}
                 data = data.get("brdCntTvSchIDtoList", [])
                 if not data:
-                    log.warning("EPG 정보가 없거나 없는 채널입니다: %s %s", _ch, day)
+                    self.log.warning("EPG 정보가 없거나 없는 채널입니다: %s %s", _ch, day)
                     break  # 오늘 없으면 내일도 없는 채널로 간주
                 try:
                     _epgs = self.__epgs_of_day(_ch.id, data)
                 except (KeyError, TypeError, ValueError):
-                    log.exception("프로그램 파싱 중 예외: %s, %s", _ch, day)
+                    self.log.exception("프로그램 파싱 중 예외: %s, %s", _ch, day)
                 else:
                     _ch.programs.extend(_epgs)
 

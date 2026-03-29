@@ -1,12 +1,9 @@
-import logging
 from datetime import datetime, timedelta
 from typing import List
 from urllib.parse import quote
 
 from epg2xml.providers import EPGProgram, EPGProvider, no_endtime
 from epg2xml.utils import ParserBeautifulSoup as BeautifulSoup
-
-log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 
 CH_CATE = ["지상파", "종합편성", "케이블", "스카이라이프", "해외위성", "라디오"]
 
@@ -53,15 +50,15 @@ class DAUM(EPGProvider):
     def get_programs(self) -> None:
         url = "https://search.daum.net/search?DA=B3T&w=tot&rtmaxcoll=B3T&q={}"
         for idx, _ch in enumerate(self.req_channels):
-            log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)
+            self.log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)
             search_url = url.format(quote(_ch.svcid + " 편성표"))
             data = self.request(search_url)
             try:
                 _epgs = self.__epgs_of_days(_ch.id, data)
             except ValueError as e:
-                log.warning("%s: %s", e, _ch)
+                self.log.warning("%s: %s", e, _ch)
             except (AttributeError, IndexError, KeyError, TypeError):
-                log.exception("프로그램 파싱 중 예외: %s", _ch)
+                self.log.exception("프로그램 파싱 중 예외: %s", _ch)
             else:
                 _ch.programs.extend(_epgs)
 

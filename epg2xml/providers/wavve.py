@@ -1,4 +1,3 @@
-import logging
 from datetime import date, datetime, timedelta
 from functools import lru_cache
 from typing import List
@@ -6,7 +5,6 @@ from xml.sax.saxutils import unescape
 
 from epg2xml.providers import EPGProgram, EPGProvider
 
-log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 today = date.today()
 
 
@@ -141,12 +139,12 @@ class WAVVE(EPGProvider):
                     channeldict[cid] += toappend
 
         for idx, _ch in enumerate(self.req_channels):
-            log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)
+            self.log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)
             for program in channeldict[_ch.svcid]:
                 try:
                     _epg = self.__epg_of_program(_ch.id, program)
                 except (AttributeError, KeyError, TypeError, ValueError):
-                    log.exception("프로그램 파싱 중 예외: %s", _ch)
+                    self.log.exception("프로그램 파싱 중 예외: %s", _ch)
                 else:
                     _ch.programs.append(_epg)
 
@@ -161,5 +159,5 @@ class WAVVE(EPGProvider):
                 return None
             return self.__get(f"/fz/vod/contents-detail/{data['content_id'].strip()}")
         except (AttributeError, KeyError, TypeError, ValueError):
-            log.exception("프로그램 상세 정보 요청 중 예외: %s", programid)
+            self.log.exception("프로그램 상세 정보 요청 중 예외: %s", programid)
             return None

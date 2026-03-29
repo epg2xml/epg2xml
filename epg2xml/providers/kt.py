@@ -1,4 +1,3 @@
-import logging
 import re
 from datetime import date, datetime, timedelta
 from typing import List
@@ -8,8 +7,6 @@ from bs4 import SoupStrainer
 
 from epg2xml.providers import EPGProgram, EPGProvider, no_endtime
 from epg2xml.utils import ParserBeautifulSoup as BeautifulSoup
-
-log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 
 CH_CATE = [
     # 0은 전체 채널
@@ -79,7 +76,7 @@ class KT(EPGProvider):
             "seldate": "EPGDATE",
         }
         for idx, _ch in enumerate(self.req_channels):
-            log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)
+            self.log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)
             for nd in range(int(self.cfg["FETCH_LIMIT"])):
                 day = date.today() + timedelta(days=nd)
                 params.update({"service_ch_no": _ch.svcid, "seldate": day.strftime("%Y%m%d")})
@@ -87,7 +84,7 @@ class KT(EPGProvider):
                 try:
                     _epgs = self.__epgs_of_day(_ch.id, data, day)
                 except (AttributeError, IndexError, KeyError, TypeError, ValueError):
-                    log.exception("프로그램 파싱 중 예외: %s, %s", _ch, day)
+                    self.log.exception("프로그램 파싱 중 예외: %s, %s", _ch, day)
                 else:
                     _ch.programs.extend(_epgs)
 

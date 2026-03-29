@@ -46,7 +46,7 @@ def setup_root_logger(
         handler = logging.StreamHandler()
 
     if formatter is None:
-        log_fmt = "%(asctime)-15s %(levelname)-8s %(name)-7s %(lineno)4d: %(message)s"
+        log_fmt = "%(asctime)-15s %(levelname)-8s %(name)-7s: %(message)s"
         formatter = logging.Formatter(log_fmt, datefmt="%Y/%m/%d %H:%M:%S")
 
     handler.setFormatter(formatter)

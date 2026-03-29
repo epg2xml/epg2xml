@@ -1,4 +1,3 @@
-import logging
 from datetime import date, datetime, timedelta
 from itertools import islice
 from typing import List
@@ -10,7 +9,6 @@ except ImportError:
 
 from epg2xml.providers import EPGProgram, EPGProvider
 
-log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 today = date.today()
 
 PRIORITY_IMG_CODE = ["CAIC2300", "CAIC1600", "CAIC0100", "CAIC0400"]
@@ -140,11 +138,11 @@ class TVING(EPGProvider):
                         schdict[chcode] += toappend
 
             for idx, _ch in enumerate(chgroup):
-                log.info("%03d/%03d %s", gid * 20 + idx + 1, len(self.req_channels), _ch)
+                self.log.info("%03d/%03d %s", gid * 20 + idx + 1, len(self.req_channels), _ch)
                 try:
                     _epgs = self.__epgs_of_channel(_ch.id, schdict[_ch.svcid])
                 except (KeyError, TypeError, ValueError):
-                    log.exception("프로그램 파싱 중 예외: %s", _ch)
+                    self.log.exception("프로그램 파싱 중 예외: %s", _ch)
                 else:
                     _ch.programs.extend(_epgs)
 

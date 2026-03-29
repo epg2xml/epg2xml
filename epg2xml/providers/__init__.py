@@ -422,6 +422,7 @@ class EPGProvider:
 
     def __init__(self, cfg: dict):
         self.provider_name = self.__class__.__name__
+        self.log = PrefixLogger(log, f"[{self.provider_name:5s}]")
         self.cfg = cfg
         # session
         sess_kwargs = {"headers": {"Referer": self.referer}}
@@ -450,12 +451,10 @@ class EPGProvider:
             except (json.decoder.JSONDecodeError, ValueError):
                 ret = r.text
         except requests.exceptions.RequestException as e:
-            log.error("요청 중 에러: %s", e)
+            self.log.error("요청 중 에러: %s", e)
         return ret
 
     def load_svc_channels(self, channeljson: dict = None) -> None:
-        plog = PrefixLogger(log, f"[{self.provider_name:5s}]")
-
         # check if update required
         try:
             channelinfo = channeljson[self.provider_name.upper()]
@@ -466,30 +465,29 @@ class EPGProvider:
             updated_at = datetime.fromisoformat(channelinfo["UPDATED"])
             if (datetime.now() - updated_at).total_seconds() <= 3600 * 24 * 4:
                 self.svc_channels = channels
-                plog.info("%03d service channels loaded from cache", len(channels))
+                self.log.info("%03d service channels loaded from cache", len(channels))
                 return
-            plog.debug("Updating service channels as outdated...")
+            self.log.debug("Updating service channels as outdated...")
         except (KeyError, TypeError, ValueError) as e:
-            plog.debug("Updating service channels as cache broken: %s", e)
+            self.log.debug("Updating service channels as cache broken: %s", e)
 
         try:
             channels = self.get_svc_channels()
         except (AttributeError, KeyError, TypeError, ValueError):
-            plog.exception("Exception while retrieving service channels:")
+            self.log.exception("Exception while retrieving service channels:")
         else:
             self.svc_channels = channels
             self.was_channel_updated = True
-            plog.info("%03d service channels successfully fetched from server", len(channels))
+            self.log.info("%03d service channels successfully fetched from server", len(channels))
 
     def get_svc_channels(self) -> List[dict]:
         raise NotImplementedError("method 'get_svc_channels' must be implemented")
 
     def load_req_channels(self) -> None:
         """from MY_CHANNELS to req_channels"""
-        plog = PrefixLogger(log, f"[{self.provider_name:5s}]")
         my_channels = self.cfg["MY_CHANNELS"]
         if my_channels == "*":
-            plog.debug("Overriding all MY_CHANNELS by service channels...")
+            self.log.debug("Overriding all MY_CHANNELS by service channels...")
             my_channels = self.svc_channels
         if not my_channels:
             return
@@ -497,11 +495,11 @@ class EPGProvider:
         svc_channels = {x["ServiceId"]: x for x in self.svc_channels}
         for my_no, my_ch in enumerate(my_channels):
             if "ServiceId" not in my_ch:
-                plog.warning("'ServiceId' Not Found: %s", my_ch)
+                self.log.warning("'ServiceId' Not Found: %s", my_ch)
                 continue
             req_ch = svc_channels.pop(my_ch["ServiceId"], None)
             if req_ch is None:
-                plog.warning("'ServiceId' Not in Service: %s", my_ch)
+                self.log.warning("'ServiceId' Not in Service: %s", my_ch)
                 continue
             for _k, _v in my_ch.items():
                 if _v:
@@ -512,12 +510,12 @@ class EPGProvider:
                 try:
                     req_ch["Id"] = render_id_format(self.cfg["ID_FORMAT"], req_ch)
                 except (KeyError, TypeError, ValueError, SyntaxError) as e:
-                    plog.warning("Invalid ID_FORMAT '%s': %s", self.cfg["ID_FORMAT"], e)
+                    self.log.warning("Invalid ID_FORMAT '%s': %s", self.cfg["ID_FORMAT"], e)
                     req_ch["Id"] = f'{req_ch["ServiceId"]}.{req_ch["Source"].lower()}'
             if not self.cfg["ADD_CHANNEL_ICON"]:
                 req_ch.pop("Icon_url", None)
             req_channels.append(EPGChannel.fromdict(**req_ch))
-        plog.info(
+        self.log.info(
             "요청 %3d - 불가 %3d = 최종 %3d", len(my_channels), len(my_channels) - len(req_channels), len(req_channels)
         )
         self.req_channels = req_channels

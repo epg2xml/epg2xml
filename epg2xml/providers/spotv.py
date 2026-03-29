@@ -1,11 +1,8 @@
-import logging
 from datetime import date, datetime, timedelta
 from typing import List
 
 from epg2xml.providers import EPGProgram, EPGProvider
 from epg2xml.utils import time_to_td
-
-log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 
 
 class SPOTV(EPGProvider):
@@ -34,7 +31,7 @@ class SPOTV(EPGProvider):
     def get_programs(self) -> None:
         max_ndays = 5
         if int(self.cfg["FETCH_LIMIT"]) > max_ndays:
-            log.warning(
+            self.log.warning(
                 """
 
 ***********************************************************************
@@ -52,7 +49,7 @@ class SPOTV(EPGProvider):
             url = "https://www.spotvnow.co.kr/api/v3/program/" + day.strftime("%Y-%m-%d")
             response = self.request(url)
             if not isinstance(response, list):
-                log.warning("예상치 못한 응답: %s", type(response).__name__)
+                self.log.warning("예상치 못한 응답: %s", type(response).__name__)
                 continue
             data.extend(response)
 
@@ -67,13 +64,13 @@ class SPOTV(EPGProvider):
             _data.append(item)
 
         for idx, _ch in enumerate(self.req_channels):
-            log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)
+            self.log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)
             try:
                 _epgs = self.__epgs_of_channel(_ch.id, _data, _ch.svcid)
             except ValueError as e:
-                log.warning("%s: %s", e, _ch)
+                self.log.warning("%s: %s", e, _ch)
             except (AttributeError, KeyError, TypeError):
-                log.exception("프로그램 파싱 중 예외: %s", _ch)
+                self.log.exception("프로그램 파싱 중 예외: %s", _ch)
             else:
                 _ch.programs.extend(_epgs)
 

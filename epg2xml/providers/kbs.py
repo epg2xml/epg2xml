@@ -1,13 +1,10 @@
 import json
-import logging
 import re
 from datetime import date, datetime, timedelta
 from typing import List
 
 from epg2xml.providers import EPGProgram, EPGProvider
 from epg2xml.utils import norm_text, time_to_td
-
-log = logging.getLogger(__name__.rsplit(".", maxsplit=1)[-1].upper())
 
 
 class KBS(EPGProvider):
@@ -50,7 +47,7 @@ class KBS(EPGProvider):
         max_ndays = 7
         fetch_days = min(int(self.cfg["FETCH_LIMIT"]), max_ndays)
         if int(self.cfg["FETCH_LIMIT"]) > max_ndays:
-            log.warning(
+            self.log.warning(
                 """
 
 ***********************************************************************
@@ -98,15 +95,15 @@ class KBS(EPGProvider):
                 try:
                     sch_map = self.__build_schedule_map(data)
                 except (KeyError, TypeError, ValueError):
-                    log.exception("프로그램 응답 처리 중 예외: endpoint=%s params=%s", endpoint, params)
+                    self.log.exception("프로그램 응답 처리 중 예외: endpoint=%s params=%s", endpoint, params)
                     continue
 
                 for idx, _ch, _, _, channel_code in batch:
-                    log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)
+                    self.log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)
                     try:
                         _epgs = self.__epgs_of_channel(_ch.id, sch_map.get((local_station_code, channel_code), []))
                     except (KeyError, TypeError, ValueError):
-                        log.exception("프로그램 파싱 중 예외: %s", _ch)
+                        self.log.exception("프로그램 파싱 중 예외: %s", _ch)
                         continue
                     _ch.programs.extend(_epgs)
 
@@ -133,7 +130,7 @@ class KBS(EPGProvider):
             try:
                 _epg = self.__epg_of_program(channelid, sch)
             except (KeyError, TypeError, ValueError):
-                log.exception("프로그램 파싱 중 예외: %s", sch)
+                self.log.exception("프로그램 파싱 중 예외: %s", sch)
                 continue
 
             dedup_key = sch.get("schedule_unique_id") or (channelid, _epg.stime, _epg.title)
