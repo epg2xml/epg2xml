@@ -116,6 +116,17 @@ class FakeXmlProvider:
         writer.write('  <programme channel="fake"></programme>\n')
 
 
+class FakeCacheProvider:
+    def __init__(self, provider_name, svc_channels=None, was_channel_updated=False):
+        self.provider_name = provider_name
+        self.svc_channels = list(svc_channels or [])
+        self.was_channel_updated = was_channel_updated
+
+    def load_svc_channels(self, channeljson=None):
+        del channeljson
+        return None
+
+
 class TestProvider(unittest.TestCase):
     def make_handler(self, *providers):
         handler = EPGHandler.__new__(EPGHandler)
@@ -243,6 +254,30 @@ class TestProvider(unittest.TestCase):
 
         with self.assertRaises(RuntimeError):
             handler.get_programs(parallel=True)
+
+    def test_load_channels_preserves_cached_data_for_providers_not_updated(self):
+        cached_a = [{"Name": "A-old", "ServiceId": "1"}]
+        cached_b = [{"Name": "B-old", "ServiceId": "2"}]
+        updated_a = [{"Name": "A-new", "ServiceId": "1"}]
+        channeljson = {
+            "A": {"UPDATED": datetime.now().isoformat(), "TOTAL": 1, "CHANNELS": cached_a},
+            "B": {"UPDATED": datetime.now().isoformat(), "TOTAL": 1, "CHANNELS": cached_b},
+        }
+
+        provider_a = FakeCacheProvider("A", svc_channels=updated_a, was_channel_updated=True)
+        provider_b = FakeCacheProvider("B", svc_channels=[], was_channel_updated=False)
+        handler = self.make_handler(provider_a, provider_b)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            channelfile = Path(tmpdir) / "Channel.json"
+            channelfile.write_text(providers_module.json.dumps(channeljson), encoding="utf-8")
+
+            handler.load_channels(str(channelfile), parallel=False)
+
+            saved = providers_module.json.loads(channelfile.read_text(encoding="utf-8"))
+
+        self.assertEqual(saved["A"]["CHANNELS"], updated_a)
+        self.assertEqual(saved["B"]["CHANNELS"], cached_b)
 
     def test_sqlite_round_trip_preserves_channel_and_program_order(self):
         channel = EPGChannel("kt.id", "KT", "svc1", "Channel A")

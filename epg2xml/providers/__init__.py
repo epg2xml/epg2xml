@@ -600,8 +600,9 @@ class EPGHandler:
         else:
             for p in self.providers:
                 p.load_svc_channels(channeljson=channeljson)
-        if any(p.was_channel_updated for p in self.providers):
-            for p in self.providers:
+        updated_providers = [p for p in self.providers if p.was_channel_updated]
+        if updated_providers:
+            for p in updated_providers:
                 channeljson[p.provider_name.upper()] = {
                     "UPDATED": datetime.now().isoformat(),
                     "TOTAL": len(p.svc_channels),
