@@ -111,7 +111,7 @@ class LG(EPGProvider):
                 _epg.title_sub = m.group(2)
                 _epg.ep_num = m.group(3)
                 _epg.rebroadcast = bool(m.group(4))
-            if P_CATE[p["urcBrdCntrTvSchdGnreCd"]]:
-                _epg.add_category(P_CATE[p["urcBrdCntrTvSchdGnreCd"]])
+            if category := P_CATE.get(p["urcBrdCntrTvSchdGnreCd"]):
+                _epg.add_category(category)
             _epgs.append(_epg)
         return _epgs

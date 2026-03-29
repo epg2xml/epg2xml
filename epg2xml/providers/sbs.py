@@ -1,7 +1,7 @@
 from datetime import date, datetime, timedelta
 from typing import List
 
-from epg2xml.providers import EPGProgram, EPGProvider, no_endtime
+from epg2xml.providers import EPGChannel, EPGProgram, EPGProvider, no_endtime
 from epg2xml.utils import norm_text, time_to_td
 
 
@@ -63,12 +63,12 @@ class SBS(EPGProvider):
                     continue
                 ch.programs.extend(epgs)
 
-    def __epgs_of_day(self, ch, day: date) -> List[EPGProgram]:
+    def __epgs_of_day(self, ch: EPGChannel, day: date) -> List[EPGProgram]:
         url = self.schedule_url.format(
             year=int(day.year),
             month=int(day.month),
             day=int(day.day),
-            schedule_name=self.SUPPORTED_CHANNELS.get(ch.svcid),
+            schedule_name=self.SUPPORTED_CHANNELS[ch.svcid],
         )
         data = self.request(url)
         if not isinstance(data, list):

@@ -27,10 +27,10 @@ class NAVER(EPGProvider):
     """
 
     referer = "https://m.search.naver.com/search.naver?where=m&query=%ED%8E%B8%EC%84%B1%ED%91%9C"
+    search_url = "https://m.search.naver.com/p/csearch/content/nqapirender.nhn"
 
     def get_svc_channels(self) -> List[dict]:
         svc_channels = []
-        url = "https://m.search.naver.com/p/csearch/content/nqapirender.nhn"
         params = {
             "key": "ScheduleChannelList",
             "where": "nexearch",
@@ -39,7 +39,7 @@ class NAVER(EPGProvider):
         }
         for c in CH_CATE:
             params.update({"u1": c["u1"]})
-            data = self.request(url, params=params)
+            data = self.request(self.search_url, params=params)
             if data["statusCode"].lower() != "success":
                 self.log.error("유효한 응답이 아닙니다: %s", data["statusCode"])
                 continue
@@ -47,7 +47,7 @@ class NAVER(EPGProvider):
             for ch in soup.select('li[class="item"]'):
                 try:
                     svcid = ch.select("div > div[data-cid]")[0]["data-cid"]
-                    name = str(ch.select('div[class="channel_name"] > a')[0].text)
+                    name = ch.select('div[class="channel_name"] > a')[0].text
                     svc_channels.append(
                         {
                             "Name": name,
@@ -61,7 +61,6 @@ class NAVER(EPGProvider):
 
     @no_endtime
     def get_programs(self) -> None:
-        url = "https://m.search.naver.com/p/csearch/content/nqapirender.nhn"
         params = {"key": "SingleChannelDailySchedule", "where": "m", "pkid": "66", "u1": "SVCID", "u2": "EPGDATE"}
 
         for idx, _ch in enumerate(self.req_channels):
@@ -69,7 +68,7 @@ class NAVER(EPGProvider):
             for nd in range(int(self.cfg["FETCH_LIMIT"])):
                 day = today + timedelta(days=nd)
                 params.update({"u1": _ch.svcid, "u2": day.strftime("%Y%m%d")})
-                data = self.request(url, params=params)
+                data = self.request(self.search_url, params=params)
                 if data["statusCode"].lower() != "success":
                     self.log.error("유효한 응답이 아닙니다: %s %s", _ch, data["statusCode"])
                     continue
@@ -88,11 +87,12 @@ class NAVER(EPGProvider):
             _epg = EPGProgram(channelid)
             _epg.title = unescape(cell[4].text.strip())
             _epg.stime = datetime.strptime(f"{str(day)} {cell[1].text.strip()}", "%Y-%m-%d %H:%M")
-            for span in cell[3].findAll("span"):
+            for span in cell[3].find_all("span"):
+                span_classes = span.get("class", [])
                 span_txt = span.text.strip()
-                if "ico_age" in span["class"]:
+                if "ico_age" in span_classes:
                     _epg.rating = int(span_txt.rstrip("세"))
-                elif "re" in span["class"]:
+                elif "re" in span_classes:
                     _epg.rebroadcast = True
                 else:
                     _epg.add_extra(span_txt)

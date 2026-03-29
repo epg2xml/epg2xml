@@ -88,7 +88,7 @@ class SK(EPGProvider):
                 else:
                     _ch.programs.extend(_epgs)
 
-    def __epgs_of_day(self, channelid: str, data: list, day: datetime) -> List[EPGProgram]:
+    def __epgs_of_day(self, channelid: str, data: list, day: date) -> List[EPGProgram]:
         _epgs = []
         for info in data:
             if info["eventDt"] != day.strftime("%Y%m%d"):
@@ -103,8 +103,8 @@ class SK(EPGProvider):
             _epg.rating = int(info.get("cdRating") or "0")
             _epg.stime = datetime.strptime(info["dtEventStart"], "%Y%m%d%H%M%S")
             _epg.etime = datetime.strptime(info["dtEventEnd"], "%Y%m%d%H%M%S")
-            if info["cdGenre"] and (info["cdGenre"] in GENRE_CODE):
-                _epg.add_category(GENRE_CODE[info["cdGenre"]])
-            _epg.desc = info["nmSynop"] or None  # 값이 없음
+            if genre := GENRE_CODE.get(info["cdGenre"]):
+                _epg.add_category(genre)
+            _epg.desc = info["nmSynop"]
             _epgs.append(_epg)
         return _epgs

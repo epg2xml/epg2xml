@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
 from typing import List
-from urllib.parse import quote
 
 from epg2xml.providers import EPGProgram, EPGProvider, no_endtime
 from epg2xml.utils import ParserBeautifulSoup as BeautifulSoup
@@ -19,22 +18,22 @@ class DAUM(EPGProvider):
     """
 
     referer = None
+    search_url = "https://search.daum.net/search?DA=B3T&w=tot&rtmaxcoll=B3T&q={} 편성표"
     title_regex = r"^(?P<title>.*?)\s?([\<\(]?(?P<part>\d{1})부[\>\)]?)?\s?(<(?P<subname1>.*)>)?\s?((?P<epnum>\d+)회)?\s?(<(?P<subname2>.*)>)?$"
 
     def get_svc_channels(self) -> List[dict]:
         svc_channels = []
-        url = "https://search.daum.net/search?DA=B3T&w=tot&rtmaxcoll=B3T&q={}"
         channelsel1 = '#channelNaviLayer > div[class^="layer_tv layer_all"] ul > li'
         channelsel2 = 'div[class="wrap_sub"] > span > a'
         for c in CH_CATE:
-            search_url = url.format(f"{c} 편성표")
-            data = self.request(search_url)
+            url = self.search_url.format(c)
+            data = self.request(url)
             soup = BeautifulSoup(data)
             if not soup.find_all(attrs={"disp-attr": "B3T"}):
                 continue
-            all_channels = [str(x.text.strip()) for x in soup.select(channelsel1)]
+            all_channels = [x.text.strip() for x in soup.select(channelsel1)]
             if not all_channels:
-                all_channels += [str(x.text.strip()) for x in soup.select(channelsel2)]
+                all_channels += [x.text.strip() for x in soup.select(channelsel2)]
             svc_cate = c.replace("스카이라이프", "SKYLIFE")
             for x in all_channels:
                 svc_channels.append(
@@ -48,11 +47,10 @@ class DAUM(EPGProvider):
 
     @no_endtime
     def get_programs(self) -> None:
-        url = "https://search.daum.net/search?DA=B3T&w=tot&rtmaxcoll=B3T&q={}"
         for idx, _ch in enumerate(self.req_channels):
             self.log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)
-            search_url = url.format(quote(_ch.svcid + " 편성표"))
-            data = self.request(search_url)
+            url = self.search_url.format(_ch.svcid)
+            data = self.request(url)
             try:
                 _epgs = self.__epgs_of_days(_ch.id, data)
             except ValueError as e:

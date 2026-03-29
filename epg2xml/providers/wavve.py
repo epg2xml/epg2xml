@@ -121,7 +121,7 @@ class WAVVE(EPGProvider):
 
     def get_programs(self) -> None:
         # parameters for requests
-        channeldict = {}
+        channel_map = {}
         params = {"genre": "all", "limit": 500, "offset": 0}
         for nd in range(int(self.cfg["FETCH_LIMIT"])):
             day = (today + timedelta(days=nd)).strftime("%Y-%m-%d")
@@ -131,16 +131,16 @@ class WAVVE(EPGProvider):
                 params.update({"startdatetime": f"{day} {t*3:02d}:00", "enddatetime": f"{day} {t*3+3:02d}:00"})
                 for ch in self.__get("/live/epgs", params=params)["list"]:
                     cid = ch["channelid"]
-                    channeldict.setdefault(cid, [])
+                    channel_map.setdefault(cid, [])
                     toappend = ch.get("list") or []
                     # 3시간 단위로 요청된 스케줄 앞 뒤로 중복이 있을 수 있다.
-                    if channeldict[cid] and toappend and channeldict[cid][-1] == toappend[0]:
+                    if channel_map[cid] and toappend and channel_map[cid][-1] == toappend[0]:
                         toappend = toappend[1:]
-                    channeldict[cid] += toappend
+                    channel_map[cid] += toappend
 
         for idx, _ch in enumerate(self.req_channels):
             self.log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)
-            for program in channeldict[_ch.svcid]:
+            for program in channel_map[_ch.svcid]:
                 try:
                     _epg = self.__epg_of_program(_ch.id, program)
                 except (AttributeError, KeyError, TypeError, ValueError):

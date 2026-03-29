@@ -15,17 +15,18 @@ class SPOTV(EPGProvider):
     """
 
     referer = "https://www.spotvnow.co.kr/channel"
+    channel_url = "https://www.spotvnow.co.kr/api/v3/channel"
+    program_url = "https://www.spotvnow.co.kr/api/v3/program/{day}"
     title_regex = r"\s?(?:\[(.*?)\])?\s?(.*?)\s?(?:[\(<](.*)[\)>])?\s?(?:-(\d+))?\s?(?:<?([\d,]+)회>?)?\s?$"
 
     def get_svc_channels(self) -> List[dict]:
-        url = "https://www.spotvnow.co.kr/api/v3/channel"
         return [
             {
                 "Name": ch["name"],
                 "ServiceId": ch["id"],
                 "Icon_url": ch["logo"],
             }
-            for ch in self.request(url)
+            for ch in self.request(self.channel_url)
         ]
 
     def get_programs(self) -> None:
@@ -46,27 +47,26 @@ class SPOTV(EPGProvider):
         data = []
         for nd in range(min(int(self.cfg["FETCH_LIMIT"]), max_ndays)):
             day = date.today() + timedelta(days=nd)
-            url = "https://www.spotvnow.co.kr/api/v3/program/" + day.strftime("%Y-%m-%d")
-            response = self.request(url)
+            response = self.request(self.program_url.format(day=day.strftime("%Y-%m-%d")))
             if not isinstance(response, list):
                 self.log.warning("예상치 못한 응답: %s", type(response).__name__)
                 continue
             data.extend(response)
 
         # 날짜 경계에서 같은 편성이 중복으로 내려오는 경우를 제거한다.
-        _data = []
+        deduped = []
         seen = set()
         for item in data:
             key = (item.get("channelId"), item.get("startTime"), item.get("endTime"))
             if key in seen:
                 continue
             seen.add(key)
-            _data.append(item)
+            deduped.append(item)
 
         for idx, _ch in enumerate(self.req_channels):
             self.log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)
             try:
-                _epgs = self.__epgs_of_channel(_ch.id, _data, _ch.svcid)
+                _epgs = self.__epgs_of_channel(_ch.id, deduped, _ch.svcid)
             except ValueError as e:
                 self.log.warning("%s: %s", e, _ch)
             except (AttributeError, KeyError, TypeError):
@@ -74,7 +74,7 @@ class SPOTV(EPGProvider):
             else:
                 _ch.programs.extend(_epgs)
 
-    def __epgs_of_channel(self, channelid: str, data: dict, svcid: str) -> List[EPGProgram]:
+    def __epgs_of_channel(self, channelid: str, data: List[dict], svcid: str) -> List[EPGProgram]:
         programs = [x for x in data if x["channelId"] == svcid]
         if not programs:
             raise ValueError("EPG 정보가 없거나 없는 채널입니다")

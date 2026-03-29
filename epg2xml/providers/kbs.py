@@ -125,7 +125,7 @@ class KBS(EPGProvider):
         return sch_map
 
     def __epgs_of_channel(self, channelid: str, schedules: List[dict]) -> List[EPGProgram]:
-        epg_items = []
+        unique = {}
         for sch in schedules:
             try:
                 _epg = self.__epg_of_program(channelid, sch)
@@ -134,13 +134,8 @@ class KBS(EPGProvider):
                 continue
 
             dedup_key = sch.get("schedule_unique_id") or (channelid, _epg.stime, _epg.title)
-            epg_items.append((dedup_key, _epg))
-
-        # dedup by stable schedule key if provided; fallback to (stime,title)
-        unique = {}
-        for key, epg in epg_items:
-            unique[key] = epg
-        return sorted(unique.values(), key=lambda x: x.stime)
+            unique[dedup_key] = _epg
+        return list(unique.values())
 
     def __epg_of_program(self, channelid: str, sch: dict) -> EPGProgram:
         _epg = EPGProgram(channelid)

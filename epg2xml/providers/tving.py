@@ -79,20 +79,27 @@ class TVING(EPGProvider):
                 break
         return _results
 
-    def get_svc_channels(self) -> List[dict]:
-        def get_imgurl(_item: dict):
-            for _code in PRIORITY_IMG_CODE:
-                image_list = _item.get("image")
-                if not isinstance(image_list, list):
-                    continue
-                img_list = [x for x in image_list if x.get("code") == _code]
-                if not img_list:
-                    continue
-                image_url = img_list[0].get("url") or img_list[0].get("url2")
-                if image_url:
-                    return "https://image.tving.com" + image_url
-            return None
+    def __grouper(self, iterable, n):
+        it = iter(iterable)
+        group = tuple(islice(it, n))
+        while group:
+            yield group
+            group = tuple(islice(it, n))
 
+    def __get_imgurl(self, item: dict):
+        for code in PRIORITY_IMG_CODE:
+            image_list = item.get("image")
+            if not isinstance(image_list, list):
+                continue
+            img_list = [x for x in image_list if x.get("code") == code]
+            if not img_list:
+                continue
+            image_url = img_list[0].get("url") or img_list[0].get("url2")
+            if image_url:
+                return "https://image.tving.com" + image_url
+        return None
+
+    def get_svc_channels(self) -> List[dict]:
         params = {
             "broadDate": today.strftime("%Y%m%d"),
             "broadcastDate": today.strftime("%Y%m%d"),
@@ -102,7 +109,7 @@ class TVING(EPGProvider):
         return [
             {
                 "Name": x["channel_name"]["ko"],
-                "Icon_url": get_imgurl(x),
+                "Icon_url": self.__get_imgurl(x),
                 "ServiceId": x["channel_code"],
                 "Category": x["schedules"][0]["channel"]["category_name"]["ko"],
             }
@@ -111,16 +118,9 @@ class TVING(EPGProvider):
         ]
 
     def get_programs(self) -> None:
-        def grouper(iterable, n):
-            it = iter(iterable)
-            group = tuple(islice(it, n))
-            while group:
-                yield group
-                group = tuple(islice(it, n))
-
-        for gid, chgroup in enumerate(grouper(self.req_channels, 20)):
-            schdict = {}
-            params = {"channelCode": ",".join([x.svcid.strip() for x in chgroup])}
+        for gid, chgroup in enumerate(self.__grouper(self.req_channels, 20)):
+            schedule_map = {}
+            params = {"channelCode": ",".join(x.svcid.strip() for x in chgroup)}
             for nd in range(int(self.cfg["FETCH_LIMIT"])):
                 day = today + timedelta(days=nd)
                 params.update({"broadDate": day.strftime("%Y%m%d"), "broadcastDate": day.strftime("%Y%m%d")})
@@ -130,17 +130,17 @@ class TVING(EPGProvider):
                     params.update({"startBroadTime": f"{t*3:02d}0000", "endBroadTime": f"{t*3+3:02d}0000"})
                     for ch in self.__get(self.url, params=params):
                         chcode = ch["channel_code"]
-                        schdict.setdefault(chcode, [])
+                        schedule_map.setdefault(chcode, [])
                         toappend = ch.get("schedules") or []
                         # 3시간 단위로 요청된 스케줄 앞 뒤로 중복이 있을 수 있다.
-                        if schdict[chcode] and toappend and schdict[chcode][-1] == toappend[0]:
+                        if schedule_map[chcode] and toappend and schedule_map[chcode][-1] == toappend[0]:
                             toappend = toappend[1:]
-                        schdict[chcode] += toappend
+                        schedule_map[chcode] += toappend
 
             for idx, _ch in enumerate(chgroup):
                 self.log.info("%03d/%03d %s", gid * 20 + idx + 1, len(self.req_channels), _ch)
                 try:
-                    _epgs = self.__epgs_of_channel(_ch.id, schdict[_ch.svcid])
+                    _epgs = self.__epgs_of_channel(_ch.id, schedule_map[_ch.svcid])
                 except (KeyError, TypeError, ValueError):
                     self.log.exception("프로그램 파싱 중 예외: %s", _ch)
                 else:
