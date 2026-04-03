@@ -248,6 +248,12 @@ class Config:
 
     def get_settings(self):
         setts = {}
+        initial_loglevel = (
+            self.args.get("loglevel")
+            or os.environ.get(self.base_settings["loglevel"]["env"])
+            or self.base_settings["loglevel"]["default"]
+        )
+        logging.getLogger().setLevel(initial_loglevel)
         for name, data in self.base_settings.items():
             # Argrument priority: cmd < environment < default
             try:
