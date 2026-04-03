@@ -24,6 +24,73 @@ def dump_json(file_path, data) -> int:
         return f.write(txt)
 
 
+def strip_json_comments(text: str) -> str:
+    result = []
+    in_string = False
+    in_line_comment = False
+    in_block_comment = False
+    escaped = False
+    index = 0
+
+    while index < len(text):
+        char = text[index]
+        next_char = text[index + 1] if index + 1 < len(text) else ""
+
+        if in_line_comment:
+            if char == "\n":
+                in_line_comment = False
+                result.append(char)
+            index += 1
+            continue
+
+        if in_block_comment:
+            if char == "*" and next_char == "/":
+                in_block_comment = False
+                index += 2
+                continue
+            if char in "\r\n":
+                result.append(char)
+            index += 1
+            continue
+
+        if in_string:
+            result.append(char)
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            index += 1
+            continue
+
+        if char == '"':
+            in_string = True
+            result.append(char)
+            index += 1
+            continue
+
+        if char == "/" and next_char == "/":
+            in_line_comment = True
+            index += 2
+            continue
+
+        if char == "/" and next_char == "*":
+            in_block_comment = True
+            index += 2
+            continue
+
+        result.append(char)
+        index += 1
+
+    return "".join(result)
+
+
+def load_json(file_path):
+    with open(file_path, "r", encoding="utf-8") as f:
+        return json.loads(strip_json_comments(f.read()))
+
+
 def norm_text(value) -> Optional[str]:
     if value is None:
         return None

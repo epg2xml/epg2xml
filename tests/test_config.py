@@ -23,6 +23,7 @@ bs4.FeatureNotFound = DummyFeatureNotFound
 sys.modules.setdefault("bs4", bs4)
 
 from epg2xml.config import Config, ConfigUpgradeRequired
+from epg2xml.utils import load_json, strip_json_comments
 
 
 class TestConfig(unittest.TestCase):
@@ -60,6 +61,27 @@ class TestConfig(unittest.TestCase):
                 config.load()
 
             self.assertTrue(config_path.exists())
+
+    def test_strip_json_comments_removes_line_and_block_comments(self):
+        source = '{\n  "a": 1, // comment\n  /* block */ "b": 2\n}'
+
+        stripped = strip_json_comments(source)
+
+        self.assertEqual(stripped, '{\n  "a": 1, \n   "b": 2\n}')
+
+    def test_strip_json_comments_preserves_comment_tokens_inside_strings(self):
+        source = '{ "url": "http://a//b", "text": "/* keep */" }'
+
+        self.assertEqual(strip_json_comments(source), source)
+
+    def test_load_json_accepts_comments(self):
+        source = '{\n  "a": 1, // comment\n  "url": "http://a//b",\n  /* block */ "b": 2\n}'
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config_path = Path(tmpdir) / "config.json"
+            config_path.write_text(source, encoding="utf-8")
+
+            self.assertEqual(load_json(config_path), {"a": 1, "url": "http://a//b", "b": 2})
 
 
 if __name__ == "__main__":

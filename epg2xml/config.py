@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Union
 
 from epg2xml import __description__, __title__, __url__, __version__
-from epg2xml.utils import dump_json
+from epg2xml.utils import dump_json, load_json
 
 # suppress modules logging
 logging.getLogger("requests").setLevel(logging.ERROR)
@@ -229,13 +229,12 @@ class Config:
             raise ConfigUpgradeRequired(self.settings["config"])
 
         try:
-            with open(self.settings["config"], "r", encoding="utf-8") as fp:
-                cfg, upgraded = self.upgrade_configs(json.load(fp))
+            cfg, upgraded = self.upgrade_configs(load_json(self.settings["config"]))
 
-                # Save config if upgraded
-                if upgraded:
-                    self.save(cfg)
-                    raise ConfigUpgradeRequired(self.settings["config"])
+            # Save config if upgraded
+            if upgraded:
+                self.save(cfg)
+                raise ConfigUpgradeRequired(self.settings["config"])
 
             self.load_with_hidden(cfg)
         except (json.decoder.JSONDecodeError, ValueError) as exc:
