@@ -130,7 +130,7 @@ pip install "epg2xml[lxml] @ git+https://github.com/epg2xml/epg2xml.git@{tag_bra
   "GLOBAL": {
     "ENABLED": true,
     "FETCH_LIMIT": 2,
-    "ID_FORMAT": "{ServiceId}.{Source.lower()}",
+    "ID_FORMAT": "{No}.{Source.lower()}",
     "ADD_REBROADCAST_TO_TITLE": false,
     "ADD_EPNUM_TO_TITLE": true,
     "ADD_DESCRIPTION": true,

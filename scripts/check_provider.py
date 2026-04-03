@@ -14,7 +14,7 @@ from epg2xml import __title__, __version__
 CFG = {
     "ENABLED": True,
     "FETCH_LIMIT": 2,
-    "ID_FORMAT": "{ServiceId}.{Source.lower()}",
+    "ID_FORMAT": "{No}.{Source.lower()}",
     "ADD_REBROADCAST_TO_TITLE": False,
     "ADD_EPNUM_TO_TITLE": True,
     "ADD_DESCRIPTION": True,
@@ -43,9 +43,6 @@ def setup_logging():
 
 def build_provider(provider_name: str):
     cfg = dict(CFG)
-    if provider_name.lower() in ["daum", "kbs", "mbc"]:
-        cfg["ID_FORMAT"] = "{No}.{Source.lower()}"
-
     module = import_module(f"epg2xml.providers.{provider_name.lower()}")
     provider = getattr(module, provider_name.upper())(cfg)
     return provider
