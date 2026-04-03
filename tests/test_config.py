@@ -2,6 +2,7 @@ import sys
 import tempfile
 import types
 import unittest
+import os
 from pathlib import Path
 from unittest.mock import patch
 
@@ -82,6 +83,28 @@ class TestConfig(unittest.TestCase):
             config_path.write_text(source, encoding="utf-8")
 
             self.assertEqual(load_json(config_path), {"a": 1, "url": "http://a//b", "b": 2})
+
+    def test_get_settings_prefers_args_over_env_and_default(self):
+        with patch.object(
+            Config,
+            "parse_args",
+            return_value={"cmd": "run", "loglevel": "ERROR", "parallel": False},
+        ), patch.dict(os.environ, {"EPG2XML_LOGLEVEL": "DEBUG"}, clear=False):
+            config = Config()
+
+        self.assertEqual(config.settings["loglevel"], "ERROR")
+
+    def test_get_settings_coerces_parallel_env_value(self):
+        args = {"cmd": "run"}
+        args.update({name: None for name in Config.base_settings})
+        with patch.object(Config, "parse_args", return_value=args), patch.dict(
+            os.environ,
+            {"EPG2XML_PARALLEL": "true"},
+            clear=False,
+        ):
+            config = Config()
+
+        self.assertTrue(config.settings["parallel"])
 
 
 if __name__ == "__main__":

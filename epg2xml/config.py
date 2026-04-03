@@ -108,41 +108,57 @@ class Config:
             "argv": "--config",
             "env": "EPG2XML_CONFIG",
             "default": str(Path.cwd().joinpath("epg2xml.json")),
+            "help": "config file path",
+            "argparse": {"nargs": "?", "const": None},
         },
         "logfile": {
             "argv": "--logfile",
             "env": "EPG2XML_LOGFILE",
             "default": None,
+            "help": "log file path",
+            "argparse": {"nargs": "?", "const": None},
         },
         "loglevel": {
             "argv": "--loglevel",
             "env": "EPG2XML_LOGLEVEL",
             "default": "INFO",
+            "help": "loglevel",
+            "argparse": {"choices": ("DEBUG", "INFO", "WARNING", "ERROR")},
         },
         "channelfile": {
             "argv": "--channelfile",
             "env": "EPG2XML_CHANNELFILE",
             "default": str(Path.cwd().joinpath("Channel.json")),
+            "help": "channel file path",
+            "argparse": {"nargs": "?", "const": None},
         },
         "xmlfile": {
             "argv": "--xmlfile",
             "env": "EPG2XML_XMLFILE",
             "default": None,
+            "help": "write output to file if specified",
+            "argparse": {"nargs": "?", "const": None},
         },
         "xmlsock": {
             "argv": "--xmlsock",
             "env": "EPG2XML_XMLSOCK",
             "default": None,
+            "help": "send output to unix socket if specified",
+            "argparse": {"nargs": "?", "const": None},
         },
         "parallel": {
             "argv": "--parallel",
             "env": "EPG2XML_PARALLEL",
             "default": False,
+            "help": "run in parallel",
+            "argparse": {"action": "store_true"},
         },
         "dbfile": {
             "argv": "--dbfile",
             "env": "EPG2XML_DBFILE",
             "default": None,
+            "help": "export/import data to/from db",
+            "argparse": {"nargs": "?", "const": None},
         },
     }
 
@@ -256,13 +272,11 @@ class Config:
         for name, data in self.base_settings.items():
             # Argrument priority: cmd < environment < default
             try:
-                value = None
                 # Command line argument
-                if self.args[name]:
-                    value = self.args[name]
-                    logger.debug("setting from ARG   --%s=%s", name, value)
-
-                # Envirnoment variable
+                arg_value = self.args.get(name)
+                if arg_value not in (None, False):
+                    value = arg_value
+                    logger.debug("setting from ARG   --%s=%s", name, arg_value)
                 elif data["env"] in os.environ:
                     value = os.environ[data["env"]]
                     logger.debug("setting from ENV   --%s=%s", data["env"], value)
@@ -325,67 +339,12 @@ class Config:
             version=f"{__title__} v{__version__}",
         )
 
-        # Config file
-        parser.add_argument(
-            self.base_settings["config"]["argv"],
-            nargs="?",
-            const=None,
-            help=f"config file path (default: {self.base_settings['config']['default']})",
-        )
-
-        # Log file
-        parser.add_argument(
-            self.base_settings["logfile"]["argv"],
-            nargs="?",
-            const=None,
-            help=f"log file path (default: {self.base_settings['logfile']['default']})",
-        )
-
-        # Log level
-        parser.add_argument(
-            self.base_settings["loglevel"]["argv"],
-            choices=("DEBUG", "INFO", "WARNING", "ERROR"),
-            help=f"loglevel (default: {self.base_settings['loglevel']['default']})",
-        )
-
-        # Channel file
-        parser.add_argument(
-            self.base_settings["channelfile"]["argv"],
-            nargs="?",
-            const=None,
-            help=f"channel file path (default: {self.base_settings['channelfile']['default']})",
-        )
-
-        # XML file
-        parser.add_argument(
-            self.base_settings["xmlfile"]["argv"],
-            nargs="?",
-            const=None,
-            help="write output to file if specified",
-        )
-
-        # XML socket
-        parser.add_argument(
-            self.base_settings["xmlsock"]["argv"],
-            nargs="?",
-            const=None,
-            help="send output to unix socket if specified",
-        )
-
-        # Run in Parallel
-        parser.add_argument(
-            self.base_settings["parallel"]["argv"],
-            action="store_true",
-            help="run in parallel",
-        )
-
-        # DB file
-        parser.add_argument(
-            self.base_settings["dbfile"]["argv"],
-            nargs="?",
-            const=None,
-            help="export/import data to/from db",
-        )
+        for name, data in self.base_settings.items():
+            help_text = data["help"]
+            if data["default"]:
+                help_text += f" (default: {data['default']})"
+            kwargs = {"dest": name, "help": help_text, **data.get("argparse", {})}
+            parser.add_argument(data["argv"], **kwargs)
 
         # Print help by default if no arguments
         if len(sys.argv) == 1:
