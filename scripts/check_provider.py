@@ -3,26 +3,15 @@ import os
 import subprocess
 import sys
 from contextlib import redirect_stdout
+from copy import deepcopy
 from importlib import import_module
 from pathlib import Path
 from random import shuffle
 from timeit import default_timer as timer
 
 from epg2xml import __title__, __version__
-
-
-CFG = {
-    "ENABLED": True,
-    "FETCH_LIMIT": 2,
-    "ID_FORMAT": "{No}.{Source.lower()}",
-    "ADD_REBROADCAST_TO_TITLE": False,
-    "ADD_EPNUM_TO_TITLE": True,
-    "ADD_DESCRIPTION": True,
-    "ADD_XMLTV_NS": False,
-    "ADD_CHANNEL_ICON": True,
-    "HTTP_PROXY": os.environ.get("HTTP_PROXY"),
-    "MY_CHANNELS": "*",
-}
+from epg2xml.config import Config
+from epg2xml.providers.all import get_provider_spec
 
 
 def setup_logging():
@@ -42,9 +31,17 @@ def setup_logging():
 
 
 def build_provider(provider_name: str):
-    cfg = dict(CFG)
-    module = import_module(f"epg2xml.providers.{provider_name.lower()}")
-    provider = getattr(module, provider_name.upper())(cfg)
+    spec = get_provider_spec(provider_name)
+    if spec is None:
+        raise ImportError(f"No such provider found: '{provider_name}'")
+
+    cfg = deepcopy(Config.base_config["GLOBAL"])
+    cfg["MY_CHANNELS"] = []
+    cfg["HTTP_PROXY"] = os.environ.get("HTTP_PROXY")
+    cfg["MY_CHANNELS"] = "*"
+
+    module = import_module(f"epg2xml.providers.{spec.name}")
+    provider = getattr(module, spec.class_name)(cfg)
     return provider
 
 

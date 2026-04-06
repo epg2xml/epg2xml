@@ -13,12 +13,28 @@ on:
         default: 'false'
 
 jobs:
+  prepare:
+    runs-on: ubuntu-22.04
+    outputs:
+      providers_json: ${{ steps.providers.outputs.providers_json }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v6
+    - name: Export provider matrix
+      id: providers
+      run: |
+        providers_json="$(
+          python3 -c 'import json; from epg2xml.providers.all import PROVIDERS; print(json.dumps([provider.name for provider in PROVIDERS]))'
+        )"
+        echo "providers_json=$providers_json" >> "$GITHUB_OUTPUT"
+
   stats:
+    needs: prepare
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
-        provider: [kt, lg, sk, daum, naver, tving, wavve, spotv, kbs, mbc, sbs]
+        provider: ${{ fromJson(needs.prepare.outputs.providers_json) }}
         python-version: ['3.8', '3.14']
     steps:
     - name: Set up Python ${{ matrix.python-version }}

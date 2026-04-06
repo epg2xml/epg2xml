@@ -27,6 +27,7 @@ sys.modules.setdefault("bs4", bs4)
 
 import epg2xml.providers as providers_module
 from epg2xml.providers import Credit, EPGChannel, EPGHandler, EPGProgram, EPGProvider, SQLite
+from epg2xml.providers.all import get_provider_spec
 from epg2xml.providers.mbc import MBC
 from epg2xml.providers.spotv import SPOTV
 from epg2xml.providers.wavve import WAVVE
@@ -35,7 +36,7 @@ from epg2xml.utils import time_to_td
 CFG = {
     "ENABLED": True,
     "FETCH_LIMIT": 2,
-    "ID_FORMAT": "{ServiceId}.{Source.lower()}",
+    "ID_FORMAT": "{No}.{Source.lower()}",
     "ADD_REBROADCAST_TO_TITLE": False,
     "ADD_EPNUM_TO_TITLE": True,
     "ADD_DESCRIPTION": True,
@@ -195,6 +196,11 @@ class TestProvider(unittest.TestCase):
         self.assertEqual(provider.svc_channels, provider.to_return)
         self.assertEqual(provider.fetch_count, 1)
         self.assertTrue(provider.was_channel_updated)
+
+    def test_registry_lookup_accepts_canonical_name_and_alias(self):
+        self.assertEqual(get_provider_spec("KT").name, "kt")
+        self.assertEqual(get_provider_spec("kt").class_name, "KT")
+        self.assertIsNone(get_provider_spec("missing"))
 
     def test_request_uses_default_timeout_and_status_check(self):
         session = DummySession()
@@ -383,7 +389,7 @@ class TestProvider(unittest.TestCase):
         self.assertEqual(program.cast, [Credit(name="Alice", title="actor", role="lead")])
         self.assertEqual(program.crew, [Credit(name="Bob", title="director", role=None)])
         self.assertEqual(program.rating, 15)
-        self.assertIn("<actor role=\"lead\">Alice</actor>", xml)
+        self.assertIn('<actor role="lead">Alice</actor>', xml)
         self.assertIn("<director>Bob</director>", xml)
 
     def test_program_to_xml_handles_part_title_without_existing_subtitle(self):
@@ -399,8 +405,8 @@ class TestProvider(unittest.TestCase):
         program.to_xml(CFG, writer=buffer)
 
         xml = buffer.getvalue()
-        self.assertIn("<title lang=\"ko\">Program</title>", xml)
-        self.assertIn("<sub-title lang=\"ko\">2부</sub-title>", xml)
+        self.assertIn('<title lang="ko">Program</title>', xml)
+        self.assertIn('<sub-title lang="ko">2부</sub-title>', xml)
 
     def test_program_to_xml_falls_back_to_subtitle_when_title_is_missing(self):
         program = EPGProgram(
@@ -415,7 +421,7 @@ class TestProvider(unittest.TestCase):
         program.to_xml(CFG, writer=buffer)
 
         xml = buffer.getvalue()
-        self.assertIn("<title lang=\"ko\">부제만 있음</title>", xml)
+        self.assertIn('<title lang="ko">부제만 있음</title>', xml)
 
     def test_program_to_xml_uses_placeholder_when_title_and_subtitle_are_missing(self):
         program = EPGProgram(
@@ -430,7 +436,7 @@ class TestProvider(unittest.TestCase):
         program.to_xml(CFG, writer=buffer)
 
         xml = buffer.getvalue()
-        self.assertIn("<title lang=\"ko\">제목 없음</title>", xml)
+        self.assertIn('<title lang="ko">제목 없음</title>', xml)
 
     def test_program_sanitize_accepts_credit_objects(self):
         program = EPGProgram(

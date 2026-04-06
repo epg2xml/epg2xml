@@ -24,6 +24,7 @@ bs4.FeatureNotFound = DummyFeatureNotFound
 sys.modules.setdefault("bs4", bs4)
 
 from epg2xml.config import Config, ConfigUpgradeRequired
+from epg2xml.providers.all import PROVIDERS
 from epg2xml.utils import load_json, strip_json_comments
 
 
@@ -49,6 +50,11 @@ class TestConfig(unittest.TestCase):
 
         self.assertEqual(Config.base_config["KT"]["MY_CHANNELS"], [])
         self.assertIsNone(Config.base_config["GLOBAL"]["HTTP_PROXY"])
+
+    def test_base_config_contains_all_registry_providers(self):
+        for provider in PROVIDERS:
+            self.assertIn(provider.name.upper(), Config.base_config)
+            self.assertEqual(Config.base_config[provider.name.upper()], {"MY_CHANNELS": []})
 
     def test_load_creates_missing_config_and_raises_upgrade_required(self):
         with tempfile.TemporaryDirectory() as tmpdir:

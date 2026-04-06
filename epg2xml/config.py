@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Union
 
 from epg2xml import __description__, __title__, __url__, __version__
+from epg2xml.providers.all import PROVIDERS
 from epg2xml.utils import dump_json, load_json
 
 # suppress modules logging
@@ -68,39 +69,7 @@ class Config:
             "ADD_CHANNEL_ICON": True,
             "HTTP_PROXY": None,
         },
-        "KT": {
-            "MY_CHANNELS": [],
-        },
-        "LG": {
-            "MY_CHANNELS": [],
-        },
-        "SK": {
-            "MY_CHANNELS": [],
-        },
-        "DAUM": {
-            "MY_CHANNELS": [],
-        },
-        "NAVER": {
-            "MY_CHANNELS": [],
-        },
-        "WAVVE": {
-            "MY_CHANNELS": [],
-        },
-        "TVING": {
-            "MY_CHANNELS": [],
-        },
-        "SPOTV": {
-            "MY_CHANNELS": [],
-        },
-        "KBS": {
-            "MY_CHANNELS": [],
-        },
-        "MBC": {
-            "MY_CHANNELS": [],
-        },
-        "SBS": {
-            "MY_CHANNELS": [],
-        },
+        **{provider.name.upper(): {"MY_CHANNELS": []} for provider in PROVIDERS},
     }
 
     base_settings = {
