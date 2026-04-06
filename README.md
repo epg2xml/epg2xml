@@ -181,6 +181,9 @@ pip install "epg2xml[lxml] @ git+https://github.com/epg2xml/epg2xml.git@{tag_bra
 - `ID_FORMAT`: 기존의 `Id` 값은 이제 강제사항이 아니며 사용자가 개별 채널마다 직접 지정하거나 f-string 포맷으로 일괄 적용할 수 있다. 보안상 임의 코드 실행은 불가하며, 문자열 메서드(`lower`, `replace`, `strip` 등)만 지원한다.
 - `ADD_CHANNEL_ICON`: 기본 제공되는 `Icon_url`을 포함하고 싶지 않다면 `false`를 입력한다. 기본값 `true`.
 - `HTTP_PROXY`: 필요할 경우 프록시 URL을 입력한다. 예) <http://id:pw@netloc:port> 기본값 `null`.
+  각 제공자에 `HTTP_PROXY`를 따로 지정하면 그 값이 우선하고, 없으면 `GLOBAL.HTTP_PROXY`를 따른다.
+  config에 프록시를 지정하지 않은 경우에는 HTTP 라이브러리의 환경변수 자동 인식에 따라 `HTTP_PROXY`/`HTTPS_PROXY`를 사용할 수도 있다.
+  특히 대부분의 요청이 `https://...` 이므로 환경변수 방식만 사용할 때는 `HTTPS_PROXY`도 함께 설정하는 것을 권장한다.
 - 나머지는 기존의 옵션에서 이름만 변경되었다.
 
 `MY_CHANNELS`는 채널 파일 `Channel.json`을 참고하여 작성한다.

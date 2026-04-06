@@ -1,5 +1,4 @@
 import logging
-import os
 import subprocess
 import sys
 from contextlib import redirect_stdout
@@ -36,8 +35,6 @@ def build_provider(provider_name: str):
         raise ImportError(f"No such provider found: '{provider_name}'")
 
     cfg = deepcopy(Config.base_config["GLOBAL"])
-    cfg["MY_CHANNELS"] = []
-    cfg["HTTP_PROXY"] = os.environ.get("HTTP_PROXY")
     cfg["MY_CHANNELS"] = "*"
 
     module = import_module(f"epg2xml.providers.{spec.name}")
