@@ -14,7 +14,7 @@ on:
 
 jobs:
   prepare:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     outputs:
       providers_json: ${{ steps.providers.outputs.providers_json }}
     steps:
@@ -30,7 +30,7 @@ jobs:
 
   stats:
     needs: prepare
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
