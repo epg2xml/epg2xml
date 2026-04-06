@@ -179,6 +179,20 @@ class TestProvider(unittest.TestCase):
         self.assertEqual(provider.fetch_count, 1)
         self.assertTrue(provider.was_channel_updated)
 
+    def test_provider_session_uses_post_init_headers_for_stdlib_requests(self):
+        session = DummySession()
+        fake_requests = types.SimpleNamespace(__name__="requests", Session=lambda: session)
+
+        with patch.object(providers_module, "requests", fake_requests), patch.object(
+            fake_requests, "Session", return_value=session
+        ):
+            provider = FAKE(dict(CFG))
+
+        self.assertEqual(provider.sess, session)
+        self.assertEqual(session.kwargs, {})
+        self.assertEqual(session.headers["Referer"], provider.referer)
+        self.assertEqual(session.headers["User-Agent"], providers_module.UA)
+
     def test_load_svc_channels_fetches_when_cache_is_outdated(self):
         with patch("epg2xml.providers.requests.Session", DummySession):
             provider = FAKE(dict(CFG))

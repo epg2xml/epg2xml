@@ -428,12 +428,11 @@ class EPGProvider:
         self.log = PrefixLogger(log, f"[{self.provider_name:5s}]")
         self.cfg = cfg
         # session
-        sess_kwargs = {"headers": {"Referer": self.referer}}
         if "cffi" in requests.__name__:
-            sess_kwargs["impersonate"] = "chrome"
+            self.sess = requests.Session(headers={"Referer": self.referer}, impersonate="chrome")
         else:
-            sess_kwargs["headers"]["User-Agent"] = UA
-        self.sess = requests.Session(**sess_kwargs)
+            self.sess = requests.Session()
+            self.sess.headers.update({"Referer": self.referer, "User-Agent": UA})
         if http_proxy := cfg["HTTP_PROXY"]:
             self.sess.proxies.update({"http": http_proxy, "https": http_proxy})
         if self.title_regex:
