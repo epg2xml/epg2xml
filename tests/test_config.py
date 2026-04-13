@@ -56,6 +56,9 @@ class TestConfig(unittest.TestCase):
             self.assertIn(provider.name.upper(), Config.base_config)
             self.assertEqual(Config.base_config[provider.name.upper()], {"MY_CHANNELS": []})
 
+    def test_base_config_uses_serviceid_global_id_format(self):
+        self.assertEqual(Config.base_config["GLOBAL"]["ID_FORMAT"], "{ServiceId}.{Source.lower()}")
+
     def test_load_creates_missing_config_and_raises_upgrade_required(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             config_path = Path(tmpdir) / "epg2xml.json"

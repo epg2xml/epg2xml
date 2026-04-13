@@ -36,7 +36,7 @@ from epg2xml.utils import time_to_td
 CFG = {
     "ENABLED": True,
     "FETCH_LIMIT": 2,
-    "ID_FORMAT": "{No}.{Source.lower()}",
+    "ID_FORMAT": "{ServiceId}.{Source.lower()}",
     "ADD_REBROADCAST_TO_TITLE": False,
     "ADD_EPNUM_TO_TITLE": True,
     "ADD_DESCRIPTION": True,

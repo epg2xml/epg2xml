@@ -36,6 +36,8 @@ def build_provider(provider_name: str):
 
     cfg = deepcopy(Config.base_config["GLOBAL"])
     cfg["MY_CHANNELS"] = "*"
+    if provider_name.lower() in ["daum", "kbs", "mbc"]:
+        cfg["ID_FORMAT"] = "{No}.{Source.lower()}"
 
     module = import_module(f"epg2xml.providers.{spec.name}")
     provider = getattr(module, spec.class_name)(cfg)
