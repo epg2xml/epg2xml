@@ -308,8 +308,11 @@ class EPGProgram:
 
         # rating
         if rating:
-            # TODO: 영상물등급위원회(KMRB)는 TV프로그램 심의에 관여하지 않으므로 수정이 필요
-            _r = Element("rating", system="KMRB")
+            # 한국 TV 프로그램 시청등급은 영화·비디오물 쪽 제도인 KMRB 표기로 적기 어렵다.
+            # KCSC(방심위)도 검토했지만, 실제 등급 표시는 방송사/플랫폼의 자체 분류에 가깝고
+            # 방심위는 기준 설정·조정 역할이어서 특정 기관명을 system 값으로 단정하기 애매하다.
+            # 그래서 여기서는 가장 중립적인 국가 단위 표기인 KR을 사용한다.
+            _r = Element("rating", system="KR")
             _r.append(Element("value", rating))
             _p.append(_r)
 
