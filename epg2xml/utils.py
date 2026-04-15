@@ -9,7 +9,7 @@ from datetime import timedelta
 from functools import wraps
 from math import floor
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, Union
 
 _YAML_BOOL_TAG = "tag:yaml.org,2002:bool"
 _YAML_BOOL_PATTERN = re.compile(r"^(?:true|True|TRUE|false|False|FALSE)$")
@@ -45,14 +45,14 @@ def _load_yaml_module():
     return yaml
 
 
-def dump_config(path: Path | str, data: Any):
+def dump_config(path: Union[Path, str], data: Any):
     if (path := Path(path)).suffix.lower() in {".yaml", ".yml"}:
         dumped = _load_yaml_module().safe_dump(data, allow_unicode=True, sort_keys=False)
         return path.write_text(dumped, encoding="utf-8")
     return dump_json(path, data)
 
 
-def load_config(path: Path | str):
+def load_config(path: Union[Path, str]):
     if (path := Path(path)).suffix.lower() in {".yaml", ".yml"}:
         loaded = _load_yaml_module().load(path.read_text(encoding="utf-8"), Loader=ConfigYamlLoader)
         if not isinstance(loaded, dict):
@@ -61,7 +61,7 @@ def load_config(path: Path | str):
     return load_json(path)
 
 
-def dump_json(path: Path | str, data: Any):
+def dump_json(path: Union[Path, str], data: Any):
     txt = json.dumps(data, ensure_ascii=False, indent=2)
     # Keep channel lists compact in JSON output.
     txt = re.sub(r",\n\s{8}\"", ', "', txt)
@@ -131,7 +131,7 @@ def strip_json_comments(text: str) -> str:
     return "".join(result)
 
 
-def load_json(path: Path | str):
+def load_json(path: Union[Path, str]):
     txt = Path(path).read_text(encoding="utf-8")
     return json.loads(strip_json_comments(txt))
 
