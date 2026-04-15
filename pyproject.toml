@@ -48,9 +48,11 @@ dynamic = ["version"]
 [project.optional-dependencies]
 lxml = ["lxml"]
 curl = ["curl_cffi"]
+yaml = ["PyYAML"]
 all = [
     "epg2xml[lxml]",
     "epg2xml[curl]",
+    "epg2xml[yaml]",
 ]
 
 [project.urls]

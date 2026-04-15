@@ -11,9 +11,52 @@ from math import floor
 from pathlib import Path
 from typing import Any, Callable, Optional
 
+_YAML_BOOL_TAG = "tag:yaml.org,2002:bool"
+_YAML_BOOL_PATTERN = re.compile(r"^(?:true|True|TRUE|false|False|FALSE)$")
+
+try:
+    import yaml
+
+    class ConfigYamlLoader(yaml.SafeLoader):
+        pass
+
+    ConfigYamlLoader.yaml_implicit_resolvers = {
+        key: [resolver for resolver in resolvers if resolver[0] != _YAML_BOOL_TAG]
+        for key, resolvers in yaml.SafeLoader.yaml_implicit_resolvers.items()
+    }
+    ConfigYamlLoader.add_implicit_resolver(_YAML_BOOL_TAG, _YAML_BOOL_PATTERN, list("tTfF"))
+except ImportError:
+    yaml = None
+
 from bs4 import BeautifulSoup, FeatureNotFound
 
 log = logging.getLogger("UTILS")
+
+
+class OptionalDependencyError(ImportError):
+    pass
+
+
+def _load_yaml_module():
+    if yaml is None:
+        raise OptionalDependencyError("YAML config requires PyYAML. Install with: pip install epg2xml[yaml]")
+    return yaml
+
+
+def dump_config(path: Path | str, data: Any):
+    if (path := Path(path)).suffix.lower() in {".yaml", ".yml"}:
+        dumped = _load_yaml_module().safe_dump(data, allow_unicode=True, sort_keys=False)
+        return path.write_text(dumped, encoding="utf-8")
+    return dump_json(path, data)
+
+
+def load_config(path: Path | str):
+    if (path := Path(path)).suffix.lower() in {".yaml", ".yml"}:
+        loaded = _load_yaml_module().load(path.read_text(encoding="utf-8"), Loader=ConfigYamlLoader)
+        if not isinstance(loaded, dict):
+            raise ValueError("Config file must contain a mapping at the top level.")
+        return loaded
+    return load_json(path)
 
 
 def dump_json(path: Path | str, data: Any):

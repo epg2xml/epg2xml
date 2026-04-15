@@ -23,9 +23,43 @@ bs4.BeautifulSoup = DummyBeautifulSoup
 bs4.FeatureNotFound = DummyFeatureNotFound
 sys.modules.setdefault("bs4", bs4)
 
-from epg2xml.config import Config, ConfigUpgradeRequired
+from epg2xml.config import Config, ConfigLoadError, ConfigUpgradeRequired
 from epg2xml.providers.all import PROVIDERS
-from epg2xml.utils import load_json, strip_json_comments
+from epg2xml.utils import OptionalDependencyError, dump_config, load_config, load_json, strip_json_comments
+
+
+class DummyYamlModule:
+    class SafeLoader:
+        yaml_implicit_resolvers = {}
+
+        @classmethod
+        def add_implicit_resolver(cls, _tag, _regexp, _first):
+            pass
+
+    @staticmethod
+    def safe_load(stream):
+        text = stream.read() if hasattr(stream, "read") else stream
+        if "GLOBAL:" not in text:
+            return {}
+        return {
+            "GLOBAL": {"ENABLED": True},
+            "KT": {"MY_CHANNELS": [{"ServiceId": "100"}]},
+        }
+
+    @staticmethod
+    def load(stream, Loader=None):
+        del Loader
+        return DummyYamlModule.safe_load(stream)
+
+    @staticmethod
+    def safe_dump(data, allow_unicode=True, sort_keys=False):
+        del allow_unicode, sort_keys
+        lines = []
+        for section, values in data.items():
+            lines.append(f"{section}:")
+            for key, value in values.items():
+                lines.append(f"  {key}: {value}")
+        return "\n".join(lines) + "\n"
 
 
 class TestConfig(unittest.TestCase):
@@ -93,6 +127,80 @@ class TestConfig(unittest.TestCase):
 
             self.assertEqual(load_json(config_path), {"a": 1, "url": "http://a//b", "b": 2})
 
+    def test_load_config_accepts_yaml_when_dependency_is_available(self):
+        source = "GLOBAL:\n  ENABLED: true\nKT:\n  MY_CHANNELS:\n    - ServiceId: '100'\n"
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config_path = Path(tmpdir) / "config.yaml"
+            config_path.write_text(source, encoding="utf-8")
+
+            with patch("epg2xml.utils._load_yaml_module", return_value=DummyYamlModule):
+                self.assertEqual(
+                    load_config(config_path),
+                    {
+                        "GLOBAL": {"ENABLED": True},
+                        "KT": {"MY_CHANNELS": [{"ServiceId": "100"}]},
+                    },
+                )
+
+    def test_load_config_preserves_yaml_keys_like_no(self):
+        class YamlWithCustomLoader:
+            class SafeLoader:
+                yaml_implicit_resolvers = {"N": [("tag:yaml.org,2002:bool", object())]}
+
+                @classmethod
+                def add_implicit_resolver(cls, tag, regexp, first):
+                    cls.yaml_implicit_resolvers.setdefault(first[0], []).append((tag, regexp))
+
+            @staticmethod
+            def load(_stream, Loader=None):
+                assert Loader is not None
+                return {
+                    "KT": {
+                        "MY_CHANNELS": [
+                            {"Name": "EBS", "No": "13", "ServiceId": "13", "Category": "지상파"}
+                        ],
+                        "ENABLED": True,
+                    }
+                }
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config_path = Path(tmpdir) / "config.yaml"
+            config_path.write_text("KT: {}\n", encoding="utf-8")
+
+            with patch("epg2xml.utils._load_yaml_module", return_value=YamlWithCustomLoader):
+                self.assertEqual(
+                    load_config(config_path),
+                    {
+                        "KT": {
+                            "MY_CHANNELS": [
+                                {"Name": "EBS", "No": "13", "ServiceId": "13", "Category": "지상파"}
+                            ],
+                            "ENABLED": True,
+                        }
+                    },
+                )
+
+    def test_dump_config_writes_yaml_when_requested(self):
+        data = {"GLOBAL": {"ENABLED": True}, "KT": {"MY_CHANNELS": []}}
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config_path = Path(tmpdir) / "config.yml"
+
+            with patch("epg2xml.utils._load_yaml_module", return_value=DummyYamlModule):
+                dump_config(config_path, data)
+
+            self.assertIn("GLOBAL:\n  ENABLED: True\n", config_path.read_text(encoding="utf-8"))
+
+    def test_load_config_raises_clear_error_without_yaml_dependency(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config_path = Path(tmpdir) / "config.yaml"
+            config_path.write_text("GLOBAL:\n  ENABLED: true\n", encoding="utf-8")
+
+            with patch("epg2xml.utils._load_yaml_module", side_effect=OptionalDependencyError("missing yaml")):
+                with self.assertRaises(OptionalDependencyError):
+                    load_config(config_path)
+
     def test_get_settings_prefers_args_over_env_and_default(self):
         with patch.object(
             Config,
@@ -114,6 +222,33 @@ class TestConfig(unittest.TestCase):
             config = Config()
 
         self.assertTrue(config.settings["parallel"])
+
+    def test_load_creates_missing_yaml_config_and_raises_upgrade_required(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config_path = Path(tmpdir) / "epg2xml.yaml"
+            with patch.object(Config, "parse_args", return_value={"cmd": "run"}), patch.object(
+                Config, "get_settings", return_value={"config": str(config_path)}
+            ):
+                config = Config()
+
+            with patch("epg2xml.utils._load_yaml_module", return_value=DummyYamlModule):
+                with self.assertRaises(ConfigUpgradeRequired):
+                    config.load()
+
+            self.assertTrue(config_path.exists())
+            self.assertIn("GLOBAL:", config_path.read_text(encoding="utf-8"))
+
+    def test_load_missing_yaml_config_without_dependency_raises_config_error(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config_path = Path(tmpdir) / "epg2xml.yaml"
+            with patch.object(Config, "parse_args", return_value={"cmd": "run"}), patch.object(
+                Config, "get_settings", return_value={"config": str(config_path)}
+            ):
+                config = Config()
+
+            with patch("epg2xml.utils._load_yaml_module", side_effect=OptionalDependencyError("missing yaml")):
+                with self.assertRaises(ConfigLoadError):
+                    config.load()
 
 
 if __name__ == "__main__":

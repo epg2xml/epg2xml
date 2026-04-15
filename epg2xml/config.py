@@ -11,7 +11,7 @@ from typing import Union
 
 from epg2xml import __description__, __title__, __url__, __version__
 from epg2xml.providers.all import PROVIDERS
-from epg2xml.utils import dump_json, load_json
+from epg2xml.utils import OptionalDependencyError, dump_config, load_config
 
 # suppress modules logging
 logging.getLogger("requests").setLevel(logging.ERROR)
@@ -208,13 +208,13 @@ class Config:
 
     def load(self):
         logger.debug("Loading config...")
-        if not Path(self.settings["config"]).exists():
-            logger.info("No config file found. Creating a default one...")
-            self.save(self.default_config)
-            raise ConfigUpgradeRequired(self.settings["config"])
-
         try:
-            cfg, upgraded = self.upgrade_configs(load_json(self.settings["config"]))
+            if not Path(self.settings["config"]).exists():
+                logger.info("No config file found. Creating a default one...")
+                self.save(self.default_config)
+                raise ConfigUpgradeRequired(self.settings["config"])
+
+            cfg, upgraded = self.upgrade_configs(load_config(self.settings["config"]))
 
             # Save config if upgraded
             if upgraded:
@@ -222,12 +222,12 @@ class Config:
                 raise ConfigUpgradeRequired(self.settings["config"])
 
             self.load_with_hidden(cfg)
-        except (json.decoder.JSONDecodeError, ValueError) as exc:
+        except (json.decoder.JSONDecodeError, OptionalDependencyError, ValueError) as exc:
             logger.exception("Please check your config here: %s", self.settings["config"])
             raise ConfigLoadError(self.settings["config"]) from exc
 
     def save(self, cfg):
-        dump_json(self.settings["config"], cfg)
+        dump_config(self.settings["config"], cfg)
         logger.info("Your config was upgraded. You may check the changes here: %r", self.settings["config"])
 
     def get_settings(self):
