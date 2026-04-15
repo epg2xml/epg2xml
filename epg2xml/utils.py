@@ -8,20 +8,20 @@ import xml.etree.ElementTree as ET
 from datetime import timedelta
 from functools import wraps
 from math import floor
-from typing import Callable, Optional
+from pathlib import Path
+from typing import Any, Callable, Optional
 
 from bs4 import BeautifulSoup, FeatureNotFound
 
 log = logging.getLogger("UTILS")
 
 
-def dump_json(file_path, data) -> int:
-    with open(file_path, "w", encoding="utf-8") as f:
-        txt = json.dumps(data, ensure_ascii=False, indent=2)
-        # for compact form of channellist in json files
-        txt = re.sub(r",\n\s{8}\"", ', "', txt)
-        txt = re.sub(r"\s{6}{\s+(.*)\s+}", r"      { \g<1> }", txt)
-        return f.write(txt)
+def dump_json(path: Path | str, data: Any):
+    txt = json.dumps(data, ensure_ascii=False, indent=2)
+    # for compact form of channellist in json files
+    txt = re.sub(r",\n\s{8}\"", ', "', txt)
+    txt = re.sub(r"\s{6}{\s+(.*)\s+}", r"      { \g<1> }", txt)
+    return Path(path).write_text(txt, encoding="utf-8")
 
 
 def strip_json_comments(text: str) -> str:
@@ -86,9 +86,9 @@ def strip_json_comments(text: str) -> str:
     return "".join(result)
 
 
-def load_json(file_path):
-    with open(file_path, "r", encoding="utf-8") as f:
-        return json.loads(strip_json_comments(f.read()))
+def load_json(path: Path | str):
+    txt = Path(path).read_text(encoding="utf-8")
+    return json.loads(strip_json_comments(txt))
 
 
 def norm_text(value) -> Optional[str]:
