@@ -29,7 +29,7 @@ pip install git+https://github.com/epg2xml/epg2xml.git@{tag_branch_hash}
 pip install "epg2xml[lxml] @ git+https://github.com/epg2xml/epg2xml.git@{tag_branch_hash}"
 ```
 
-`curl_cffi`와 함께 설치하려면 `[lxml]` 대신 `[curl]` 모든 것을 포함하려면 `[all]`을 입력한다. 그 외의 설치 방법은 [위키](https://github.com/epg2xml/epg2xml/wiki/%EC%84%A4%EC%B9%98)를 참고.
+`curl_cffi`와 함께 설치하려면 `[lxml]` 대신 `[curl]`, YAML 설정 파일도 사용하려면 `[yaml]`, 모든 것을 포함하려면 `[all]`을 입력한다. 그 외의 설치 방법은 [위키](https://github.com/epg2xml/epg2xml/wiki/%EC%84%A4%EC%B9%98)를 참고.
 
 ### 실행
 
@@ -55,7 +55,7 @@ pip install "epg2xml[lxml] @ git+https://github.com/epg2xml/epg2xml.git@{tag_bra
 
     ```bash
     2021/03/04 02:19:51 INFO     CONFIG   183: No config file found. Creating a default one...
-    2021/03/04 02:19:51 INFO     CONFIG   206: Your config was upgraded. You may check the changes here: 'epg2xml.json'
+    2021/03/04 02:19:51 INFO     CONFIG   206: Your config was upgraded. You can review it here: 'epg2xml.json'
     ```
 
     처음 실행하면 설정 파일이 없기에 기본값의 `epg2xml.json`을 생성하고 종료한다.
@@ -67,17 +67,16 @@ pip install "epg2xml[lxml] @ git+https://github.com/epg2xml/epg2xml.git@{tag_bra
     ```
 
     ```bash
-    2021/03/04 02:22:37 INFO     PROV     114: [KT   ] 307 service channels successfully fetched from server.
-    2021/03/04 02:22:47 INFO     PROV     114: [LG   ] 310 service channels successfully fetched from server.
-    2021/03/04 02:22:49 INFO     PROV     114: [SK   ] 265 service channels successfully fetched from server.
-    2021/03/04 02:22:58 INFO     PROV     114: [DAUM ] 336 service channels successfully fetched from server.
-    2021/03/04 02:23:04 INFO     PROV     114: [NAVER] 470 service channels successfully fetched from server.
-    2021/03/04 02:23:06 INFO     PROV     114: [WAVVE] 119 service channels successfully fetched from server.
-    2021/03/04 02:23:32 INFO     PROV     114: [TVING] 350 service channels successfully fetched from server.
-    2021/03/04 02:23:32 INFO     PROV      48: Channel file was upgraded. You may check the changes here: Channel.json
-    2021/03/04 02:23:32 INFO     MAIN      99: Writing xmltv.dtd header ...
-    2021/03/04 02:23:32 INFO     MAIN     121: Done.
-    2021/02/27 15:03:30 INFO     MAIN      95: Writing xmltv.dtd header ...
+    2021/03/04 02:22:37 INFO     PROV     114: [KT   ] Fetched 307 service channels from the server
+    2021/03/04 02:22:47 INFO     PROV     114: [LG   ] Fetched 310 service channels from the server
+    2021/03/04 02:22:49 INFO     PROV     114: [SK   ] Fetched 265 service channels from the server
+    2021/03/04 02:22:58 INFO     PROV     114: [DAUM ] Fetched 336 service channels from the server
+    2021/03/04 02:23:04 INFO     PROV     114: [NAVER] Fetched 470 service channels from the server
+    2021/03/04 02:23:06 INFO     PROV     114: [WAVVE] Fetched 119 service channels from the server
+    2021/03/04 02:23:32 INFO     PROV     114: [TVING] Fetched 350 service channels from the server
+    2021/03/04 02:23:32 INFO     PROV      48: The channel file was upgraded. You can review it here: Channel.json
+    2021/03/04 02:23:32 INFO     MAIN      99: Writing xmltv.dtd header...
+    2021/03/04 02:23:32 INFO     MAIN     121: Done
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE tv SYSTEM "xmltv.dtd">
 
@@ -124,6 +123,8 @@ pip install "epg2xml[lxml] @ git+https://github.com/epg2xml/epg2xml.git@{tag_bra
 다시 말하지만 이 파일은 참고용, 읽기 전용이다. **내용을 편집하거나 삭제하지 않는다.**
 
 ## 설정 파일 작성법
+
+기본 설정 파일은 JSON 형식이며, `PyYAML`을 추가로 설치하면 YAML 형식(`.yaml`, `.yml`)도 사용할 수 있다.
 
 ```json
 {
@@ -182,7 +183,7 @@ pip install "epg2xml[lxml] @ git+https://github.com/epg2xml/epg2xml.git@{tag_bra
 - `ADD_CHANNEL_ICON`: 기본 제공되는 `Icon_url`을 포함하고 싶지 않다면 `false`를 입력한다. 기본값 `true`.
 - `HTTP_PROXY`: 필요할 경우 프록시 URL을 입력한다. 예) <http://id:pw@netloc:port> 기본값 `null`.
   각 제공자에 `HTTP_PROXY`를 따로 지정하면 그 값이 우선하고, 없으면 `GLOBAL.HTTP_PROXY`를 따른다.
-  config에 프록시를 지정하지 않은 경우에는 HTTP 라이브러리의 환경변수 자동 인식에 따라 `HTTP_PROXY`/`HTTPS_PROXY`를 사용할 수도 있다.
+  설정 파일에 프록시를 지정하지 않은 경우에는 HTTP 라이브러리의 환경변수 자동 인식에 따라 `HTTP_PROXY`/`HTTPS_PROXY`를 사용할 수도 있다.
   특히 대부분의 요청이 `https://...` 이므로 환경변수 방식만 사용할 때는 `HTTPS_PROXY`도 함께 설정하는 것을 권장한다.
 - 나머지는 기존의 옵션에서 이름만 변경되었다.
 
@@ -211,16 +212,16 @@ positional arguments:
 options:
   -h, --help            show this help message and exit
   -v, --version         show program's version number and exit
-  --config [CONFIG]     config file path (default: epg2xml.json)
-  --logfile [LOGFILE]   log file path (default: None)
+  --config [CONFIG]     path to the config file (default: epg2xml.json)
+  --logfile [LOGFILE]   path to the log file (default: None)
   --loglevel {DEBUG,INFO,WARNING,ERROR}
-                        loglevel (default: INFO)
+                        log level (default: INFO)
   --channelfile [CHANNELFILE]
-                        channel file path (default: Channel.json)
-  --xmlfile [XMLFILE]   write output to file if specified
-  --xmlsock [XMLSOCK]   send output to unix socket if specified
+                        path to the channel file (default: Channel.json)
+  --xmlfile [XMLFILE]   write output to this file
+  --xmlsock [XMLSOCK]   send output to this Unix socket
   --parallel            run in parallel
-  --dbfile [DBFILE]     export/import data to/from db
+  --dbfile [DBFILE]     path to the database file for import/export
 
 Online help: <https://github.com/epg2xml/epg2xml>
 ```

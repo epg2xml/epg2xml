@@ -461,10 +461,10 @@ class EPGProvider:
                     return r.text
             except requests.exceptions.RequestException as e:
                 if attempt >= self.retry_attempts:
-                    self.log.error("요청 중 에러: %s (%s)", request_desc, e)
+                    self.log.error("Request failed: %s (%s)", request_desc, e)
                     return ""
                 self.log.warning(
-                    "요청 실패, 재시도 %d/%d: %s (%s)",
+                    "Request failed, retrying %d/%d: %s (%s)",
                     attempt,
                     self.retry_attempts - 1,
                     request_desc,
@@ -498,7 +498,7 @@ class EPGProvider:
         else:
             self.svc_channels = channels
             self.was_channel_updated = True
-            self.log.info("%03d service channels successfully fetched from server", len(channels))
+            self.log.info("Fetched %03d service channels from the server", len(channels))
 
     def get_svc_channels(self) -> List[dict]:
         raise NotImplementedError("The 'get_svc_channels' method must be implemented")
@@ -536,7 +536,10 @@ class EPGProvider:
                 req_ch.pop("Icon_url", None)
             req_channels.append(EPGChannel.fromdict(**req_ch))
         self.log.info(
-            "요청 %3d - 불가 %3d = 최종 %3d", len(my_channels), len(my_channels) - len(req_channels), len(req_channels)
+            "Requested %3d - unavailable %3d = final %3d",
+            len(my_channels),
+            len(my_channels) - len(req_channels),
+            len(req_channels),
         )
         self.req_channels = req_channels
 
@@ -620,7 +623,7 @@ class EPGHandler:
         log.debug("Checking uniqueness of channelid...")
         cids = [c.id for p in self.providers for c in p.req_channels]
         if len(cids) != len(set(cids)):
-            raise DuplicateChannelIdError(f"채널ID 중복: { {k:v for k,v in Counter(cids).items() if v > 1} }")
+            raise DuplicateChannelIdError(f"Duplicate channel IDs: { {k:v for k,v in Counter(cids).items() if v > 1} }")
 
     def get_programs(self, parallel: bool = False):
         if parallel:
