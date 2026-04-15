@@ -13,7 +13,7 @@ from epg2xml import __description__, __title__, __url__, __version__
 from epg2xml.providers.all import PROVIDERS
 from epg2xml.utils import OptionalDependencyError, dump_config, load_config
 
-# suppress modules logging
+# Reduce log noise from third-party modules.
 logging.getLogger("requests").setLevel(logging.ERROR)
 logging.getLogger("urllib3.connectionpool").setLevel(logging.ERROR)
 logging.getLogger("curl_cffi").setLevel(logging.ERROR)
@@ -43,7 +43,7 @@ def setup_root_logger(
         level = logging.INFO
 
     if handler is None:
-        # logging to console, stderr by default
+        # Log to stderr by default.
         handler = logging.StreamHandler()
 
     if formatter is None:
@@ -132,7 +132,7 @@ class Config:
     }
 
     def __init__(self):
-        """Initializes config"""
+        """Initialize config state."""
         # Args and settings
         self.args = self.parse_args()
         self.settings = self.get_settings()
@@ -141,7 +141,7 @@ class Config:
 
     @property
     def default_config(self):
-        """reserved for adding extra fields"""
+        """Return a copy of the base config for future extension."""
         return deepcopy(self.base_config)
 
     def __inner_upgrade(self, settings1, settings2, key=None, overwrite=False):
@@ -150,7 +150,7 @@ class Config:
 
         if isinstance(settings1, dict):
             for k, v in settings1.items():
-                # missing k
+                # Add missing keys from the base config.
                 if k not in settings2:
                     merged[k] = v
                     sub_upgraded = True
@@ -160,7 +160,7 @@ class Config:
                         logger.info("Added %r to config option %r: %s", str(k), str(key), str(v))
                     continue
 
-                # iterate children
+                # Recurse into nested dicts and lists.
                 if isinstance(v, (dict, list)):
                     merged[k], did_upgrade = self.__inner_upgrade(
                         settings1[k], settings2[k], key=k, overwrite=overwrite
@@ -182,24 +182,24 @@ class Config:
     def upgrade_configs(self, currents):
         fields_env = {}
 
-        # ENV gets priority: ENV > config.json
+        # Environment variables take precedence over the config file.
         for name, _ in self.base_config.items():
             if name in os.environ:
-                # Use JSON decoder to get same behaviour as config file
+                # Use the JSON decoder to match config file parsing behavior.
                 fields_env[name] = json.JSONDecoder().decode(os.environ[name])
                 logger.debug("setting from ENV   --%s=%s", name, fields_env[name])
 
-        # Update in-memory config with environment settings
+        # Update the in-memory config with environment settings.
         currents.update(fields_env)
 
-        # Do inner upgrade
+        # Merge the user config with the current base config.
         upgraded_configs, upgraded = self.__inner_upgrade(self.base_config, currents)
         return upgraded_configs, upgraded
 
     def load_with_hidden(self, cfg_old):
         cfg_new = deepcopy(cfg_old)
         for p in cfg_new:
-            # push items in GLOBAL as defaults
+            # Apply GLOBAL values as per-provider defaults.
             for k, v in cfg_old["GLOBAL"].items():
                 if k not in cfg_new[p]:
                     cfg_new[p][k] = deepcopy(v)
@@ -216,19 +216,19 @@ class Config:
 
             cfg, upgraded = self.upgrade_configs(load_config(self.settings["config"]))
 
-            # Save config if upgraded
+            # Save the config if new keys were added.
             if upgraded:
                 self.save(cfg)
                 raise ConfigUpgradeRequired(self.settings["config"])
 
             self.load_with_hidden(cfg)
         except (json.decoder.JSONDecodeError, OptionalDependencyError, ValueError) as exc:
-            logger.exception("Please check your config here: %s", self.settings["config"])
+            logger.exception("Please check your config file: %s", self.settings["config"])
             raise ConfigLoadError(self.settings["config"]) from exc
 
     def save(self, cfg):
         dump_config(self.settings["config"], cfg)
-        logger.info("Your config was upgraded. You may check the changes here: %r", self.settings["config"])
+        logger.info("Your config was upgraded. You can review it here: %r", self.settings["config"])
 
     def get_settings(self):
         setts = {}
@@ -239,7 +239,7 @@ class Config:
         )
         logging.getLogger().setLevel(initial_loglevel)
         for name, data in self.base_settings.items():
-            # setting priority: arg -> env -> default
+            # Setting priority: arg -> env -> default.
             try:
                 if (value := self.args.get(name)) not in (None, False):
                     logger.debug("setting from ARG   %s=%s", data["argv"][-1], value)
@@ -253,30 +253,30 @@ class Config:
                 setts[name] = value
 
             except KeyError:
-                logger.exception("Exception raised on setting value: %r", name)
+                logger.exception("Failed to resolve setting %r", name)
 
-        # checking existance of important files' dir
+        # Check that parent directories for important files exist.
         for argname in ["config", "logfile", "channelfile", "dbfile"]:
             filepath = setts[argname]
             if filepath is not None and not Path(filepath).parent.exists():
                 raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), filepath)
 
-        # handling of boolean args
+        # Normalize boolean arguments.
         for argname in ["parallel"]:
             if isinstance(setts[argname], str):
                 setts[argname] = setts[argname].lower() in ("y", "yes", "t", "true", "on", "1")
 
-        # logging to file
+        # Configure file logging.
         if setts["logfile"] is not None:
             fileHandler = RotatingFileHandler(setts["logfile"], maxBytes=2 * 1024**2, backupCount=5, encoding="utf-8")
             setup_root_logger(handler=fileHandler)
 
-        # set configured log level
+        # Apply the configured log level.
         logging.getLogger().setLevel(setts["loglevel"])
 
         return setts
 
-    # Parse command line arguments
+    # Parse command-line arguments.
     def parse_args(self):
         parser = argparse.ArgumentParser(
             prog=__title__,
@@ -285,7 +285,7 @@ class Config:
             formatter_class=argparse.RawTextHelpFormatter,
         )
 
-        # Mode
+        # Mode selection.
         parser.add_argument(
             "cmd",
             metavar="command",
@@ -299,7 +299,7 @@ class Config:
             ),
         )
 
-        # Display version info
+        # Display version information.
         parser.add_argument(
             "-v",
             "--version",
@@ -314,7 +314,7 @@ class Config:
             kwargs = {"dest": name, "help": help_text, **data.get("argparse", {})}
             parser.add_argument(*data["argv"], **kwargs)
 
-        # Print help by default if no arguments
+        # Print help if no arguments were provided.
         if len(sys.argv) == 1:
             parser.print_help()
             raise ConfigHelpRequested()
@@ -322,5 +322,5 @@ class Config:
         return vars(parser.parse_args())
 
 
-# logging
+# Initialize logging.
 setup_root_logger()

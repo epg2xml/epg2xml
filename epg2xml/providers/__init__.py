@@ -398,7 +398,7 @@ class EPGChannel:
         self.sanitize()
         self.validate()
         chel = Element("channel", id=self.id)
-        # TODO: something better for display-name?
+        # TODO: Find a better strategy for display-name values.
         chel.append(Element("display-name", self.name))
         chel.append(Element("display-name", self.src))
         if self.no:
@@ -441,7 +441,7 @@ class EPGProvider:
         if self.title_regex:
             self.title_regex = re.compile(self.title_regex)
         self.request = RateLimiter(tps=self.tps)(self.__request)
-        # placeholders
+        # Runtime state placeholders.
         self.svc_channels: List[dict] = []
         self.req_channels: List[EPGChannel] = []
 
@@ -475,7 +475,7 @@ class EPGProvider:
         return ""
 
     def load_svc_channels(self, channeljson: dict = None) -> None:
-        # check if update required
+        # Check whether the cache needs to be refreshed.
         try:
             channelinfo = channeljson[self.provider_name.upper()]
             total = channelinfo["TOTAL"]
@@ -487,27 +487,27 @@ class EPGProvider:
                 self.svc_channels = channels
                 self.log.info("%03d service channels loaded from cache", len(channels))
                 return
-            self.log.debug("Updating service channels as outdated...")
+            self.log.debug("Refreshing service channels because the cache is stale...")
         except (KeyError, TypeError, ValueError) as e:
-            self.log.debug("Updating service channels as cache broken: %s", e)
+            self.log.debug("Refreshing service channels because the cache is invalid: %s", e)
 
         try:
             channels = self.get_svc_channels()
         except (AttributeError, KeyError, TypeError, ValueError):
-            self.log.exception("Exception while retrieving service channels:")
+            self.log.exception("Error while retrieving service channels:")
         else:
             self.svc_channels = channels
             self.was_channel_updated = True
             self.log.info("%03d service channels successfully fetched from server", len(channels))
 
     def get_svc_channels(self) -> List[dict]:
-        raise NotImplementedError("method 'get_svc_channels' must be implemented")
+        raise NotImplementedError("The 'get_svc_channels' method must be implemented")
 
     def load_req_channels(self) -> None:
-        """from MY_CHANNELS to req_channels"""
+        """Load requested channels from MY_CHANNELS into req_channels."""
         my_channels = self.cfg["MY_CHANNELS"]
         if my_channels == "*":
-            self.log.debug("Overriding all MY_CHANNELS by service channels...")
+            self.log.debug("Replacing MY_CHANNELS with all service channels...")
             my_channels = self.svc_channels
         if not my_channels:
             return
@@ -515,11 +515,11 @@ class EPGProvider:
         svc_channels = {x["ServiceId"]: x for x in self.svc_channels}
         for my_no, my_ch in enumerate(my_channels):
             if "ServiceId" not in my_ch:
-                self.log.warning("'ServiceId' Not Found: %s", my_ch)
+                self.log.warning("'ServiceId' not found: %s", my_ch)
                 continue
             req_ch = svc_channels.pop(my_ch["ServiceId"], None)
             if req_ch is None:
-                self.log.warning("'ServiceId' Not in Service: %s", my_ch)
+                self.log.warning("'ServiceId' not found in service channels: %s", my_ch)
                 continue
             for _k, _v in my_ch.items():
                 if _v:
@@ -543,12 +543,12 @@ class EPGProvider:
     def write_channels(self, writer: TextIO = None) -> None:
         for ch in self.req_channels:
             if not ch.programs:
-                log.warning("Skip writing as no program entries found for '%s'", ch.id)
+                log.warning("Skipping '%s' because no program entries were found", ch.id)
                 continue
             ch.to_xml(writer=writer)
 
     def get_programs(self) -> None:
-        raise NotImplementedError("method 'get_programs' must be implemented")
+        raise NotImplementedError("The 'get_programs' method must be implemented")
 
     def write_programs(self, writer: TextIO = None) -> None:
         for ch in self.req_channels:
@@ -568,7 +568,7 @@ def no_endtime(func):
 
 
 class EPGHandler:
-    """for handling EPGProviders"""
+    """Coordinate multiple EPG providers."""
 
     def __init__(self, cfgs: dict):
         self.providers: List[EPGProvider] = self.load_providers(cfgs)
@@ -582,17 +582,17 @@ class EPGHandler:
                 m = import_module(f"epg2xml.providers.{name.lower()}")
                 providers.append(getattr(m, name.upper())(cfg))
             except ModuleNotFoundError:
-                log.error("No such provider found: '%s'", name)
-                raise ImportError(f"No such provider found: '{name}'") from None
+                log.error("Unknown provider: '%s'", name)
+                raise ImportError(f"Unknown provider: '{name}'") from None
         return providers
 
     def load_channels(self, channelfile: str, parallel: bool = False) -> None:
         try:
-            log.debug("Trying to load cached channels from json")
+            log.debug("Trying to load cached channels from JSON")
             with open(channelfile, "r", encoding="utf-8") as fp:
                 channeljson = json.load(fp)
         except (json.decoder.JSONDecodeError, ValueError, FileNotFoundError) as e:
-            log.debug("Failed to load cached channels from json: %s", e)
+            log.debug("Failed to load cached channels from JSON: %s", e)
             channeljson = {}
         if parallel:
             with ThreadPoolExecutor() as exe:
@@ -611,7 +611,7 @@ class EPGHandler:
                     "CHANNELS": p.svc_channels,
                 }
             dump_json(channelfile, channeljson)
-            log.info("Channel file was upgraded. You may check the changes here: %s", channelfile)
+            log.info("The channel file was upgraded. You can review it here: %s", channelfile)
 
     def load_req_channels(self):
         for p in self.providers:
@@ -650,12 +650,12 @@ class EPGHandler:
 
     @property
     def all_channels(self) -> Iterator:
-        """shortcut to access all channels in providers"""
+        """Return an iterator over all channels across providers."""
         return chain.from_iterable(p.req_channels for p in self.providers)
 
     @property
     def all_programs(self) -> Iterator:
-        """shortcut to access all programs in providers"""
+        """Return an iterator over all programs across providers."""
         return chain.from_iterable(ch.programs for ch in self.all_channels)
 
     def to_db(self, dbfile: PathLike) -> None:

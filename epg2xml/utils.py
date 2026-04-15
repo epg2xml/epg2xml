@@ -39,7 +39,9 @@ class OptionalDependencyError(ImportError):
 
 def _load_yaml_module():
     if yaml is None:
-        raise OptionalDependencyError("YAML config requires PyYAML. Install with: pip install epg2xml[yaml]")
+        raise OptionalDependencyError(
+            "YAML config support requires PyYAML. Install it with: pip install epg2xml[yaml]"
+        )
     return yaml
 
 
@@ -61,7 +63,7 @@ def load_config(path: Path | str):
 
 def dump_json(path: Path | str, data: Any):
     txt = json.dumps(data, ensure_ascii=False, indent=2)
-    # for compact form of channellist in json files
+    # Keep channel lists compact in JSON output.
     txt = re.sub(r",\n\s{8}\"", ', "', txt)
     txt = re.sub(r"\s{6}{\s+(.*)\s+}", r"      { \g<1> }", txt)
     return Path(path).write_text(txt, encoding="utf-8")
@@ -265,7 +267,7 @@ class ParserBeautifulSoup(BeautifulSoup):
         pass
 
     def __init__(self, markup, **kwargs):
-        # pick the first parser available
+        # Pick the first available parser.
         for parser in ["lxml", "html.parser"]:
             try:
                 super().__init__(markup, parser, **kwargs)
@@ -277,7 +279,7 @@ class ParserBeautifulSoup(BeautifulSoup):
 
 
 class RateLimiter:
-    """original implementation by tomasbasham/ratelimit"""
+    """Based on the original implementation by tomasbasham/ratelimit."""
 
     try:
         now: Callable = time.monotonic  # Use monotonic time if available

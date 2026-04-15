@@ -32,7 +32,7 @@ def setup_logging():
 def build_provider(provider_name: str):
     spec = get_provider_spec(provider_name)
     if spec is None:
-        raise ImportError(f"No such provider found: '{provider_name}'")
+        raise ImportError(f"Unknown provider: '{provider_name}'")
 
     cfg = deepcopy(Config.base_config["GLOBAL"])
     cfg["MY_CHANNELS"] = "*"
@@ -66,10 +66,10 @@ def main(argv=None) -> int:
         shuffle(req_channels)
 
     if limit_arg.isdecimal() and (num_req := int(limit_arg)) > 0:
-        log.info("Using %d of them...", num_req)
+        log.info("Using %d requested channels...", num_req)
         req_channels = req_channels[: max(1, num_req)]
     elif (percent_req := float(limit_arg) * 100) > 0.0:
-        log.info("Using %3.1f%% of them...", percent_req)
+        log.info("Using %3.1f%% of the requested channels...", percent_req)
         num_req = int(len(req_channels) * percent_req / 100)
         req_channels = req_channels[: max(10, num_req)]
 
@@ -83,8 +83,8 @@ def main(argv=None) -> int:
     provider.req_channels = [x for x in provider.req_channels if x.programs]
     num_live = len(provider.req_channels)
 
-    log.info("To load service channels: %.2fs", etime_ch)
-    log.info("To get EPG: %.2fs/%d = %.2fs", etime_prog, num_req, etime_prog / num_req)
+    log.info("Service channel load time: %.2fs", etime_ch)
+    log.info("EPG fetch time: %.2fs/%d = %.2fs", etime_prog, num_req, etime_prog / num_req)
     log.info("Requested: %d / Alive: %d", num_req, num_live)
 
     if not provider.req_channels:
