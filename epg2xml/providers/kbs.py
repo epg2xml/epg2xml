@@ -19,7 +19,7 @@ class KBS(EPGProvider):
     max_batch_channels = 5  # 20까지 가능하지만 과도한 요청을 방지하기 위해...
 
     PTN_CHANNEL_LIST = re.compile(
-        r"var\s+channelList\s*=\s*JSON\.parse\('(?P<data>.*?)'\);",
+        r"window\.adminChannelList\s*=\s*JSON\.parse\('(?P<data>.*?)'\)",
         flags=re.DOTALL,
     )
 
