@@ -87,8 +87,9 @@ class DAUM(EPGProvider):
                     for atag in dl.select("dd > a"):
                         _epg.title = atag.text.strip()
                     for span in dl.select("dd > span"):
-                        class_val = " ".join(span["class"])
+                        class_val = " ".join(span.get("class", []))
                         if class_val == "":
+                            # Daum may render unlinked program names without a class.
                             _epg.title = span.text.strip()
                         elif "ico_re" in class_val:
                             _epg.rebroadcast = True
@@ -97,6 +98,9 @@ class DAUM(EPGProvider):
                         else:
                             # ico_live ico_hd ico_subtitle ico_hand ico_uhd ico_talk ico_st
                             _epg.add_extra(span.text)
+                    # This is an empty schedule slot, not a program.
+                    if _epg.title.startswith("방송 시간이 아닙니다"):
+                        continue
                     if m := self.title_regex.search(_epg.title):
                         _epg.title = m.group("title")
                         _epg.part_num = m.group("part")
