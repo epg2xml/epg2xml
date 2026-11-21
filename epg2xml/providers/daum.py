@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from typing import List
+from urllib.parse import quote_plus
 
 from epg2xml.providers import EPGProgram, EPGProvider, no_endtime
 from epg2xml.utils import ParserBeautifulSoup as BeautifulSoup
@@ -18,7 +19,7 @@ class DAUM(EPGProvider):
     """
 
     referer = None
-    search_url = "https://search.daum.net/search?DA=B3T&w=tot&rtmaxcoll=B3T&q={} 편성표"
+    search_url = "https://search.daum.net/search?DA=B3T&w=tot&rtmaxcoll=B3T&q={}"
     title_regex = r"^(?P<title>.*?)\s?([\<\(]?(?P<part>\d{1})부[\>\)]?)?\s?(<(?P<subname1>.*)>)?\s?((?P<epnum>\d+)회)?\s?(<(?P<subname2>.*)>)?$"
 
     def get_svc_channels(self) -> List[dict]:
@@ -26,7 +27,7 @@ class DAUM(EPGProvider):
         channelsel1 = '#channelNaviLayer > div[class^="layer_tv layer_all"] ul > li'
         channelsel2 = 'div[class="wrap_sub"] > span > a'
         for c in CH_CATE:
-            url = self.search_url.format(c)
+            url = self.search_url.format(quote_plus(f"{c} 편성표"))
             data = self.request(url)
             soup = BeautifulSoup(data)
             if not soup.find_all(attrs={"disp-attr": "B3T"}):
@@ -49,7 +50,8 @@ class DAUM(EPGProvider):
     def get_programs(self) -> None:
         for idx, _ch in enumerate(self.req_channels):
             self.log.info("%03d/%03d %s", idx + 1, len(self.req_channels), _ch)
-            url = self.search_url.format(_ch.svcid)
+            query = _ch.svcid.replace("홈&쇼핑", "홈앤쇼핑")
+            url = self.search_url.format(quote_plus(f"{query} 편성표"))
             data = self.request(url)
             try:
                 _epgs = self.__epgs_of_days(_ch.id, data)
