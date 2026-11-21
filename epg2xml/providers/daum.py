@@ -103,12 +103,18 @@ class DAUM(EPGProvider):
                     # This is an empty schedule slot, not a program.
                     if _epg.title.startswith("방송 시간이 아닙니다"):
                         continue
-                    if m := self.title_regex.search(_epg.title):
-                        _epg.title = m.group("title")
-                        _epg.part_num = m.group("part")
-                        _epg.ep_num = m.group("epnum")
-                        _epg.title_sub = m.group("subname2") or m.group("subname1")
-                        if _epg.part_num:
-                            _epg.title += f" {_epg.part_num}부"
+                    raw_title = _epg.title
+                    if m := self.title_regex.search(raw_title):
+                        parsed_title = (m.group("title") or "").strip()
+                        if parsed_title:
+                            _epg.title = parsed_title
+                            _epg.part_num = m.group("part")
+                            _epg.ep_num = m.group("epnum")
+                            _epg.title_sub = m.group("subname2") or m.group("subname1")
+                            if _epg.part_num:
+                                _epg.title += f" {_epg.part_num}부"
+                        else:
+                            # Keep the source title when the regex consumes it as a subtitle.
+                            _epg.title = raw_title
                     _epgs.append(_epg)
         return _epgs
