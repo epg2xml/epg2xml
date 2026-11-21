@@ -6,7 +6,7 @@
 
 ### 요구 조건
 
-1. Python 3.8 이상
+1. Python 3.10–3.15
 2. Python Package `requests`, `beautifulsoup4`
 3. Python Package `lxml` (선택 사항으로 속도 향상을 기대할 수 있다.)
 4. Python Package `curl_cffi` (선택 사항으로 차단을 우회를 기대할 수 있다.)
