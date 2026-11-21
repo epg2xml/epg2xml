@@ -19,7 +19,7 @@ jobs:
       providers_json: ${{ steps.providers.outputs.providers_json }}
     steps:
     - name: Set up Python
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: '3.12'
     - name: Checkout
@@ -46,7 +46,7 @@ jobs:
         python-version: ['3.8', '3.14']
     steps:
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: ${{ matrix.python-version }}
     - name: Checkout
