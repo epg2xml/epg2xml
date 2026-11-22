@@ -72,7 +72,7 @@ class DAUM(EPGProvider):
 
         # 연도 추정
         currdate = datetime.now()  # 언제나 basedate보다 미래
-        basedate = datetime.strptime(days[0].text.strip(), "%m.%d").replace(year=currdate.year)
+        basedate = datetime.strptime(f"{currdate.year} {days[0].text.strip()}", "%Y %m.%d")
         if (basedate - currdate).days > 0:
             basedate = basedate.replace(year=basedate.year - 1)
 
